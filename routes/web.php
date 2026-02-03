@@ -10,6 +10,7 @@ use App\Http\Controllers\ItemController;
 use App\Http\Controllers\EquipmentController;
 use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\SectionController;
+use App\Http\Controllers\LabResultController;
 use Inertia\Inertia;
 
 Route::get('/', function () {
@@ -42,3 +43,6 @@ Route::get('activity-logs', [ActivityLogController::class, 'index'])->name('acti
 
 // Section CRUD routes
 Route::resource('sections', SectionController::class);
+
+// Lab Result CRUD routes
+Route::resource('lab-results', LabResultController::class);
