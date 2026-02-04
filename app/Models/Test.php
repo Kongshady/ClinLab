@@ -14,6 +14,7 @@ class Test extends Model
         'section_id',
         'label',
         'current_price',
+        'previous_price',
     ];
 
     protected $casts = [
@@ -31,6 +32,12 @@ class Test extends Model
     public function section()
     {
         return $this->belongsTo(Section::class, 'section_id', 'section_id');
+    }
+
+    // Relationship with price history
+    public function priceHistory()
+    {
+        return $this->hasMany(TestPriceHistory::class, 'test_id', 'test_id')->orderBy('updated_at', 'desc');
     }
 
     // Soft delete method

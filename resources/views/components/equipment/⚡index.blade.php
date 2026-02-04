@@ -35,6 +35,7 @@ new class extends Component
     public $remarks = '';
 
     public $search = '';
+    public $perPage = 'all';
     public $flashMessage = '';
 
     public function mount()
@@ -78,40 +79,46 @@ new class extends Component
 
     public function with(): array
     {
+        $query = Equipment::active()
+            ->with('section')
+            ->when($this->search, function ($query) {
+                $query->where(function ($q) {
+                    $q->where('name', 'like', '%' . $this->search . '%')
+                      ->orWhere('model', 'like', '%' . $this->search . '%')
+                      ->orWhere('serial_no', 'like', '%' . $this->search . '%');
+                });
+            })
+            ->orderBy('equipment_id', 'desc');
+
         return [
-            'equipment' => Equipment::active()
-                ->with('section')
-                ->when($this->search, function ($query) {
-                    $query->where(function ($q) {
-                        $q->where('name', 'like', '%' . $this->search . '%')
-                          ->orWhere('model', 'like', '%' . $this->search . '%')
-                          ->orWhere('serial_no', 'like', '%' . $this->search . '%');
-                    });
-                })
-                ->orderBy('equipment_id', 'desc')
-                ->paginate(50),
+            'equipment' => $this->perPage === 'all' ? $query->get() : $query->paginate((int)$this->perPage),
             'sections' => Section::active()->orderBy('label')->get()
         ];
     }
 };
 ?>
 
-<div class="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 p-6">
-    <div class="max-w-7xl mx-auto">
-        <div class="mb-8">
-            <h1 class="text-4xl font-bold text-gray-800 mb-2">Equipment Management</h1>
-            <p class="text-gray-600">Manage laboratory equipment and instruments</p>
+<div class="p-6">
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold text-gray-900 flex items-center">
+            <svg class="w-7 h-7 mr-2 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/>
+            </svg>
+            Equipment Management
+        </h1>
+    </div>
+
+    @if($flashMessage)
+        <div class="mb-6 p-4 bg-green-50 border-l-4 border-green-500 rounded">
+            <p class="text-green-800">{{ $flashMessage }}</p>
         </div>
+    @endif
 
-        @if($flashMessage)
-            <div class="mb-6 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative" role="alert">
-                <span class="block sm:inline">{{ $flashMessage }}</span>
-            </div>
-        @endif
-
-        <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
-            <h2 class="text-2xl font-bold text-gray-800 mb-6">Add New Equipment</h2>
-            <form wire:submit.prevent="save">
+    <div class="bg-white rounded-lg shadow-sm mb-6">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h2 class="text-lg font-semibold text-gray-900">Add New Equipment</h2>
+        </div>
+        <form wire:submit.prevent="save" class="p-6">
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Equipment Name *</label>
@@ -120,23 +127,23 @@ new class extends Component
                         @error('name') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Model</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Model</label>
                         <input type="text" wire:model="model" 
-                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent">
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
                         @error('model') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Serial Number</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Serial Number</label>
                         <input type="text" wire:model="serial_no" 
-                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent">
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
                         @error('serial_no') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
                     </div>
                 </div>
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Section *</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Section *</label>
                         <select wire:model="section_id" 
-                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent">
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
                             <option value="">Select Section</option>
                             @foreach($sections as $section)
                                 <option value="{{ $section->section_id }}">{{ $section->label }}</option>
@@ -145,9 +152,9 @@ new class extends Component
                         @error('section_id') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
                         <select wire:model="status" 
-                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent">
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
                             <option value="Operational">Operational</option>
                             <option value="Under Maintenance">Under Maintenance</option>
                             <option value="Broken">Broken</option>
@@ -155,46 +162,64 @@ new class extends Component
                         </select>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Purchase Date</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Purchase Date</label>
                         <input type="date" wire:model="purchase_date" 
-                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent">
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Supplier</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Supplier</label>
                         <input type="text" wire:model="supplier" 
-                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent">
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
                     </div>
                 </div>
-                <div class="mt-6">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Remarks</label>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Remarks</label>
                     <textarea wire:model="remarks" rows="3"
-                              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"></textarea>
+                              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
                 </div>
-                <div class="mt-6">
+                <div class="flex justify-end">
                     <button type="submit" 
-                            class="bg-gradient-to-r from-pink-500 to-purple-500 text-white px-6 py-3 rounded-lg hover:from-pink-600 hover:to-purple-600 transition duration-200 font-medium">
+                            class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors">
                         Add Equipment
                     </button>
                 </div>
             </form>
         </div>
 
-        <div class="bg-white rounded-xl shadow-lg p-6">
-            <div class="mb-6">
-                <input type="text" wire:model.live="search" placeholder="Search equipment..." 
-                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent">
+    <div class="bg-white rounded-lg shadow-sm">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h2 class="text-lg font-semibold text-gray-900">Equipment List</h2>
+        </div>
+        <div class="p-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Search Equipment</label>
+                    <input type="text" wire:model.live="search" placeholder="Search equipment..." 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Rows per page</label>
+                    <select wire:model.live="perPage" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="10">10</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                        <option value="all">All</option>
+                    </select>
+                </div>
             </div>
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gradient-to-r from-pink-50 to-purple-50">
-                        <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">ID</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Name</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Model</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Serial No</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Section</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Status</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Actions</th>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Model</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Serial No</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Section</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
@@ -230,9 +255,12 @@ new class extends Component
                     </tbody>
                 </table>
             </div>
-            <div class="mt-6">
-                {{ $equipment->links() }}
-            </div>
+            
+            @if($perPage !== 'all' && method_exists($equipment, 'hasPages') && $equipment->hasPages())
+                <div class="px-6 py-4 border-t border-gray-200">
+                    {{ $equipment->links() }}
+                </div>
+            @endif
         </div>
     </div>
 </div>
