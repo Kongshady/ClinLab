@@ -1,170 +1,112 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Add New Patient</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        body {
-            font-family: Arial, sans-serif;
-            padding: 20px;
-            background-color: #f5f5f5;
-        }
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            background-color: white;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        h1 {
-            color: #333;
-            margin-bottom: 30px;
-        }
-        .form-group {
-            margin-bottom: 20px;
-        }
-        label {
-            display: block;
-            margin-bottom: 5px;
-            color: #495057;
-            font-weight: 500;
-        }
-        input, select, textarea {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ced4da;
-            border-radius: 4px;
-            font-size: 14px;
-        }
-        input:focus, select:focus, textarea:focus {
-            outline: none;
-            border-color: #007bff;
-        }
-        .error {
-            color: #dc3545;
-            font-size: 12px;
-            margin-top: 5px;
-        }
-        .btn {
-            padding: 10px 20px;
-            text-decoration: none;
-            border-radius: 4px;
-            display: inline-block;
-            cursor: pointer;
-            border: none;
-            font-size: 14px;
-            margin-right: 10px;
-        }
-        .btn-primary {
-            background-color: #007bff;
-            color: white;
-        }
-        .btn-primary:hover {
-            background-color: #0056b3;
-        }
-        .btn-secondary {
-            background-color: #6c757d;
-            color: white;
-        }
-        .btn-secondary:hover {
-            background-color: #5a6268;
-        }
-        .form-actions {
-            margin-top: 30px;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>Add New Patient</h1>
-        
-        <form action="{{ route('patients.store') }}" method="POST">
-            @csrf
-            
-            <div class="form-group">
-                <label for="patient_type">Patient Type <span style="color: red;">*</span></label>
-                <select name="patient_type" id="patient_type" required>
-                    <option value="">Select Type</option>
-                    <option value="Internal" {{ old('patient_type') == 'Internal' ? 'selected' : '' }}>Internal</option>
-                    <option value="External" {{ old('patient_type') == 'External' ? 'selected' : '' }}>External</option>
-                </select>
-                @error('patient_type')
-                    <div class="error">{{ $message }}</div>
-                @enderror
-            </div>
+@extends('layouts.app')
 
-            <div class="form-group">
-                <label for="firstname">First Name <span style="color: red;">*</span></label>
-                <input type="text" name="firstname" id="firstname" value="{{ old('firstname') }}" required maxlength="50">
-                @error('firstname')
-                    <div class="error">{{ $message }}</div>
-                @enderror
-            </div>
+@section('content')
+<div class="p-6">
+    <div class="max-w-4xl mx-auto">
+        <!-- Header -->
+        <div class="mb-6">
+            <h1 class="text-2xl font-bold text-gray-900">Add New Patient</h1>
+            <p class="mt-1 text-sm text-gray-600">Fill in the patient information below</p>
+        </div>
 
-            <div class="form-group">
-                <label for="middlename">Middle Name</label>
-                <input type="text" name="middlename" id="middlename" value="{{ old('middlename') }}" maxlength="50">
-                @error('middlename')
-                    <div class="error">{{ $message }}</div>
-                @enderror
-            </div>
+        <!-- Form Card -->
+        <div class="bg-white rounded-lg shadow-sm p-6">
+            <form action="{{ route('patients.store') }}" method="POST">
+                @csrf
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Patient Type -->
+                    <div>
+                        <label for="patient_type" class="block text-sm font-medium text-gray-700 mb-2">Patient Type <span class="text-red-500">*</span></label>
+                        <select name="patient_type" id="patient_type" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <option value="">Select Type</option>
+                            <option value="Internal" {{ old('patient_type') == 'Internal' ? 'selected' : '' }}>Internal</option>
+                            <option value="External" {{ old('patient_type') == 'External' ? 'selected' : '' }}>External</option>
+                        </select>
+                        @error('patient_type')
+                            <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
+                        @enderror
+                    </div>
 
-            <div class="form-group">
-                <label for="lastname">Last Name <span style="color: red;">*</span></label>
-                <input type="text" name="lastname" id="lastname" value="{{ old('lastname') }}" required maxlength="50">
-                @error('lastname')
-                    <div class="error">{{ $message }}</div>
-                @enderror
-            </div>
+                    <!-- Gender -->
+                    <div>
+                        <label for="gender" class="block text-sm font-medium text-gray-700 mb-2">Gender <span class="text-red-500">*</span></label>
+                        <select name="gender" id="gender" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <option value="">Select Gender</option>
+                            <option value="Male" {{ old('gender') == 'Male' ? 'selected' : '' }}>Male</option>
+                            <option value="Female" {{ old('gender') == 'Female' ? 'selected' : '' }}>Female</option>
+                        </select>
+                        @error('gender')
+                            <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
+                        @enderror
+                    </div>
 
-            <div class="form-group">
-                <label for="birthdate">Birthdate <span style="color: red;">*</span></label>
-                <input type="date" name="birthdate" id="birthdate" value="{{ old('birthdate') }}" required>
-                @error('birthdate')
-                    <div class="error">{{ $message }}</div>
-                @enderror
-            </div>
+                    <!-- First Name -->
+                    <div>
+                        <label for="firstname" class="block text-sm font-medium text-gray-700 mb-2">First Name <span class="text-red-500">*</span></label>
+                        <input type="text" name="firstname" id="firstname" value="{{ old('firstname') }}" required maxlength="50" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        @error('firstname')
+                            <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
+                        @enderror
+                    </div>
 
-            <div class="form-group">
-                <label for="gender">Gender <span style="color: red;">*</span></label>
-                <select name="gender" id="gender" required>
-                    <option value="">Select Gender</option>
-                    <option value="Male" {{ old('gender') == 'Male' ? 'selected' : '' }}>Male</option>
-                    <option value="Female" {{ old('gender') == 'Female' ? 'selected' : '' }}>Female</option>
-                </select>
-                @error('gender')
-                    <div class="error">{{ $message }}</div>
-                @enderror
-            </div>
+                    <!-- Middle Name -->
+                    <div>
+                        <label for="middlename" class="block text-sm font-medium text-gray-700 mb-2">Middle Name</label>
+                        <input type="text" name="middlename" id="middlename" value="{{ old('middlename') }}" maxlength="50" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        @error('middlename')
+                            <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
+                        @enderror
+                    </div>
 
-            <div class="form-group">
-                <label for="contact_number">Contact Number</label>
-                <input type="text" name="contact_number" id="contact_number" value="{{ old('contact_number') }}" maxlength="20">
-                @error('contact_number')
-                    <div class="error">{{ $message }}</div>
-                @enderror
-            </div>
+                    <!-- Last Name -->
+                    <div>
+                        <label for="lastname" class="block text-sm font-medium text-gray-700 mb-2">Last Name <span class="text-red-500">*</span></label>
+                        <input type="text" name="lastname" id="lastname" value="{{ old('lastname') }}" required maxlength="50" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        @error('lastname')
+                            <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
+                        @enderror
+                    </div>
 
-            <div class="form-group">
-                <label for="address">Address</label>
-                <textarea name="address" id="address" rows="3" maxlength="200">{{ old('address') }}</textarea>
-                @error('address')
-                    <div class="error">{{ $message }}</div>
-                @enderror
-            </div>
+                    <!-- Birthdate -->
+                    <div>
+                        <label for="birthdate" class="block text-sm font-medium text-gray-700 mb-2">Birthdate <span class="text-red-500">*</span></label>
+                        <input type="date" name="birthdate" id="birthdate" value="{{ old('birthdate') }}" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        @error('birthdate')
+                            <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
+                        @enderror
+                    </div>
 
-            <div class="form-actions">
-                <button type="submit" class="btn btn-primary">Save Patient</button>
-                <a href="{{ route('patients.index') }}" class="btn btn-secondary">Cancel</a>
-            </div>
-        </form>
+                    <!-- Contact Number -->
+                    <div>
+                        <label for="contact_number" class="block text-sm font-medium text-gray-700 mb-2">Contact Number</label>
+                        <input type="text" name="contact_number" id="contact_number" value="{{ old('contact_number') }}" maxlength="20" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        @error('contact_number')
+                            <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <!-- Address - Full Width -->
+                    <div class="md:col-span-2">
+                        <label for="address" class="block text-sm font-medium text-gray-700 mb-2">Address</label>
+                        <textarea name="address" id="address" rows="3" maxlength="200" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">{{ old('address') }}</textarea>
+                        @error('address')
+                            <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
+                        @enderror
+                    </div>
+                </div>
+
+                <!-- Form Actions -->
+                <div class="flex items-center justify-end space-x-3 mt-6 pt-6 border-t border-gray-200">
+                    <a href="{{ route('patients.index') }}" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
+                        Cancel
+                    </a>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                        Save Patient
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
-</body>
-</html>
+</div>
+@endsection
