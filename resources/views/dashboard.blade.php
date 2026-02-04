@@ -1,219 +1,181 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="p-6 space-y-6">
-    <!-- Welcome Header -->
-    <div class="mb-8">
-        <h1 class="text-3xl font-bold text-white mb-2">Welcome back, {{ auth()->user()->name }}!</h1>
-        <p class="text-slate-400">Here's what's happening in your laboratory today</p>
+<div class="p-8 space-y-6 bg-gray-50 min-h-screen">
+    <!-- Header with Quick Actions -->
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h1 class="text-4xl font-bold text-gray-800 mb-1">Welcome, {{ auth()->user()->name }}!</h1>
+            <p class="text-gray-600">Role: <span class="font-semibold text-gray-800">{{ strtoupper(str_replace('-', '_', auth()->user()->getRoleNames()->first() ?? 'USER')) }}</span></p>
+        </div>
+        <div class="flex items-center space-x-3">
+            @can('patients.create')
+            <a href="/patients" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg text-sm font-medium transition-colors">
+                Add Patient
+            </a>
+            @endcan
+            @can('items.create')
+            <a href="/items" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg text-sm font-medium transition-colors">
+                Stock In
+            </a>
+            @endcan
+            @can('equipment.create')
+            <a href="/equipment" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg text-sm font-medium transition-colors">
+                Add Equipment
+            </a>
+            @endcan
+            @can('transactions.create')
+            <a href="/transactions" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg text-sm font-medium transition-colors">
+                New Transaction
+            </a>
+            @endcan
+            @can('reports.access')
+            <a href="/reports" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg text-sm font-medium transition-colors">
+                Generate Report
+            </a>
+            @endcan
+        </div>
     </div>
 
     <!-- Statistics Cards -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <!-- Total Patients Card -->
         @can('patients.access')
-        <div class="card group hover:scale-[1.02] transition-all cursor-pointer">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm font-medium text-slate-400 mb-1">Total Patients</p>
-                    <p class="text-3xl font-bold text-white">{{ \App\Models\Patient::where('is_deleted', 0)->count() }}</p>
-                    <p class="text-xs text-slate-500 mt-2">
-                        <span class="text-green-400">+{{ \App\Models\Patient::where('is_deleted', 0)->whereDate('datetime_added', today())->count() }}</span> today
-                    </p>
-                </div>
-                <div class="w-14 h-14 rounded-xl bg-gradient-to-br from-blue-500/20 to-cyan-400/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <svg class="w-7 h-7 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div class="bg-white rounded-lg shadow p-6 border border-gray-200">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-sm font-semibold text-gray-600 uppercase">Patients</h3>
+                <span class="text-blue-600">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
                     </svg>
-                </div>
+                </span>
             </div>
+            <p class="text-4xl font-bold text-gray-900">{{ \App\Models\Patient::where('is_deleted', 0)->count() }}</p>
+            <p class="text-sm text-gray-500 mt-2">
+                Added today: <span class="text-blue-600 font-semibold">{{ \App\Models\Patient::where('is_deleted', 0)->whereDate('datetime_added', today())->count() }}</span> patients
+            </p>
+            <a href="/patients" class="text-sm text-blue-600 hover:text-blue-700 mt-3 inline-flex items-center">
+                View Patients →
+            </a>
         </div>
         @endcan
 
-        <!-- Lab Results Card -->
-        @can('lab-results.access')
-        <div class="card group hover:scale-[1.02] transition-all cursor-pointer">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm font-medium text-slate-400 mb-1">Lab Results</p>
-                    <p class="text-3xl font-bold text-white">{{ \App\Models\LabResult::count() }}</p>
-                    <p class="text-xs text-slate-500 mt-2">
-                        <span class="text-cyan-400">{{ \App\Models\LabResult::whereDate('result_date', today())->count() }}</span> processed today
-                    </p>
-                </div>
-                <div class="w-14 h-14 rounded-xl bg-gradient-to-br from-cyan-500/20 to-blue-400/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <svg class="w-7 h-7 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+        <!-- Inventory Card -->
+        @can('items.access')
+        <div class="bg-white rounded-lg shadow p-6 border border-gray-200">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-sm font-semibold text-gray-600 uppercase">Inventory</h3>
+                <span class="text-green-600">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
                     </svg>
-                </div>
+                </span>
             </div>
-        </div>
-        @endcan
-
-        <!-- Tests Available Card -->
-        @can('tests.access')
-        <div class="card group hover:scale-[1.02] transition-all cursor-pointer">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm font-medium text-slate-400 mb-1">Available Tests</p>
-                    <p class="text-3xl font-bold text-white">{{ \App\Models\Test::where('is_deleted', 0)->count() }}</p>
-                    <p class="text-xs text-slate-500 mt-2">
-                        <span class="text-purple-400">{{ \App\Models\Section::where('is_deleted', 0)->count() }}</span> sections
-                    </p>
-                </div>
-                <div class="w-14 h-14 rounded-xl bg-gradient-to-br from-purple-500/20 to-pink-400/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <svg class="w-7 h-7 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/>
-                    </svg>
-                </div>
-            </div>
+            <p class="text-4xl font-bold text-gray-900">{{ \App\Models\Item::where('is_deleted', 0)->count() }}</p>
+            <p class="text-sm text-gray-500 mt-2">
+                Total active items in stock
+            </p>
+            <a href="/items" class="text-sm text-green-600 hover:text-green-700 mt-3 inline-flex items-center">
+                Manage Inventory →
+            </a>
         </div>
         @endcan
 
         <!-- Equipment Card -->
         @can('equipment.access')
-        <div class="card group hover:scale-[1.02] transition-all cursor-pointer">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm font-medium text-slate-400 mb-1">Equipment</p>
-                    <p class="text-3xl font-bold text-white">{{ \App\Models\Equipment::where('is_deleted', 0)->count() }}</p>
-                    <p class="text-xs text-slate-500 mt-2">
-                        <span class="text-green-400">{{ \App\Models\Equipment::where('is_deleted', 0)->where('status', 'Operational')->count() }}</span> operational
-                    </p>
-                </div>
-                <div class="w-14 h-14 rounded-xl bg-gradient-to-br from-green-500/20 to-emerald-400/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <svg class="w-7 h-7 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div class="bg-white rounded-lg shadow p-6 border border-gray-200">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-sm font-semibold text-gray-600 uppercase">Equipment</h3>
+                <span class="text-purple-600">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
                     </svg>
-                </div>
+                </span>
             </div>
+            <p class="text-4xl font-bold text-gray-900">{{ \App\Models\Equipment::where('is_deleted', 0)->count() }}</p>
+            <p class="text-sm text-gray-500 mt-2">
+                Added today: <span class="text-purple-600 font-semibold">{{ \App\Models\Equipment::where('is_deleted', 0)->whereDate('datetime_added', today())->count() }}</span> items
+            </p>
+            <a href="/equipment" class="text-sm text-purple-600 hover:text-purple-700 mt-3 inline-flex items-center">
+                View Equipment →
+            </a>
         </div>
         @endcan
-    </div>
 
-    <!-- Recent Activity & Quick Actions -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <!-- Recent Patients -->
-        @can('patients.access')
-        <div class="lg:col-span-2 card">
-            <div class="flex items-center justify-between mb-6">
-                <h3 class="text-lg font-semibold text-white">Recent Patients</h3>
-                <a href="/patients" class="text-sm text-blue-400 hover:text-blue-300 transition-colors">View All →</a>
-            </div>
-            <div class="space-y-3">
-                @forelse(\App\Models\Patient::where('is_deleted', 0)->orderBy('datetime_added', 'desc')->limit(5)->get() as $patient)
-                <div class="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg hover:bg-slate-800 transition-colors">
-                    <div class="flex items-center space-x-3">
-                        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center text-white font-semibold">
-                            {{ strtoupper(substr($patient->firstname, 0, 1)) }}{{ strtoupper(substr($patient->lastname, 0, 1)) }}
-                        </div>
-                        <div>
-                            <p class="text-sm font-medium text-white">{{ $patient->firstname }} {{ $patient->lastname }}</p>
-                            <p class="text-xs text-slate-400">{{ $patient->patient_type }} • {{ \Carbon\Carbon::parse($patient->birthdate)->age }} years old</p>
-                        </div>
-                    </div>
-                    <span class="badge badge-primary">{{ $patient->gender }}</span>
-                </div>
-                @empty
-                <div class="text-center py-8 text-slate-500">
-                    <svg class="w-12 h-12 mx-auto mb-3 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+        <!-- Transactions Card -->
+        @can('transactions.access')
+        <div class="bg-white rounded-lg shadow p-6 border border-gray-200">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-sm font-semibold text-gray-600 uppercase">Transactions</h3>
+                <span class="text-blue-600">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
-                    <p>No patients registered yet</p>
-                </div>
-                @endforelse
+                </span>
             </div>
+            <p class="text-4xl font-bold text-gray-900">{{ \App\Models\Transaction::count() }}</p>
+            <p class="text-sm text-gray-500 mt-2">
+                Added today: <span class="text-blue-600 font-semibold">{{ \App\Models\Transaction::whereDate('datetime_added', today())->count() }}</span> transactions
+            </p>
+            <a href="/transactions" class="text-sm text-blue-600 hover:text-blue-700 mt-3 inline-flex items-center">
+                View Transactions →
+            </a>
         </div>
         @endcan
-
-        <!-- Quick Actions -->
-        <div class="card">
-            <h3 class="text-lg font-semibold text-white mb-6">Quick Actions</h3>
-            <div class="space-y-3">
-                @can('patients.create')
-                <a href="/patients" class="flex items-center p-3 bg-gradient-to-r from-blue-500/10 to-cyan-400/10 border border-blue-500/20 rounded-lg hover:border-blue-500/40 transition-all group">
-                    <div class="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform">
-                        <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/>
-                        </svg>
-                    </div>
-                    <div>
-                        <p class="text-sm font-medium text-white">Add Patient</p>
-                        <p class="text-xs text-slate-400">Register new patient</p>
-                    </div>
-                </a>
-                @endcan
-
-                @can('lab-results.create')
-                <a href="/lab-results" class="flex items-center p-3 bg-gradient-to-r from-cyan-500/10 to-blue-400/10 border border-cyan-500/20 rounded-lg hover:border-cyan-500/40 transition-all group">
-                    <div class="w-10 h-10 rounded-lg bg-cyan-500/20 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform">
-                        <svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                        </svg>
-                    </div>
-                    <div>
-                        <p class="text-sm font-medium text-white">Record Result</p>
-                        <p class="text-xs text-slate-400">Add lab result</p>
-                    </div>
-                </a>
-                @endcan
-
-                @can('tests.access')
-                <a href="/tests" class="flex items-center p-3 bg-gradient-to-r from-purple-500/10 to-pink-400/10 border border-purple-500/20 rounded-lg hover:border-purple-500/40 transition-all group">
-                    <div class="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform">
-                        <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/>
-                        </svg>
-                    </div>
-                    <div>
-                        <p class="text-sm font-medium text-white">View Tests</p>
-                        <p class="text-xs text-slate-400">Browse lab tests</p>
-                    </div>
-                </a>
-                @endcan
-
-                @can('reports.access')
-                <a href="/reports" class="flex items-center p-3 bg-gradient-to-r from-green-500/10 to-emerald-400/10 border border-green-500/20 rounded-lg hover:border-green-500/40 transition-all group">
-                    <div class="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform">
-                        <svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                        </svg>
-                    </div>
-                    <div>
-                        <p class="text-sm font-medium text-white">Generate Report</p>
-                        <p class="text-xs text-slate-400">View analytics</p>
-                    </div>
-                </a>
-                @endcan
-            </div>
-        </div>
     </div>
 
     <!-- Activity Overview -->
     @can('activity-logs.access')
-    <div class="card">
-        <div class="flex items-center justify-between mb-6">
-            <h3 class="text-lg font-semibold text-white">Recent Activity</h3>
-            <a href="/activity-logs" class="text-sm text-blue-400 hover:text-blue-300 transition-colors">View All →</a>
+    <div class="bg-white rounded-lg shadow border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h3 class="text-xl font-bold text-gray-900">Recent Activity</h3>
         </div>
-        <div class="space-y-3">
-            @forelse(\App\Models\ActivityLog::orderBy('datetime_added', 'desc')->limit(6)->get() as $log)
-            <div class="flex items-start space-x-3 p-3 bg-slate-800/30 rounded-lg">
-                <div class="w-2 h-2 rounded-full bg-blue-400 mt-2"></div>
-                <div class="flex-1">
-                    <p class="text-sm text-slate-300">{{ $log->description }}</p>
-                    <p class="text-xs text-slate-500 mt-1">{{ \Carbon\Carbon::parse($log->datetime_added)->diffForHumans() }}</p>
-                </div>
-            </div>
-            @empty
-            <div class="text-center py-8 text-slate-500">
-                <svg class="w-12 h-12 mx-auto mb-3 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                </svg>
-                <p>No recent activity</p>
-            </div>
-            @endforelse
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">User</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Activity</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Date & Time</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    @forelse(\App\Models\ActivityLog::orderBy('datetime_added', 'desc')->limit(10)->get() as $log)
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="flex items-center">
+                                <div class="text-sm font-medium text-gray-900">{{ $log->user_id ? \App\Models\User::find($log->user_id)?->name : 'System' }}</div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4">
+                            <div class="text-sm text-gray-900">{{ $log->description }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-600">{{ \Carbon\Carbon::parse($log->datetime_added)->format('M d, Y h:i A') }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                Success
+                            </span>
+                        </td>
+                    </tr>
+                    @empty
+                    <tr>
+                        <td colspan="4" class="px-6 py-8 text-center">
+                            <svg class="w-12 h-12 mx-auto mb-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            <p class="text-gray-500">No recent activity</p>
+                        </td>
+                    </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+        <div class="px-6 py-3 border-t border-gray-200 bg-gray-50">
+            <a href="/activity-logs" class="text-sm text-blue-600 hover:text-blue-700 font-medium">View All Activity →</a>
         </div>
     </div>
     @endcan

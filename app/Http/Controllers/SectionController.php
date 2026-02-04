@@ -9,12 +9,16 @@ class SectionController extends Controller
 {
     public function index()
     {
-        return view('sections.index');
+        $sections = Section::where('is_deleted', 0)
+            ->orderBy('label')
+            ->paginate(15);
+        
+        return view('sections.index', compact('sections'));
     }
 
     public function create()
     {
-        return Inertia::render('Sections/Create');
+        return view('sections.create');
     }
 
     public function store(Request $request)
@@ -30,7 +34,7 @@ class SectionController extends Controller
     public function edit(Section $section)
     {
         if ($section->is_deleted) abort(404);
-        return Inertia::render('Sections/Edit', ['section' => $section]);
+        return view('sections.edit', compact('section'));
     }
 
     public function update(Request $request, Section $section)

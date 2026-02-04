@@ -10,13 +10,18 @@ class EmployeeController extends Controller
 {
     public function index()
     {
-        return view('employees.index');
+        $employees = Employee::with('section')
+            ->where('is_deleted', 0)
+            ->orderBy('lastname')
+            ->paginate(15);
+        
+        return view('employees.index', compact('employees'));
     }
 
     public function create()
     {
         $sections = Section::active()->orderBy('label')->get(['section_id', 'label']);
-        return Inertia::render('Employees/Create', ['sections' => $sections]);
+        return view('employees.create', compact('sections'));
     }
 
     public function store(Request $request)
@@ -44,7 +49,7 @@ class EmployeeController extends Controller
         if ($employee->is_deleted) abort(404);
         $sections = Section::active()->orderBy('label')->get(['section_id', 'label']);
         $employee->load('section');
-        return Inertia::render('Employees/Edit', ['employee' => $employee, 'sections' => $sections]);
+        return view('employees.edit', compact('employee', 'sections'));
     }
 
     public function update(Request $request, Employee $employee)

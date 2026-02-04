@@ -14,7 +14,7 @@ class PhysicianController extends Controller
 
     public function create()
     {
-        return Inertia::render('Physicians/Create');
+        return view('physicians.create');
     }
 
     public function store(Request $request)

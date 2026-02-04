@@ -12,7 +12,11 @@ class PatientController extends Controller
      */
     public function index()
     {
-        return view('patients.index', ['title' => 'Patient Profile Management']);
+        $patients = Patient::where('is_deleted', 0)
+            ->orderBy('datetime_added', 'desc')
+            ->paginate(15);
+        
+        return view('patients.index', compact('patients'));
     }
 
     /**
@@ -22,7 +26,7 @@ class PatientController extends Controller
     {
         abort_unless(auth()->user()->can('patients.create'), 403);
         
-        return Inertia::render('Patients/Create');
+        return view('patients.create');
     }
 
     /**

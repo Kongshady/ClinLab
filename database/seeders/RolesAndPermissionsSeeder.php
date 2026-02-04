@@ -26,7 +26,6 @@ class RolesAndPermissionsSeeder extends Seeder
             'lab-results.access',
             'transactions.access',
             'items.access',
-            'inventory.access',
             'equipment.access',
             'calibration.access',
             'reports.access',
@@ -38,231 +37,112 @@ class RolesAndPermissionsSeeder extends Seeder
 
             // CRUD Permissions - Patients
             'patients.create',
-            'patients.update',
+            'patients.edit',
+            'patients.view',
             'patients.delete',
 
             // CRUD Permissions - Physicians
             'physicians.create',
-            'physicians.update',
+            'physicians.edit',
             'physicians.delete',
 
             // CRUD Permissions - Lab Results
             'lab-results.create',
-            'lab-results.update',
+            'lab-results.edit',
             'lab-results.delete',
-            'lab-results.verify',
 
             // CRUD Permissions - Transactions
             'transactions.create',
-            'transactions.update',
+            'transactions.edit',
             'transactions.delete',
-            'transactions.void',
 
             // CRUD Permissions - Items
             'items.create',
-            'items.update',
+            'items.edit',
             'items.delete',
-
-            // Inventory Permissions
-            'inventory.stock-in',
-            'inventory.stock-out',
-            'inventory.usage',
-            'inventory.adjust',
 
             // CRUD Permissions - Equipment
             'equipment.create',
-            'equipment.update',
+            'equipment.edit',
             'equipment.delete',
-            'equipment.maintenance',
 
             // CRUD Permissions - Calibration
             'calibration.create',
-            'calibration.update',
+            'calibration.edit',
             'calibration.delete',
 
             // CRUD Permissions - Certificates
             'certificates.create',
-            'certificates.update',
+            'certificates.edit',
             'certificates.delete',
-            'certificates.issue',
-            'certificates.revoke',
 
             // CRUD Permissions - Tests
             'tests.create',
-            'tests.update',
+            'tests.edit',
             'tests.delete',
 
             // CRUD Permissions - Sections
             'sections.create',
-            'sections.update',
+            'sections.edit',
             'sections.delete',
 
             // CRUD Permissions - Employees
             'employees.create',
-            'employees.update',
+            'employees.edit',
             'employees.delete',
-
-            // Reports Permissions
-            'reports.generate',
-            'reports.export',
-
-            // Activity Logs Permissions
-            'activity-logs.view',
-            'activity-logs.delete',
         ];
 
         foreach ($permissions as $permission) {
-            Permission::create(['name' => $permission]);
+            Permission::firstOrCreate(['name' => $permission, 'guard_name' => 'web']);
         }
 
         // Create roles and assign permissions
 
-        // 1. Staff-in-Charge Role
-        $staffInCharge = Role::create(['name' => 'Staff-in-Charge']);
-        $staffInCharge->givePermissionTo([
-            'patients.access',
-            'patients.create',
-            'patients.update',
-            'patients.delete',
-            
-            'physicians.access',
-            'physicians.create',
-            'physicians.update',
-            'physicians.delete',
-            
-            'lab-results.access',
-            'lab-results.create',
-            'lab-results.update',
-            'lab-results.delete',
-            'lab-results.verify',
-            
-            'transactions.access',
-            'transactions.create',
-            'transactions.update',
-            'transactions.delete',
-            'transactions.void',
-            
-            'items.access',
-            'items.create',
-            'items.update',
-            'items.delete',
-            
-            'inventory.access',
-            'inventory.stock-in',
-            'inventory.stock-out',
-            'inventory.usage',
-            'inventory.adjust',
-            
-            'equipment.access',
-            'equipment.create',
-            'equipment.update',
-            'equipment.delete',
-            'equipment.maintenance',
-            
-            'calibration.access',
-            'calibration.create',
-            'calibration.update',
-            'calibration.delete',
-            
+        // 1. Laboratory Manager - Full access to all 14 modules
+        $labManager = Role::firstOrCreate(['name' => 'Laboratory Manager', 'guard_name' => 'web']);
+        $labManager->syncPermissions($permissions);
+
+        // 2. Staff-in-Charge - Access to 10 modules
+        $staffInCharge = Role::firstOrCreate(['name' => 'Staff-in-Charge', 'guard_name' => 'web']);
+        $staffInCharge->syncPermissions([
+            'patients.access', 'patients.create', 'patients.edit', 'patients.view', 'patients.delete',
+            'physicians.access', 'physicians.create', 'physicians.edit', 'physicians.delete',
+            'lab-results.access', 'lab-results.create', 'lab-results.edit', 'lab-results.delete',
+            'transactions.access', 'transactions.create', 'transactions.edit', 'transactions.delete',
+            'items.access', 'items.create', 'items.edit', 'items.delete',
+            'equipment.access', 'equipment.create', 'equipment.edit', 'equipment.delete',
+            'calibration.access', 'calibration.create', 'calibration.edit', 'calibration.delete',
             'reports.access',
-            'reports.generate',
-            'reports.export',
+            'tests.access', 'tests.create', 'tests.edit', 'tests.delete',
+            'certificates.access', 'certificates.create', 'certificates.edit', 'certificates.delete',
         ]);
 
-        // 2. MIT Staff Role
-        $mitStaff = Role::create(['name' => 'MIT Staff']);
-        $mitStaff->givePermissionTo([
-            'tests.access',
-            'tests.create',
-            'tests.update',
-            'tests.delete',
-            
-            'sections.access',
-            'sections.create',
-            'sections.update',
-            'sections.delete',
-            
-            'employees.access',
-            'employees.create',
-            'employees.update',
-            'employees.delete',
-        ]);
-
-        // 3. Laboratory Manager Role
-        $labManager = Role::create(['name' => 'Laboratory Manager']);
-        $labManager->givePermissionTo([
-            'patients.access',
-            'patients.create',
-            'patients.update',
-            'patients.delete',
-            
-            'physicians.access',
-            'physicians.create',
-            'physicians.update',
-            'physicians.delete',
-            
-            'lab-results.access',
-            'lab-results.create',
-            'lab-results.update',
-            'lab-results.delete',
-            'lab-results.verify',
-            
-            'transactions.access',
-            'transactions.create',
-            'transactions.update',
-            'transactions.delete',
-            'transactions.void',
-            
-            'items.access',
-            'items.create',
-            'items.update',
-            'items.delete',
-            
-            'inventory.access',
-            'inventory.stock-in',
-            'inventory.stock-out',
-            'inventory.usage',
-            'inventory.adjust',
-            
-            'equipment.access',
-            'equipment.create',
-            'equipment.update',
-            'equipment.delete',
-            'equipment.maintenance',
-            
-            'calibration.access',
-            'calibration.create',
-            'calibration.update',
-            'calibration.delete',
-            
-            'certificates.access',
-            'certificates.create',
-            'certificates.update',
-            'certificates.delete',
-            'certificates.issue',
-            'certificates.revoke',
-            
-            'reports.access',
-            'reports.generate',
-            'reports.export',
-            
+        // 3. MIT Staff - Access to 3 modules (sections, employees, activity logs)
+        $mitStaff = Role::firstOrCreate(['name' => 'MIT', 'guard_name' => 'web']);
+        $mitStaff->syncPermissions([
+            'sections.access', 'sections.create', 'sections.edit', 'sections.delete',
+            'employees.access', 'employees.create', 'employees.edit', 'employees.delete',
             'activity-logs.access',
-            'activity-logs.view',
-            'activity-logs.delete',
         ]);
 
-        // 4. Secretary Role
-        $secretary = Role::create(['name' => 'Secretary']);
-        $secretary->givePermissionTo([
-            'transactions.access',
-            'transactions.create',
-            'transactions.update',
-            
-            'inventory.access',
+        // 4. Secretary - Access to 2 modules (patients, physicians)
+        $secretary = Role::firstOrCreate(['name' => 'Secretary', 'guard_name' => 'web']);
+        $secretary->syncPermissions([
+            'patients.access', 'patients.create', 'patients.edit', 'patients.view',
+            'physicians.access', 'physicians.create', 'physicians.edit',
         ]);
 
         // Create demo users (optional - remove in production)
         $this->createDemoUsers($labManager, $staffInCharge, $mitStaff, $secretary);
+        
+        $this->command->info('');
+        $this->command->info('✅ Role-Based Access Control Setup Complete!');
+        $this->command->info('');
+        $this->command->info('📊 Roles & Module Access:');
+        $this->command->info('1. Laboratory Manager - All 13 modules (Full Access)');
+        $this->command->info('2. Staff-in-Charge - 10 modules');
+        $this->command->info('3. MIT Staff - 3 modules (Sections, Employees, Activity Logs)');
+        $this->command->info('4. Secretary - 2 modules (Patients, Physicians)');
     }
 
     /**
@@ -271,45 +151,54 @@ class RolesAndPermissionsSeeder extends Seeder
     private function createDemoUsers($labManager, $staffInCharge, $mitStaff, $secretary): void
     {
         // Laboratory Manager
-        $manager = User::create([
-            'name' => 'Laboratory Manager',
-            'email' => 'manager@clinlab.test',
-            'password' => Hash::make('password'),
-            'email_verified_at' => now(),
-        ]);
-        $manager->assignRole($labManager);
+        $manager = User::updateOrCreate(
+            ['email' => 'manager@clinlab.test'],
+            [
+                'name' => 'Laboratory Manager',
+                'password' => Hash::make('password'),
+                'email_verified_at' => now(),
+            ]
+        );
+        $manager->syncRoles([$labManager]);
 
         // Staff-in-Charge
-        $staff = User::create([
-            'name' => 'Nicole Calayo',
-            'email' => 'staff@clinlab.test',
-            'password' => Hash::make('password'),
-            'email_verified_at' => now(),
-        ]);
-        $staff->assignRole($staffInCharge);
+        $staff = User::updateOrCreate(
+            ['email' => 'staff@clinlab.test'],
+            [
+                'name' => 'Nicole Calayo',
+                'password' => Hash::make('password'),
+                'email_verified_at' => now(),
+            ]
+        );
+        $staff->syncRoles([$staffInCharge]);
 
         // MIT Staff
-        $mit = User::create([
-            'name' => 'MIT Staff',
-            'email' => 'mit@clinlab.test',
-            'password' => Hash::make('password'),
-            'email_verified_at' => now(),
-        ]);
-        $mit->assignRole($mitStaff);
+        $mit = User::updateOrCreate(
+            ['email' => 'mit@clinlab.test'],
+            [
+                'name' => 'MIT Staff',
+                'password' => Hash::make('password'),
+                'email_verified_at' => now(),
+            ]
+        );
+        $mit->syncRoles([$mitStaff]);
 
         // Secretary
-        $sec = User::create([
-            'name' => 'Secretary',
-            'email' => 'secretary@clinlab.test',
-            'password' => Hash::make('password'),
-            'email_verified_at' => now(),
-        ]);
-        $sec->assignRole($secretary);
+        $sec = User::updateOrCreate(
+            ['email' => 'secretary@clinlab.test'],
+            [
+                'name' => 'Secretary',
+                'password' => Hash::make('password'),
+                'email_verified_at' => now(),
+            ]
+        );
+        $sec->syncRoles([$secretary]);
 
-        $this->command->info('Demo users created:');
-        $this->command->info('Manager: manager@clinlab.test / password');
-        $this->command->info('Staff: staff@clinlab.test / password');
-        $this->command->info('MIT: mit@clinlab.test / password');
+        $this->command->info('');
+        $this->command->info('🔐 Demo Login Credentials:');
+        $this->command->info('Manager:   manager@clinlab.test / password');
+        $this->command->info('Staff:     staff@clinlab.test / password');
+        $this->command->info('MIT:       mit@clinlab.test / password');
         $this->command->info('Secretary: secretary@clinlab.test / password');
     }
 }

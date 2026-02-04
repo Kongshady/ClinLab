@@ -10,6 +10,9 @@ class ActivityLogController extends Controller
 {
     public function index()
     {
-        return view('activity-logs.index');
+        $activityLogs = ActivityLog::orderBy('datetime_added', 'desc')
+            ->paginate(20);
+        
+        return view('activity-logs.index', compact('activityLogs'));
     }
 }

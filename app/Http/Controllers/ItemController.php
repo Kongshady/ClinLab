@@ -10,13 +10,18 @@ class ItemController extends Controller
 {
     public function index()
     {
-        return view('items.index');
+        $items = Item::with('section')
+            ->where('is_deleted', 0)
+            ->orderBy('label')
+            ->paginate(15);
+        
+        return view('items.index', compact('items'));
     }
 
     public function create()
     {
         $sections = Section::active()->orderBy('label')->get(['section_id', 'label']);
-        return Inertia::render('Items/Create', ['sections' => $sections]);
+        return view('items.create', compact('sections'));
     }
 
     public function store(Request $request)
@@ -48,7 +53,7 @@ class ItemController extends Controller
         if ($item->is_deleted) abort(404);
         $sections = Section::active()->orderBy('label')->get(['section_id', 'label']);
         $item->load('section');
-        return Inertia::render('Items/Edit', ['item' => $item, 'sections' => $sections]);
+        return view('items.edit', compact('item', 'sections'));
     }
 
     public function update(Request $request, Item $item)

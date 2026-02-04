@@ -11,6 +11,7 @@ class CalibrationRecord extends Model
     public $timestamps = false;
 
     protected $fillable = [
+        'procedure_id',
         'equipment_id',
         'calibration_date',
         'performed_by',

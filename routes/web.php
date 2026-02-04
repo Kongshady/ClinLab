@@ -13,6 +13,7 @@ use App\Http\Controllers\CalibrationRecordController;
 use App\Http\Controllers\SectionController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\ActivityLogController;
+use App\Http\Controllers\ReportsController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -81,9 +82,7 @@ Route::middleware('auth')->group(function () {
     
     // Analytics
     Route::middleware(['permission:reports.access'])->group(function () {
-        Route::get('reports', function () {
-            return view('reports.index', ['title' => 'Reports & Analytics']);
-        })->name('reports.index');
+        Route::get('reports', [ReportsController::class, 'index'])->name('reports.index');
     });
     
     Route::middleware(['permission:activity-logs.access'])->group(function () {

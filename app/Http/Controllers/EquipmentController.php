@@ -10,13 +10,18 @@ class EquipmentController extends Controller
 {
     public function index()
     {
-        return view('equipment.index');
+        $equipment = Equipment::with('section')
+            ->where('is_deleted', 0)
+            ->orderBy('name')
+            ->paginate(15);
+        
+        return view('equipment.index', compact('equipment'));
     }
 
     public function create()
     {
         $sections = Section::active()->orderBy('label')->get(['section_id', 'label']);
-        return Inertia::render('Equipment/Create', ['sections' => $sections]);
+        return view('equipment.create', compact('sections'));
     }
 
     public function store(Request $request)
@@ -41,7 +46,7 @@ class EquipmentController extends Controller
         if ($equipment->is_deleted) abort(404);
         $sections = Section::active()->orderBy('label')->get(['section_id', 'label']);
         $equipment->load('section');
-        return Inertia::render('Equipment/Edit', ['equipment' => $equipment, 'sections' => $sections]);
+        return view('equipment.edit', compact('equipment', 'sections'));
     }
 
     public function update(Request $request, Equipment $equipment)

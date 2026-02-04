@@ -13,7 +13,12 @@ class TestController extends Controller
      */
     public function index()
     {
-        return view('tests.index');
+        $tests = Test::with('section')
+            ->where('is_deleted', 0)
+            ->orderBy('label')
+            ->paginate(15);
+        
+        return view('tests.index', compact('tests'));
     }
 
     /**
@@ -25,9 +30,7 @@ class TestController extends Controller
             ->orderBy('label')
             ->get(['section_id', 'label']);
 
-        return Inertia::render('Tests/Create', [
-            'sections' => $sections
-        ]);
+        return view('tests.create', compact('sections'));
     }
 
     /**
@@ -58,9 +61,7 @@ class TestController extends Controller
 
         $test->load('section');
 
-        return Inertia::render('Tests/Show', [
-            'test' => $test
-        ]);
+        return view('tests.show', compact('test'));
     }
 
     /**
@@ -78,10 +79,7 @@ class TestController extends Controller
 
         $test->load('section');
 
-        return Inertia::render('Tests/Edit', [
-            'test' => $test,
-            'sections' => $sections
-        ]);
+        return view('tests.edit', compact('test', 'sections'));
     }
 
     /**
