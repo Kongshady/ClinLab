@@ -4,14 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Models\Physician;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
 
 class PhysicianController extends Controller
 {
     public function index()
     {
-        $physicians = Physician::active()->orderBy('physician_id', 'desc')->paginate(15);
-        return Inertia::render('Physicians/Index', ['physicians' => $physicians]);
+        return view('physicians.index');
     }
 
     public function create()
@@ -35,7 +33,7 @@ class PhysicianController extends Controller
     public function edit(Physician $physician)
     {
         if ($physician->is_deleted) abort(404);
-        return Inertia::render('Physicians/Edit', ['physician' => $physician]);
+        return view('physicians.edit', compact('physician'));
     }
 
     public function update(Request $request, Physician $physician)

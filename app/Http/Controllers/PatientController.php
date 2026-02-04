@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Patient;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
 
 class PatientController extends Controller
 {
@@ -13,8 +12,7 @@ class PatientController extends Controller
      */
     public function index()
     {
-        $patients = Patient::active()->orderBy('patient_id', 'desc')->paginate(50);
-        return Inertia::render('Patients/Index', compact('patients'));
+        return view('patients.index', ['title' => 'Patient Profile Management']);
     }
 
     /**
@@ -22,6 +20,8 @@ class PatientController extends Controller
      */
     public function create()
     {
+        abort_unless(auth()->user()->can('patients.create'), 403);
+        
         return Inertia::render('Patients/Create');
     }
 
@@ -30,6 +30,8 @@ class PatientController extends Controller
      */
     public function store(Request $request)
     {
+        abort_unless(auth()->user()->can('patients.create'), 403);
+        
         $validated = $request->validate([
             'patient_type' => 'required|in:Internal,External',
             'firstname' => 'required|string|max:50',
@@ -52,6 +54,8 @@ class PatientController extends Controller
      */
     public function show(Patient $patient)
     {
+        abort_unless(auth()->user()->can('patients.view'), 403);
+        
         if ($patient->is_deleted) {
             abort(404);
         }
@@ -63,10 +67,12 @@ class PatientController extends Controller
      */
     public function edit(Patient $patient)
     {
+        abort_unless(auth()->user()->can('patients.edit'), 403);
+        
         if ($patient->is_deleted) {
             abort(404);
         }
-        return Inertia::render('Patients/Edit', compact('patient'));
+        return view('patients.edit', compact('patient'));
     }
 
     /**
@@ -74,6 +80,8 @@ class PatientController extends Controller
      */
     public function update(Request $request, Patient $patient)
     {
+        abort_unless(auth()->user()->can('patients.edit'), 403);
+        
         if ($patient->is_deleted) {
             abort(404);
         }
@@ -100,6 +108,8 @@ class PatientController extends Controller
      */
     public function destroy(Patient $patient)
     {
+        abort_unless(auth()->user()->can('patients.delete'), 403);
+        
         if ($patient->is_deleted) {
             abort(404);
         }

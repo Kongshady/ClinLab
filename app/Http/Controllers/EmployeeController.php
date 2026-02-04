@@ -5,15 +5,12 @@ namespace App\Http\Controllers;
 use App\Models\Employee;
 use App\Models\Section;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
 
 class EmployeeController extends Controller
 {
     public function index()
     {
-        $employees = Employee::with('section')->active()->orderBy('employee_id', 'desc')->paginate(15);
-        $sections = Section::active()->orderBy('label')->get();
-        return Inertia::render('Employees/Index', ['employees' => $employees, 'sections' => $sections]);
+        return view('employees.index');
     }
 
     public function create()

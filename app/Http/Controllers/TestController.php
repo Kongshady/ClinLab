@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\Test;
 use App\Models\Section;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
 
 class TestController extends Controller
 {
@@ -14,17 +13,7 @@ class TestController extends Controller
      */
     public function index()
     {
-        $tests = Test::with('section')
-            ->active()
-            ->orderBy('test_id', 'desc')
-            ->paginate(15);
-        
-        $sections = Section::active()->orderBy('label')->get();
-
-        return Inertia::render('Tests/Index', [
-            'tests' => $tests,
-            'sections' => $sections
-        ]);
+        return view('tests.index');
     }
 
     /**

@@ -7,7 +7,6 @@ use App\Models\Patient;
 use App\Models\Test;
 use App\Models\Employee;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
 
 class LabResultController extends Controller
 {
@@ -16,20 +15,7 @@ class LabResultController extends Controller
      */
     public function index()
     {
-        $labResults = LabResult::with(['patient', 'test', 'performedBy', 'verifiedBy'])
-            ->orderBy('lab_result_id', 'desc')
-            ->paginate(50);
-
-        $patients = Patient::active()->orderBy('lastname')->get();
-        $tests = Test::active()->orderBy('label')->get();
-        $employees = Employee::active()->orderBy('lastname')->get();
-
-        return Inertia::render('LabResult/Index', [
-            'labResults' => $labResults,
-            'patients' => $patients,
-            'tests' => $tests,
-            'employees' => $employees,
-        ]);
+        return view('lab-results.index');
     }
 
     /**
@@ -37,15 +23,7 @@ class LabResultController extends Controller
      */
     public function create()
     {
-        $patients = Patient::active()->orderBy('lastname')->get();
-        $tests = Test::active()->orderBy('label')->get();
-        $employees = Employee::active()->orderBy('lastname')->get();
-
-        return Inertia::render('LabResult/Create', [
-            'patients' => $patients,
-            'tests' => $tests,
-            'employees' => $employees,
-        ]);
+        return redirect()->route('lab-results.index');
     }
 
     /**
@@ -77,8 +55,7 @@ class LabResultController extends Controller
      */
     public function show(LabResult $labResult)
     {
-        $labResult->load(['patient', 'test', 'performedBy', 'verifiedBy']);
-        return Inertia::render('LabResult/Show', compact('labResult'));
+        return redirect()->route('lab-results.index');
     }
 
     /**
@@ -86,17 +63,7 @@ class LabResultController extends Controller
      */
     public function edit(LabResult $labResult)
     {
-        $labResult->load(['patient', 'test', 'performedBy', 'verifiedBy']);
-        $patients = Patient::active()->orderBy('lastname')->get();
-        $tests = Test::active()->orderBy('label')->get();
-        $employees = Employee::active()->orderBy('lastname')->get();
-
-        return Inertia::render('LabResult/Edit', [
-            'labResult' => $labResult,
-            'patients' => $patients,
-            'tests' => $tests,
-            'employees' => $employees,
-        ]);
+        return redirect()->route('lab-results.index');
     }
 
     /**

@@ -1,48 +1,91 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PatientController;
-use App\Http\Controllers\TestController;
 use App\Http\Controllers\PhysicianController;
-use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\LabResultController;
+use App\Http\Controllers\TestController;
+use App\Http\Controllers\CertificateController;
 use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\ItemController;
 use App\Http\Controllers\EquipmentController;
-use App\Http\Controllers\ActivityLogController;
+use App\Http\Controllers\CalibrationRecordController;
 use App\Http\Controllers\SectionController;
-use App\Http\Controllers\LabResultController;
-use Inertia\Inertia;
+use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\ActivityLogController;
+use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    return Inertia::render('Welcome');
+    return redirect('/dashboard');
 });
 
-// Patient CRUD routes
-Route::resource('patients', PatientController::class);
+Route::get('/dashboard', function () {
+    return view('dashboard');
+})->middleware(['auth', 'verified'])->name('dashboard');
 
-// Lab Test CRUD routes
-Route::resource('tests', TestController::class);
+Route::middleware('auth')->group(function () {
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    
+    // Patient Management
+    Route::middleware(['permission:patients.access'])->group(function () {
+        Route::resource('patients', PatientController::class);
+    });
+    
+    Route::middleware(['permission:physicians.access'])->group(function () {
+        Route::resource('physicians', PhysicianController::class);
+    });
+    
+    // Laboratory
+    Route::middleware(['permission:lab-results.access'])->group(function () {
+        Route::resource('lab-results', LabResultController::class);
+    });
+    
+    Route::middleware(['permission:tests.access'])->group(function () {
+        Route::resource('tests', TestController::class);
+    });
+    
+    Route::middleware(['permission:certificates.access'])->group(function () {
+        Route::resource('certificates', CertificateController::class);
+    });
+    
+    // Resources
+    Route::middleware(['permission:transactions.access'])->group(function () {
+        Route::resource('transactions', TransactionController::class);
+    });
+    
+    Route::middleware(['permission:items.access'])->group(function () {
+        Route::resource('items', ItemController::class);
+    });
+    
+    Route::middleware(['permission:equipment.access'])->group(function () {
+        Route::resource('equipment', EquipmentController::class);
+    });
+    
+    Route::middleware(['permission:calibration.access'])->group(function () {
+        Route::resource('calibration', CalibrationRecordController::class);
+    });
+    
+    // MIT Management
+    Route::middleware(['permission:sections.access'])->group(function () {
+        Route::resource('sections', SectionController::class);
+    });
+    
+    Route::middleware(['permission:employees.access'])->group(function () {
+        Route::resource('employees', EmployeeController::class);
+    });
+    
+    // Analytics
+    Route::middleware(['permission:reports.access'])->group(function () {
+        Route::get('reports', function () {
+            return view('reports.index', ['title' => 'Reports & Analytics']);
+        })->name('reports.index');
+    });
+    
+    Route::middleware(['permission:activity-logs.access'])->group(function () {
+        Route::resource('activity-logs', ActivityLogController::class);
+    });
+});
 
-// Physician CRUD routes
-Route::resource('physicians', PhysicianController::class);
-
-// Employee CRUD routes
-Route::resource('employees', EmployeeController::class);
-
-// Transaction CRUD routes
-Route::resource('transactions', TransactionController::class);
-
-// Item/Inventory CRUD routes
-Route::resource('items', ItemController::class);
-
-// Equipment CRUD routes
-Route::resource('equipment', EquipmentController::class);
-
-// Activity Logs routes
-Route::get('activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs.index');
-
-// Section CRUD routes
-Route::resource('sections', SectionController::class);
-
-// Lab Result CRUD routes
-Route::resource('lab-results', LabResultController::class);
+require __DIR__.'/auth.php';

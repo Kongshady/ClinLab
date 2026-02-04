@@ -1,6 +1,8 @@
 @extends('layouts.app')
 
-@section('title', 'Patient Profile Management')
+@php
+    $title = 'Patient Management';
+@endphp
 
 @section('content')
     <livewire:patients.index />

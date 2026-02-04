@@ -5,15 +5,12 @@ namespace App\Http\Controllers;
 use App\Models\Item;
 use App\Models\Section;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
 
 class ItemController extends Controller
 {
     public function index()
     {
-        $items = Item::with('section')->active()->orderBy('item_id', 'desc')->paginate(15);
-        $sections = Section::active()->orderBy('label')->get();
-        return Inertia::render('Items/Index', ['items' => $items, 'sections' => $sections]);
+        return view('items.index');
     }
 
     public function create()
