@@ -63,8 +63,9 @@ new class extends Component
             $user->assignRole($role->name);
         }
 
-        // Create Employee record (legacy table)
+        // Create Employee record linked to User
         Employee::create([
+            'user_id' => $user->id,
             'section_id' => $this->section_id,
             'firstname' => $this->firstname,
             'middlename' => $this->middlename,
@@ -72,7 +73,8 @@ new class extends Component
             'username' => $this->email,
             'password' => bcrypt($this->password),
             'position' => $this->position,
-            'role_id' => 2,
+            // Role is managed through Spatie's user_roles table, not employee.role_id
+            'role_id' => null,
             'status_code' => 1,
             'is_deleted' => 0,
         ]);
@@ -86,14 +88,13 @@ new class extends Component
     {
         $employee = Employee::find($id);
         if ($employee) {
-            // Also delete/deactivate the User account
-            $user = User::where('email', $employee->username)->first();
-            if ($user) {
-                $user->delete();
+            // Delete the linked User account
+            if ($employee->user_id && $employee->user) {
+                $employee->user->delete();
             }
             
             $employee->softDelete();
-            $this->flashMessage = 'Employee account deleted successfully!';
+            $this->flashMessage = 'Employee account deactivated successfully!';
         }
     }
 
@@ -101,7 +102,7 @@ new class extends Component
     {
         return [
             'employees' => Employee::active()
-                ->with('section')
+                ->with(['section', 'user.roles'])
                 ->when($this->search, function ($query) {
                     $query->where(function ($q) {
                         $q->where('firstname', 'like', '%' . $this->search . '%')
@@ -300,7 +301,7 @@ new class extends Component
                                 <th>Section</th>
                                 <th>Position</th>
                                 <th>Email/Username</th>
-                                <th>Status</th>
+                                <th>Role & Status</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -320,7 +321,12 @@ new class extends Component
                                     <td class="text-gray-600">{{ $employee->position }}</td>
                                     <td class="text-gray-600">{{ $employee->username }}</td>
                                     <td>
-                                        <span class="badge badge-success">Active</span>
+                                        <div class="flex flex-col gap-1">
+                                            <span class="badge badge-success text-xs">Active</span>
+                                            @if($employee->user && $employee->user->roles->isNotEmpty())
+                                                <span class="badge badge-primary text-xs">{{ $employee->user->roles->first()->name }}</span>
+                                            @endif
+                                        </div>
                                     </td>
                                     <td class="space-x-2">
                                         <a href="/employees/{{ $employee->employee_id }}/edit" 

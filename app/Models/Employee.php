@@ -11,6 +11,7 @@ class Employee extends Model
     public $timestamps = false;
 
     protected $fillable = [
+        'user_id',
         'section_id',
         'firstname',
         'middlename',
@@ -40,6 +41,11 @@ class Employee extends Model
     public function section()
     {
         return $this->belongsTo(Section::class, 'section_id', 'section_id');
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'user_id', 'id');
     }
 
     public function getFullNameAttribute()

@@ -74,6 +74,9 @@ Route::middleware('auth')->group(function () {
     
     Route::middleware(['permission:employees.access'])->group(function () {
         Route::resource('employees', EmployeeController::class);
+        Route::get('users', function () {
+            return view('users.index');
+        })->name('users.index');
     });
     
     // Analytics
