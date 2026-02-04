@@ -36,6 +36,7 @@ new class extends Component
     public $status = 'Pending';
 
     public $search = '';
+    public $perPage = 'all';
     public $flashMessage = '';
 
     public function mount()
@@ -80,16 +81,17 @@ new class extends Component
 
     public function with(): array
     {
+        $query = LabResult::with(['patient', 'test'])
+            ->when($this->search, function ($query) {
+                $query->whereHas('patient', function($q) {
+                    $q->where('firstname', 'like', '%' . $this->search . '%')
+                      ->orWhere('lastname', 'like', '%' . $this->search . '%');
+                });
+            })
+            ->orderBy('lab_result_id', 'desc');
+
         return [
-            'labResults' => LabResult::with(['patient', 'test'])
-                ->when($this->search, function ($query) {
-                    $query->whereHas('patient', function($q) {
-                        $q->where('firstname', 'like', '%' . $this->search . '%')
-                          ->orWhere('lastname', 'like', '%' . $this->search . '%');
-                    });
-                })
-                ->orderBy('lab_result_id', 'desc')
-                ->paginate(50),
+            'labResults' => $this->perPage === 'all' ? $query->get() : $query->paginate((int)$this->perPage),
             'patients' => Patient::active()->orderBy('lastname')->get(),
             'tests' => Test::active()->orderBy('label')->get()
         ];
@@ -97,27 +99,32 @@ new class extends Component
 };
 ?>
 
-<div class="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 p-6">
-    <div class="max-w-7xl mx-auto">
-        <div class="mb-8">
-            <h1 class="text-4xl font-bold text-gray-800 mb-2">Lab Results Management</h1>
-            <p class="text-gray-600">Manage laboratory test results</p>
+<div class="p-6">
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold text-gray-900 flex items-center">
+            <svg class="w-7 h-7 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+            </svg>
+            Lab Results Management
+        </h1>
+    </div>
+
+    @if($flashMessage)
+        <div class="mb-6 p-4 bg-green-50 border-l-4 border-green-500 rounded">
+            <p class="text-green-800">{{ $flashMessage }}</p>
         </div>
+    @endif
 
-        @if($flashMessage)
-            <div class="mb-6 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative" role="alert">
-                <span class="block sm:inline">{{ $flashMessage }}</span>
-            </div>
-        @endif
-
-        <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
-            <h2 class="text-2xl font-bold text-gray-800 mb-6">Add New Lab Result</h2>
-            <form wire:submit.prevent="save">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Patient *</label>
-                        <select wire:model="patient_id" 
-                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent">
+    <div class="bg-white rounded-lg shadow-sm mb-6">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h2 class="text-lg font-semibold text-gray-900">Add New Lab Result</h2>
+        </div>
+        <form wire:submit.prevent="save" class="p-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Patient *</label>
+                    <select wire:model="patient_id" 
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                             <option value="">Select Patient</option>
                             @foreach($patients as $patient)
                                 <option value="{{ $patient->patient_id }}">{{ $patient->full_name }}</option>
@@ -126,9 +133,9 @@ new class extends Component
                         @error('patient_id') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Test *</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Test *</label>
                         <select wire:model="test_id" 
-                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent">
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                             <option value="">Select Test</option>
                             @foreach($tests as $test)
                                 <option value="{{ $test->test_id }}">{{ $test->label }}</option>
@@ -137,60 +144,78 @@ new class extends Component
                         @error('test_id') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Result Date *</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Result Date *</label>
                         <input type="date" wire:model="result_date" 
-                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent">
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                         @error('result_date') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
                     </div>
                 </div>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Result Value</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Result Value</label>
                         <input type="text" wire:model="result_value" 
-                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent">
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Normal Range</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Normal Range</label>
                         <input type="text" wire:model="normal_range" placeholder="e.g., 70-100 mg/dL" 
-                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent">
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
                         <select wire:model="status" 
-                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent">
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                             <option value="Pending">Pending</option>
                             <option value="Completed">Completed</option>
                             <option value="Verified">Verified</option>
                         </select>
                     </div>
                 </div>
-                <div class="mb-6">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Findings</label>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Findings</label>
                     <textarea wire:model="findings" rows="3"
-                              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"></textarea>
+                              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
                 </div>
-                <div class="mb-6">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Remarks</label>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Remarks</label>
                     <textarea wire:model="remarks" rows="2"
-                              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"></textarea>
+                              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
                 </div>
-                <div>
+                <div class="flex justify-end">
                     <button type="submit" 
-                            class="bg-gradient-to-r from-pink-500 to-purple-500 text-white px-6 py-3 rounded-lg hover:from-pink-600 hover:to-purple-600 transition duration-200 font-medium">
+                            class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
                         Add Lab Result
                     </button>
                 </div>
             </form>
         </div>
 
-        <div class="bg-white rounded-xl shadow-lg p-6">
-            <div class="mb-6">
-                <input type="text" wire:model.live="search" placeholder="Search by patient name..." 
-                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent">
+    <div class="bg-white rounded-lg shadow-sm">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h2 class="text-lg font-semibold text-gray-900">Lab Results List</h2>
+        </div>
+        <div class="p-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Search Patients</label>
+                    <input type="text" wire:model.live="search" placeholder="Search by patient name..." 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Rows per page</label>
+                    <select wire:model.live="perPage" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="10">10</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                        <option value="all">All</option>
+                    </select>
+                </div>
             </div>
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gradient-to-r from-pink-50 to-purple-50">
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
                         <tr>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">ID</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Patient</th>
@@ -239,9 +264,12 @@ new class extends Component
                     </tbody>
                 </table>
             </div>
-            <div class="mt-6">
-                {{ $labResults->links() }}
-            </div>
+            
+            @if($perPage !== 'all' && method_exists($labResults, 'hasPages') && $labResults->hasPages())
+                <div class="px-6 py-4 border-t border-gray-200">
+                    {{ $labResults->links() }}
+                </div>
+            @endif
         </div>
     </div>
 </div>
