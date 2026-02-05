@@ -6,6 +6,7 @@ use Livewire\Attributes\Validate;
 use App\Models\LabResult;
 use App\Models\Patient;
 use App\Models\Test;
+use App\Models\Employee;
 
 new class extends Component
 {
@@ -17,27 +18,48 @@ new class extends Component
     #[Validate('required|exists:test,test_id')]
     public $test_id = '';
 
-    #[Validate('required|date')]
+    #[Validate('nullable|date')]
     public $result_date = '';
-
-    #[Validate('nullable|string')]
-    public $result_value = '';
-
-    #[Validate('nullable|string')]
-    public $normal_range = '';
 
     #[Validate('nullable|string')]
     public $findings = '';
 
+    #[Validate('nullable|string|max:100')]
+    public $normal_range = '';
+
+    #[Validate('nullable|string|max:100')]
+    public $result_value = '';
+
     #[Validate('nullable|string')]
     public $remarks = '';
 
-    #[Validate('nullable|string|max:50')]
-    public $status = 'Pending';
+    #[Validate('nullable|exists:employee,employee_id')]
+    public $performed_by = '';
+
+    #[Validate('nullable|exists:employee,employee_id')]
+    public $verified_by = '';
+
+    #[Validate('required|in:draft,final,revised')]
+    public $status = 'draft';
 
     public $search = '';
-    public $perPage = 'all';
+    public $filterStatus = '';
+    public $perPage = 10;
     public $flashMessage = '';
+
+    // Edit Modal Properties
+    public $showEditModal = false;
+    public $editResultId = '';
+    public $editPatientId = '';
+    public $editTestId = '';
+    public $editResultDate = '';
+    public $editFindings = '';
+    public $editNormalRange = '';
+    public $editResultValue = '';
+    public $editRemarks = '';
+    public $editPerformedBy = '';
+    public $editVerifiedBy = '';
+    public $editStatus = 'draft';
 
     public function mount()
     {
@@ -45,6 +67,65 @@ new class extends Component
             $this->flashMessage = session('success');
         }
         $this->result_date = date('Y-m-d');
+    }
+
+    public function openEditModal($resultId)
+    {
+        $result = LabResult::findOrFail($resultId);
+        
+        $this->editResultId = $result->lab_result_id;
+        $this->editPatientId = $result->patient_id;
+        $this->editTestId = $result->test_id;
+        $this->editResultDate = $result->result_date;
+        $this->editFindings = $result->findings;
+        $this->editNormalRange = $result->normal_range;
+        $this->editResultValue = $result->result_value;
+        $this->editRemarks = $result->remarks;
+        $this->editPerformedBy = $result->performed_by;
+        $this->editVerifiedBy = $result->verified_by;
+        $this->editStatus = $result->status;
+        
+        $this->showEditModal = true;
+    }
+
+    public function closeEditModal()
+    {
+        $this->showEditModal = false;
+        $this->reset(['editResultId', 'editPatientId', 'editTestId', 'editResultDate', 'editFindings', 'editNormalRange', 'editResultValue', 'editRemarks', 'editPerformedBy', 'editVerifiedBy', 'editStatus']);
+    }
+
+    public function updateResult()
+    {
+        $validated = $this->validate([
+            'editPatientId' => 'required|exists:patient,patient_id',
+            'editTestId' => 'required|exists:test,test_id',
+            'editResultDate' => 'nullable|date',
+            'editFindings' => 'nullable|string',
+            'editNormalRange' => 'nullable|string|max:100',
+            'editResultValue' => 'nullable|string|max:100',
+            'editRemarks' => 'nullable|string',
+            'editPerformedBy' => 'nullable|exists:employee,employee_id',
+            'editVerifiedBy' => 'nullable|exists:employee,employee_id',
+            'editStatus' => 'required|in:draft,final,revised',
+        ]);
+
+        $result = LabResult::findOrFail($this->editResultId);
+        $result->update([
+            'patient_id' => $this->editPatientId,
+            'test_id' => $this->editTestId,
+            'result_date' => $this->editResultDate,
+            'findings' => $this->editFindings,
+            'normal_range' => $this->editNormalRange,
+            'result_value' => $this->editResultValue,
+            'remarks' => $this->editRemarks,
+            'performed_by' => $this->editPerformedBy,
+            'verified_by' => $this->editVerifiedBy,
+            'status' => $this->editStatus,
+            'datetime_modified' => now(),
+        ]);
+
+        $this->flashMessage = 'Lab result updated successfully!';
+        $this->closeEditModal();
     }
 
     public function save()
@@ -55,80 +136,57 @@ new class extends Component
             'patient_id' => $this->patient_id,
             'test_id' => $this->test_id,
             'result_date' => $this->result_date,
-            'result_value' => $this->result_value,
-            'normal_range' => $this->normal_range,
             'findings' => $this->findings,
+            'normal_range' => $this->normal_range,
+            'result_value' => $this->result_value,
             'remarks' => $this->remarks,
+            'performed_by' => $this->performed_by,
+            'verified_by' => $this->verified_by,
             'status' => $this->status,
             'datetime_added' => now(),
         ]);
 
-        $this->reset(['patient_id', 'test_id', 'result_value', 'normal_range', 'findings', 'remarks']);
+        $this->reset(['patient_id', 'test_id', 'findings', 'normal_range', 'result_value', 'remarks', 'performed_by', 'verified_by']);
         $this->result_date = date('Y-m-d');
-        $this->status = 'Pending';
+        $this->status = 'draft';
         $this->flashMessage = 'Lab result added successfully!';
         $this->resetPage();
     }
 
-    public function delete($id)
-    {
-        $labResult = LabResult::find($id);
-        if ($labResult) {
-            $labResult->delete();
-            $this->flashMessage = 'Lab result deleted successfully!';
-        }
-    }
-
     public function with(): array
     {
-        $query = LabResult::with(['patient', 'test'])
+        $query = LabResult::with(['patient', 'test', 'performedBy', 'verifiedBy'])
             ->when($this->search, function ($query) {
                 $query->whereHas('patient', function($q) {
                     $q->where('firstname', 'like', '%' . $this->search . '%')
                       ->orWhere('lastname', 'like', '%' . $this->search . '%');
+                })
+                ->orWhereHas('test', function($q) {
+                    $q->where('label', 'like', '%' . $this->search . '%');
                 });
             })
-            ->orderBy('lab_result_id', 'desc');
+            ->when($this->filterStatus, function ($query) {
+                $query->where('status', $this->filterStatus);
+            })
+            ->orderBy('result_date', 'desc');
 
         return [
-            'labResults' => $this->perPage === 'all' ? $query->get() : $query->paginate((int)$this->perPage),
+            'results' => $this->perPage === 'all' ? $query->get() : $query->paginate((int)$this->perPage),
             'patients' => Patient::active()->orderBy('lastname')->get(),
-            'tests' => Test::active()->orderBy('label')->get()
+            'tests' => Test::active()->orderBy('label')->get(),
+            'employees' => Employee::active()->orderBy('lastname')->get()
         ];
     }
 };
 ?>
 
-<<<<<<< HEAD
-<div class="p-8 space-y-6 bg-gray-50 min-h-screen">
-    <div class="mb-6">
-        <h1 class="text-3xl font-bold text-gray-800">Lab Results Management</h1>
-        <p class="text-gray-600 mt-1">Manage laboratory test results</p>
-    </div>
-
-    @if($flashMessage)
-        <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg" role="alert">
-            <span class="block sm:inline">{{ $flashMessage }}</span>
-        </div>
-    @endif
-
-    <div class="bg-white rounded-lg shadow border border-gray-200">
-        <div class="p-6">
-            <h2 class="text-xl font-semibold text-gray-900 mb-6">Add New Lab Result</h2>
-            <form wire:submit.prevent="save">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Patient *</label>
-                        <select wire:model="patient_id" 
-                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-=======
 <div class="p-6">
     <div class="mb-6">
         <h1 class="text-2xl font-bold text-gray-900 flex items-center">
             <svg class="w-7 h-7 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
             </svg>
-            Lab Results Management
+            Laboratory Results Management
         </h1>
     </div>
 
@@ -143,176 +201,125 @@ new class extends Component
             <h2 class="text-lg font-semibold text-gray-900">Add New Lab Result</h2>
         </div>
         <form wire:submit.prevent="save" class="p-6">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Patient *</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Patient *</label>
                     <select wire:model="patient_id" 
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
->>>>>>> e970e22b30626e8281f56109471900f8de49ad4b
-                            <option value="">Select Patient</option>
-                            @foreach($patients as $patient)
-                                <option value="{{ $patient->patient_id }}">{{ $patient->full_name }}</option>
-                            @endforeach
-                        </select>
-                        @error('patient_id') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
-                    </div>
-                    <div>
-<<<<<<< HEAD
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Test *</label>
-                        <select wire:model="test_id" 
-                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-=======
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Test *</label>
-                        <select wire:model="test_id" 
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
->>>>>>> e970e22b30626e8281f56109471900f8de49ad4b
-                            <option value="">Select Test</option>
-                            @foreach($tests as $test)
-                                <option value="{{ $test->test_id }}">{{ $test->label }}</option>
-                            @endforeach
-                        </select>
-                        @error('test_id') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
-                    </div>
-                    <div>
-<<<<<<< HEAD
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Result Date *</label>
-                        <input type="date" wire:model="result_date" 
-                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-=======
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Result Date *</label>
-                        <input type="date" wire:model="result_date" 
-                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
->>>>>>> e970e22b30626e8281f56109471900f8de49ad4b
-                        @error('result_date') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
-                    </div>
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <option value="">Select Patient</option>
+                        @foreach($patients as $patient)
+                            <option value="{{ $patient->patient_id }}">{{ $patient->full_name }}</option>
+                        @endforeach
+                    </select>
+                    @error('patient_id') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
                 </div>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                    <div>
-<<<<<<< HEAD
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Result Value</label>
-                        <input type="text" wire:model="result_value" 
-                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Normal Range</label>
-                        <input type="text" wire:model="normal_range" placeholder="e.g., 70-100 mg/dL" 
-                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Status</label>
-                        <select wire:model="status" 
-                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-=======
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Result Value</label>
-                        <input type="text" wire:model="result_value" 
-                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Normal Range</label>
-                        <input type="text" wire:model="normal_range" placeholder="e.g., 70-100 mg/dL" 
-                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                        <select wire:model="status" 
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
->>>>>>> e970e22b30626e8281f56109471900f8de49ad4b
-                            <option value="Pending">Pending</option>
-                            <option value="Completed">Completed</option>
-                            <option value="Verified">Verified</option>
-                        </select>
-                    </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Test *</label>
+                    <select wire:model="test_id" 
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <option value="">Select Test</option>
+                        @foreach($tests as $test)
+                            <option value="{{ $test->test_id }}">{{ $test->label }}</option>
+                        @endforeach
+                    </select>
+                    @error('test_id') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
                 </div>
-<<<<<<< HEAD
-                <div class="mb-6">
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">Findings</label>
-                    <textarea wire:model="findings" rows="3"
-                              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"></textarea>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Result Date</label>
+                    <input type="date" wire:model="result_date" 
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    @error('result_date') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
                 </div>
-                <div class="mb-6">
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">Remarks</label>
-                    <textarea wire:model="remarks" rows="2"
-                              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"></textarea>
-=======
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Findings</label>
-                    <textarea wire:model="findings" rows="3"
-                              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Result Value</label>
+                    <input type="text" wire:model="result_value" placeholder="e.g., 120 mg/dL" 
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    @error('result_value') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
                 </div>
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Remarks</label>
-                    <textarea wire:model="remarks" rows="2"
-                              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
->>>>>>> e970e22b30626e8281f56109471900f8de49ad4b
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Normal Range</label>
+                    <input type="text" wire:model="normal_range" placeholder="e.g., 70-110 mg/dL" 
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    @error('normal_range') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
                 </div>
-                <div class="flex justify-end">
-                    <button type="submit" 
-<<<<<<< HEAD
-                            class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors">
-=======
-                            class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
->>>>>>> e970e22b30626e8281f56109471900f8de49ad4b
-                        Add Lab Result
-                    </button>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Performed By</label>
+                    <select wire:model="performed_by" 
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <option value="">Select Employee</option>
+                        @foreach($employees as $employee)
+                            <option value="{{ $employee->employee_id }}">{{ $employee->full_name }}</option>
+                        @endforeach
+                    </select>
+                    @error('performed_by') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
                 </div>
-            </form>
-        </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Verified By</label>
+                    <select wire:model="verified_by" 
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <option value="">Select Employee</option>
+                        @foreach($employees as $employee)
+                            <option value="{{ $employee->employee_id }}">{{ $employee->full_name }}</option>
+                        @endforeach
+                    </select>
+                    @error('verified_by') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Status *</label>
+                    <select wire:model="status" 
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <option value="draft">Draft</option>
+                        <option value="final">Final</option>
+                        <option value="revised">Revised</option>
+                    </select>
+                    @error('status') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
+                </div>
+            </div>
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Findings</label>
+                <textarea wire:model="findings" rows="2" placeholder="Enter findings..."
+                          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"></textarea>
+                @error('findings') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
+            </div>
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Remarks</label>
+                <textarea wire:model="remarks" rows="2" placeholder="Enter remarks..."
+                          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"></textarea>
+                @error('remarks') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
+            </div>
+            <div class="flex justify-end">
+                <button type="submit" 
+                        class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+                    Add Lab Result
+                </button>
+            </div>
+        </form>
     </div>
 
-<<<<<<< HEAD
-    <div class="bg-white rounded-lg shadow border border-gray-200">
-        <div class="p-6 border-b border-gray-200">
-            <input type="text" wire:model.live="search" placeholder="Search by patient name..." 
-                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-        </div>
-        <div class="overflow-x-auto">
-            <table class="w-full">
-                <thead class="bg-gray-50 border-b border-gray-200">
-                    <tr>
-                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">ID</th>
-                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Patient</th>
-                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Test</th>
-                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Result</th>
-                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Date</th>
-                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
-                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-200">
-                    @forelse($labResults as $result)
-                        <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $result->lab_result_id }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                {{ $result->patient->full_name ?? 'N/A' }}
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                                {{ $result->test->label ?? 'N/A' }}
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $result->result_value ?? 'N/A' }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                                {{ $result->result_date ? \Carbon\Carbon::parse($result->result_date)->format('m/d/Y') : 'N/A' }}
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm">
-                                <span class="px-2 py-1 text-xs font-medium rounded-full 
-                                    {{ $result->status == 'Completed' ? 'bg-blue-100 text-blue-800' : '' }}
-                                    {{ $result->status == 'Verified' ? 'bg-green-100 text-green-800' : '' }}
-                                    {{ $result->status == 'Pending' ? 'bg-yellow-100 text-yellow-800' : '' }}">
-                                    {{ $result->status }}
-                                </span>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                <div class="flex items-center gap-3">
-=======
     <div class="bg-white rounded-lg shadow-sm">
         <div class="px-6 py-4 border-b border-gray-200">
-            <h2 class="text-lg font-semibold text-gray-900">Lab Results List</h2>
+            <h2 class="text-lg font-semibold text-gray-900">Laboratory Results List</h2>
         </div>
         <div class="p-6">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Search Patients</label>
-                    <input type="text" wire:model.live="search" placeholder="Search by patient name..." 
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Search Patient/Test</label>
+                    <input type="text" wire:model.live="search" placeholder="Search patient or test..." 
                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Filter by Status</label>
+                    <select wire:model.live="filterStatus" 
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">All Status</option>
+                        <option value="draft">Draft</option>
+                        <option value="final">Final</option>
+                        <option value="revised">Revised</option>
+                    </select>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Rows per page</label>
@@ -329,83 +336,242 @@ new class extends Component
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
-                        <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">ID</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Patient</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Test</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Result</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Date</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Status</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
-                        @forelse($labResults as $result)
-                            <tr class="hover:bg-gray-50">
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $result->lab_result_id }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Patient</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Test</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Result Date</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Result Value</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    @forelse($results as $result)
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm font-medium text-gray-900">
                                     {{ $result->patient->full_name ?? 'N/A' }}
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                                    {{ $result->test->label ?? 'N/A' }}
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $result->result_value ?? 'N/A' }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                                    {{ $result->result_date ? \Carbon\Carbon::parse($result->result_date)->format('m/d/Y') : 'N/A' }}
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm">
-                                    <span class="px-2 py-1 text-xs rounded-full 
-                                        {{ $result->status == 'Completed' ? 'bg-blue-100 text-blue-800' : '' }}
-                                        {{ $result->status == 'Verified' ? 'bg-green-100 text-green-800' : '' }}
-                                        {{ $result->status == 'Pending' ? 'bg-yellow-100 text-yellow-800' : '' }}">
-                                        {{ $result->status }}
-                                    </span>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
->>>>>>> e970e22b30626e8281f56109471900f8de49ad4b
-                                    <a href="/lab-results/{{ $result->lab_result_id }}/edit" 
-                                       class="text-blue-600 hover:text-blue-900 transition-colors">Edit</a>
-                                    <button wire:click="delete({{ $result->lab_result_id }})" 
-                                            wire:confirm="Are you sure you want to delete this result?"
-<<<<<<< HEAD
-                                            class="text-red-600 hover:text-red-900 transition-colors">Delete</button>
                                 </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm text-gray-900">{{ $result->test->label ?? 'N/A' }}</div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm text-gray-500">
+                                    {{ $result->result_date ? \Carbon\Carbon::parse($result->result_date)->format('M d, Y') : 'N/A' }}
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm text-gray-900">{{ $result->result_value ?? 'N/A' }}</div>
+                                @if($result->normal_range)
+                                    <div class="text-xs text-gray-500">Range: {{ $result->normal_range }}</div>
+                                @endif
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                    @if($result->status === 'final') bg-green-100 text-green-800
+                                    @elseif($result->status === 'revised') bg-blue-100 text-blue-800
+                                    @else bg-yellow-100 text-yellow-800
+                                    @endif">
+                                    {{ ucfirst($result->status ?? 'draft') }}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <a href="{{ route('lab-results.show', $result->lab_result_id) }}" class="text-blue-600 hover:text-blue-900 mr-3">View</a>
+                                <button type="button" wire:click="openEditModal({{ $result->lab_result_id }})" class="text-green-600 hover:text-green-900">Edit</button>
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="px-6 py-12 text-center">
+                            <td colspan="6" class="px-6 py-12 text-center">
                                 <svg class="w-16 h-16 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                                 </svg>
-                                <p class="text-gray-500">No lab results found</p>
+                                <p class="text-gray-500 font-medium">No lab results found</p>
                             </td>
                         </tr>
                     @endforelse
                 </tbody>
             </table>
         </div>
-        <div class="px-6 py-4 border-t border-gray-200">
-            {{ $labResults->links() }}
-=======
-                                            class="text-red-600 hover:text-red-900">Delete</button>
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="7" class="px-6 py-4 text-center text-gray-500">No lab results found.</td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
+        
+        @if($perPage !== 'all' && method_exists($results, 'hasPages') && $results->hasPages())
+            <div class="px-6 py-4 border-t border-gray-200">
+                {{ $results->links() }}
             </div>
-            
-            @if($perPage !== 'all' && method_exists($labResults, 'hasPages') && $labResults->hasPages())
-                <div class="px-6 py-4 border-t border-gray-200">
-                    {{ $labResults->links() }}
+        @endif
+    </div>
+
+    <!-- Edit Lab Result Modal -->
+    @if($showEditModal)
+    <div class="fixed inset-0 z-50 overflow-y-auto" style="background-color: rgba(0, 0, 0, 0.5);">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full">
+                <!-- Modal Header -->
+                <div class="px-6 py-4 border-b" style="background-color: #E91E8C;">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-lg font-semibold text-white">Edit Lab Result</h3>
+                        <button type="button" wire:click="closeEditModal" class="text-white hover:text-gray-200">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
-            @endif
->>>>>>> e970e22b30626e8281f56109471900f8de49ad4b
+
+                <!-- Modal Body -->
+                <form wire:submit.prevent="updateResult">
+                    <div class="p-6 max-h-[70vh] overflow-y-auto">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- Patient -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                    Patient <span class="text-red-500">*</span>
+                                </label>
+                                <select wire:model="editPatientId" 
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="">Select Patient</option>
+                                    @foreach($patients as $patient)
+                                        <option value="{{ $patient->patient_id }}">{{ $patient->full_name }}</option>
+                                    @endforeach
+                                </select>
+                                @error('editPatientId') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                            </div>
+
+                            <!-- Test -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                    Test <span class="text-red-500">*</span>
+                                </label>
+                                <select wire:model="editTestId" 
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="">Select Test</option>
+                                    @foreach($tests as $test)
+                                        <option value="{{ $test->test_id }}">{{ $test->label }}</option>
+                                    @endforeach
+                                </select>
+                                @error('editTestId') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                            </div>
+
+                            <!-- Result Date -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Result Date</label>
+                                <input type="date" wire:model="editResultDate" 
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                @error('editResultDate') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                            </div>
+
+                            <!-- Status -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                    Status <span class="text-red-500">*</span>
+                                </label>
+                                <select wire:model="editStatus" 
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="draft">Draft</option>
+                                    <option value="final">Final</option>
+                                    <option value="revised">Revised</option>
+                                </select>
+                                @error('editStatus') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                            </div>
+
+                            <!-- Result Value -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Result Value</label>
+                                <input type="text" wire:model="editResultValue" 
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                       placeholder="Enter result value">
+                                @error('editResultValue') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                            </div>
+
+                            <!-- Normal Range -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Normal Range</label>
+                                <input type="text" wire:model="editNormalRange" 
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                       placeholder="e.g., 0-100 mg/dL">
+                                @error('editNormalRange') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                            </div>
+
+                            <!-- Performed By -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Performed By</label>
+                                <select wire:model="editPerformedBy" 
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="">Select Employee</option>
+                                    @foreach($employees as $employee)
+                                        <option value="{{ $employee->employee_id }}">{{ $employee->full_name }}</option>
+                                    @endforeach
+                                </select>
+                                @error('editPerformedBy') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                            </div>
+
+                            <!-- Verified By -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Verified By</label>
+                                <select wire:model="editVerifiedBy" 
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="">Select Employee</option>
+                                    @foreach($employees as $employee)
+                                        <option value="{{ $employee->employee_id }}">{{ $employee->full_name }}</option>
+                                    @endforeach
+                                </select>
+                                @error('editVerifiedBy') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                            </div>
+
+                            <!-- Findings (Full Width) -->
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Findings</label>
+                                <textarea wire:model="editFindings" rows="3" 
+                                          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                          placeholder="Enter clinical findings"></textarea>
+                                @error('editFindings') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                            </div>
+
+                            <!-- Remarks (Full Width) -->
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Remarks</label>
+                                <textarea wire:model="editRemarks" rows="3" 
+                                          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                          placeholder="Enter additional remarks"></textarea>
+                                @error('editRemarks') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Modal Footer -->
+                    <div class="px-6 py-4 border-t border-gray-200 flex justify-end space-x-3">
+                        <button type="button" wire:click="closeEditModal" 
+                                class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 font-medium">
+                            Cancel
+                        </button>
+                        <button type="submit" 
+                                class="px-4 py-2 text-white rounded-md font-medium hover:opacity-90 flex items-center"
+                                style="background-color: #E91E8C;">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                            </svg>
+                            Update Result
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
+    @endif
 </div>
+
+<script>
+    document.addEventListener('livewire:initialized', () => {
+        Livewire.on('close-edit-modal', () => {
+            @this.closeEditModal();
+        });
+    });
+
+    // Close modal on Escape key
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape' && @this.showEditModal) {
+            @this.closeEditModal();
+        }
+    });
+</script>

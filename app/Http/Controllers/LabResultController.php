@@ -55,7 +55,8 @@ class LabResultController extends Controller
      */
     public function show(LabResult $labResult)
     {
-        return redirect()->route('lab-results.index');
+        $labResult->load(['patient', 'test', 'performedBy', 'verifiedBy']);
+        return view('lab-results.show', ['result' => $labResult]);
     }
 
     /**

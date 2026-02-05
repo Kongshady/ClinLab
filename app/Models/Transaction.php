@@ -22,6 +22,14 @@ class Transaction extends Model
         'datetime_added' => 'datetime',
     ];
 
+    /**
+     * Get the route key name for Laravel route model binding.
+     */
+    public function getRouteKeyName()
+    {
+        return 'transaction_id';
+    }
+
     public function patient()
     {
         return $this->belongsTo(Patient::class, 'client_id', 'patient_id');

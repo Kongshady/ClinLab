@@ -33,6 +33,14 @@ class LabResult extends Model
 
     protected $appends = ['status_badge_class'];
 
+    /**
+     * Get the route key name for Laravel route model binding.
+     */
+    public function getRouteKeyName()
+    {
+        return 'lab_result_id';
+    }
+
     // Relationship with Patient
     public function patient()
     {

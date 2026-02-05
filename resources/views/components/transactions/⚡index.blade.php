@@ -23,11 +23,55 @@ new class extends Component
     public $perPage = 'all';
     public $flashMessage = '';
 
+    // Edit Modal Properties
+    public $showEditModal = false;
+    public $editTransactionId = '';
+    public $editClientId = '';
+    public $editOrNumber = '';
+    public $editClientDesignation = '';
+
     public function mount()
     {
         if (session()->has('success')) {
             $this->flashMessage = session('success');
         }
+    }
+
+    public function openEditModal($transactionId)
+    {
+        $transaction = Transaction::findOrFail($transactionId);
+        
+        $this->editTransactionId = $transaction->transaction_id;
+        $this->editClientId = $transaction->client_id;
+        $this->editOrNumber = $transaction->or_number;
+        $this->editClientDesignation = $transaction->client_designation;
+        
+        $this->showEditModal = true;
+    }
+
+    public function closeEditModal()
+    {
+        $this->showEditModal = false;
+        $this->reset(['editTransactionId', 'editClientId', 'editOrNumber', 'editClientDesignation']);
+    }
+
+    public function updateTransaction()
+    {
+        $validated = $this->validate([
+            'editClientId' => 'required|exists:patient,patient_id',
+            'editOrNumber' => 'required|string|max:50',
+            'editClientDesignation' => 'nullable|string|max:50',
+        ]);
+
+        $transaction = Transaction::findOrFail($this->editTransactionId);
+        $transaction->update([
+            'client_id' => $this->editClientId,
+            'or_number' => $this->editOrNumber,
+            'client_designation' => $this->editClientDesignation,
+        ]);
+
+        $this->flashMessage = 'Transaction updated successfully!';
+        $this->closeEditModal();
     }
 
     public function save()
@@ -179,8 +223,8 @@ new class extends Component
                                     {{ $transaction->datetime_added ? \Carbon\Carbon::parse($transaction->datetime_added)->format('m/d/Y h:i A') : 'N/A' }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                                    <a href="/transactions/{{ $transaction->transaction_id }}/edit" 
-                                       class="text-orange-600 hover:text-orange-900">Edit</a>
+                                    <button type="button" wire:click="openEditModal({{ $transaction->transaction_id }})" 
+                                            class="text-orange-600 hover:text-orange-900">Edit</button>
                                     <button wire:click="delete({{ $transaction->transaction_id }})" 
                                             wire:confirm="Are you sure you want to delete this transaction?"
                                             class="text-red-600 hover:text-red-900">Delete</button>
@@ -202,4 +246,103 @@ new class extends Component
             @endif
         </div>
     </div>
+
+    <!-- Edit Transaction Modal -->
+    @if($showEditModal)
+    <div class="fixed inset-0 z-50 overflow-y-auto" style="background-color: rgba(0, 0, 0, 0.5);">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full">
+                <!-- Modal Header -->
+                <div class="px-6 py-4 border-b" style="background-color: #E91E8C;">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-lg font-semibold text-white flex items-center">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                            </svg>
+                            Edit Transaction
+                        </h3>
+                        <button type="button" wire:click="closeEditModal" class="text-white hover:text-gray-200">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Modal Body -->
+                <form wire:submit.prevent="updateTransaction">
+                    <div class="p-6">
+                        <div class="grid grid-cols-1 gap-4">
+                            <!-- Patient -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                    Patient <span class="text-red-500">*</span>
+                                </label>
+                                <select wire:model="editClientId" 
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="">Select Patient</option>
+                                    @foreach($patients as $patient)
+                                        <option value="{{ $patient->patient_id }}">{{ $patient->full_name }}</option>
+                                    @endforeach
+                                </select>
+                                @error('editClientId') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                            </div>
+
+                            <!-- OR Number -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                    OR Number <span class="text-red-500">*</span>
+                                </label>
+                                <input type="text" wire:model="editOrNumber" 
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                       placeholder="Enter OR number">
+                                @error('editOrNumber') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                            </div>
+
+                            <!-- Client Designation -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Client Designation</label>
+                                <input type="text" wire:model="editClientDesignation" 
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                       placeholder="Enter client designation">
+                                @error('editClientDesignation') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Modal Footer -->
+                    <div class="px-6 py-4 border-t border-gray-200 flex justify-end space-x-3">
+                        <button type="button" wire:click="closeEditModal" 
+                                class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 font-medium">
+                            Cancel
+                        </button>
+                        <button type="submit" 
+                                class="px-4 py-2 text-white rounded-md font-medium hover:opacity-90 flex items-center"
+                                style="background-color: #E91E8C;">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                            </svg>
+                            Update Transaction
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    @endif
 </div>
+
+<script>
+    document.addEventListener('livewire:initialized', () => {
+        Livewire.on('close-edit-modal', () => {
+            @this.closeEditModal();
+        });
+    });
+
+    // Close modal on Escape key
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape' && @this.showEditModal) {
+            @this.closeEditModal();
+        }
+    });
+</script>

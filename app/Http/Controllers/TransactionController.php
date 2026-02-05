@@ -37,4 +37,27 @@ class TransactionController extends Controller
     {
         return redirect()->route('transactions.index');
     }
+
+    public function edit(Transaction $transaction)
+    {
+        return redirect()->route('transactions.index');
+    }
+
+    public function update(Request $request, Transaction $transaction)
+    {
+        $validated = $request->validate([
+            'client_id' => 'required|exists:patient,patient_id',
+            'or_number' => 'required|string|max:50',
+            'client_designation' => 'nullable|string|max:50',
+        ]);
+
+        $transaction->update($validated);
+        return redirect()->route('transactions.index')->with('success', 'Transaction updated successfully.');
+    }
+
+    public function destroy(Transaction $transaction)
+    {
+        $transaction->delete();
+        return redirect()->route('transactions.index')->with('success', 'Transaction deleted successfully.');
+    }
 }
