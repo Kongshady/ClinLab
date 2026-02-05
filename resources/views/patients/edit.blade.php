@@ -13,7 +13,7 @@
         body {
             font-family: Arial, sans-serif;
             padding: 20px;
-            background-color: #f5f5f5;
+            background-color: rgba(128, 128, 128, 0.5);
         }
         .container {
             max-width: 800px;

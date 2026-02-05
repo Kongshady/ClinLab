@@ -164,8 +164,11 @@ new class extends Component
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Contact Number</label>
-                        <input type="text" wire:model="contact_number" 
+                        <input type="text" wire:model="contact_number" id="add_contact_number"
+                               maxlength="11" placeholder="09123456789"
                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent">
+                        <p id="add_contact_error" class="text-red-600 text-xs mt-1 hidden"></p>
+                        <p class="text-gray-500 text-xs mt-1">Must be exactly 11 digits (09 format)</p>
                         @error('contact_number') <span class="text-red-600 text-sm">{{ $message }}</span> @enderror
                     </div>
                     <div>
@@ -317,8 +320,11 @@ new class extends Component
                                 <label class="block text-sm font-medium text-gray-700 mb-2">
                                     Contact Number
                                 </label>
-                                <input type="text" wire:model="contact_number" 
+                                <input type="text" wire:model="contact_number" id="edit_contact_number"
+                                       maxlength="11" placeholder="09123456789"
                                        class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all">
+                                <p id="edit_contact_error" class="text-red-500 text-xs mt-1 hidden"></p>
+                                <p class="text-gray-500 text-xs mt-1">Must be exactly 11 digits (09 format)</p>
                                 @error('contact_number') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
                             </div>
                             <div>
@@ -354,3 +360,60 @@ new class extends Component
     </div>
     @endif
 </div>
+
+<script>
+function validateContactNumber(inputId, errorId) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    
+    const error = document.getElementById(errorId);
+    
+    input.addEventListener('input', function(e) {
+        let value = e.target.value;
+        
+        // Remove any characters that are not digits
+        value = value.replace(/[^\d]/g, '');
+        
+        e.target.value = value;
+        
+        // Trigger Livewire update
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        
+        // Count digits
+        const digitCount = value.length;
+        
+        if (value && digitCount > 0) {
+            if (digitCount < 11) {
+                const missing = 11 - digitCount;
+                error.textContent = `Missing ${missing} ${missing === 1 ? 'number' : 'numbers'}`;
+                error.classList.remove('hidden');
+                input.classList.add('border-red-500');
+            } else if (digitCount === 11) {
+                error.classList.add('hidden');
+                input.classList.remove('border-red-500');
+            } else {
+                error.textContent = 'Contact number must be exactly 11 digits';
+                error.classList.remove('hidden');
+                input.classList.add('border-red-500');
+            }
+        } else {
+            error.classList.add('hidden');
+            input.classList.remove('border-red-500');
+        }
+    });
+}
+
+// Initialize validators
+document.addEventListener('DOMContentLoaded', function() {
+    validateContactNumber('add_contact_number', 'add_contact_error');
+});
+
+// Re-initialize when modal opens (for edit form)
+document.addEventListener('livewire:load', function() {
+    Livewire.hook('message.processed', (message, component) => {
+        setTimeout(() => {
+            validateContactNumber('edit_contact_number', 'edit_contact_error');
+        }, 100);
+    });
+});
+</script>

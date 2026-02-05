@@ -73,7 +73,9 @@
 
                     <div>
                         <label for="contact_number" class="block text-sm font-semibold text-gray-700 mb-2">Contact Number</label>
-                        <input type="text" name="contact_number" id="contact_number" value="{{ old('contact_number') }}" maxlength="20" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <input type="text" name="contact_number" id="contact_number" value="{{ old('contact_number') }}" maxlength="11" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="09123456789">
+                        <p id="contact_error" class="text-red-500 text-sm mt-1 hidden"></p>
+                        <p id="contact_hint" class="text-gray-500 text-xs mt-1">Must be exactly 11 digits (09 format)</p>
                         @error('contact_number')
                             <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
                         @enderror
@@ -100,4 +102,63 @@
         </div>
     </div>
 </div>
+
+<script>
+function validateContactNumber(inputId, errorId) {
+    const input = document.getElementById(inputId);
+    const error = document.getElementById(errorId);
+    
+    input.addEventListener('input', function(e) {
+        let value = e.target.value;
+        
+        // Remove any characters that are not digits
+        value = value.replace(/[^\d]/g, '');
+        
+        e.target.value = value;
+        
+        // Count digits
+        const digitCount = value.length;
+        
+        if (value && digitCount > 0) {
+            if (digitCount < 11) {
+                const missing = 11 - digitCount;
+                error.textContent = `Missing ${missing} ${missing === 1 ? 'number' : 'numbers'}`;
+                error.classList.remove('hidden');
+                input.classList.add('border-red-500');
+            } else if (digitCount === 11) {
+                error.classList.add('hidden');
+                input.classList.remove('border-red-500');
+            } else {
+                error.textContent = 'Contact number must be exactly 11 digits';
+                error.classList.remove('hidden');
+                input.classList.add('border-red-500');
+            }
+        } else {
+            error.classList.add('hidden');
+            input.classList.remove('border-red-500');
+        }
+    });
+    
+    // Validate on form submit
+    input.form.addEventListener('submit', function(e) {
+        const value = input.value;
+        const digitCount = value.length;
+        
+        if (value && digitCount !== 11) {
+            e.preventDefault();
+            const missing = 11 - digitCount;
+            if (digitCount < 11) {
+                error.textContent = `Missing ${missing} ${missing === 1 ? 'number' : 'numbers'}`;
+            } else {
+                error.textContent = 'Contact number must be exactly 11 digits';
+            }
+            error.classList.remove('hidden');
+            input.classList.add('border-red-500');
+            input.focus();
+        }
+    });
+}
+
+validateContactNumber('contact_number', 'contact_error');
+</script>
 @endsection
