@@ -2,7 +2,6 @@
 
 use Livewire\Component;
 use Livewire\WithPagination;
-use Livewire\Attributes\Validate;
 use App\Models\ActivityLog;
 use App\Models\Employee;
 
@@ -10,47 +9,17 @@ new class extends Component
 {
     use WithPagination;
 
-    #[Validate('required|exists:employee,employee_id')]
-    public $employee_id = '';
-
-    #[Validate('required|string')]
-    public $description = '';
-
     public $search = '';
     public $filterEmployee = '';
     public $dateFrom = '';
     public $dateTo = '';
+    public $perPage = 50;
     public $flashMessage = '';
 
     public function mount()
     {
         if (session()->has('success')) {
             $this->flashMessage = session('success');
-        }
-    }
-
-    public function save()
-    {
-        $this->validate();
-
-        ActivityLog::create([
-            'employee_id' => $this->employee_id,
-            'description' => $this->description,
-            'datetime_added' => now(),
-            'status_code' => 1,
-        ]);
-
-        $this->reset(['employee_id', 'description']);
-        $this->flashMessage = 'Activity log added successfully!';
-        $this->resetPage();
-    }
-
-    public function delete($id)
-    {
-        $log = ActivityLog::find($id);
-        if ($log) {
-            $log->delete();
-            $this->flashMessage = 'Activity log deleted successfully!';
         }
     }
 
@@ -75,128 +44,144 @@ new class extends Component
                     $query->whereDate('datetime_added', '<=', $this->dateTo);
                 })
                 ->orderBy('datetime_added', 'desc')
-                ->paginate(50),
+                ->paginate($this->perPage),
             'employees' => Employee::active()->orderBy('lastname')->get()
         ];
     }
 };
 ?>
 
-<div class="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 p-6">
-    <div class="max-w-7xl mx-auto">
-        <div class="mb-8">
-            <h1 class="text-4xl font-bold text-gray-800 mb-2">Activity Logs</h1>
-            <p class="text-gray-600">Track employee activities and system events</p>
-        </div>
-
+<div class="min-h-screen bg-gray-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Success Message -->
         @if($flashMessage)
-            <div class="mb-6 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative" role="alert">
-                <span class="block sm:inline">{{ $flashMessage }}</span>
+            <div class="mb-6 bg-white border-l-4 border-green-500 shadow-sm rounded-lg p-4 flex items-center justify-between">
+                <div class="flex items-center">
+                    <svg class="w-5 h-5 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                    </svg>
+                    <span class="text-sm font-medium text-gray-900">{{ $flashMessage }}</span>
+                </div>
             </div>
         @endif
 
-        <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
-            <h2 class="text-2xl font-bold text-gray-800 mb-6">Add Activity Log</h2>
-            <form wire:submit.prevent="save">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Employee *</label>
-                        <select wire:model="employee_id" 
-                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent">
-                            <option value="">Select Employee</option>
-                            @foreach($employees as $employee)
-                                <option value="{{ $employee->employee_id }}">{{ $employee->full_name }}</option>
-                            @endforeach
-                        </select>
-                        @error('employee_id') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
-                    </div>
-                </div>
-                <div class="mb-6">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Description *</label>
-                    <textarea wire:model="description" rows="3" placeholder="Enter activity description..."
-                              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"></textarea>
-                    @error('description') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
-                </div>
-                <div>
-                    <button type="submit" 
-                            class="bg-gradient-to-r from-pink-500 to-purple-500 text-white px-6 py-3 rounded-lg hover:from-pink-600 hover:to-purple-600 transition duration-200 font-medium">
-                        Add Log
-                    </button>
-                </div>
-            </form>
+        <!-- Header -->
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-900">Activity Logs</h1>
+            <p class="mt-1 text-sm text-gray-500">Audit trail of all employee actions in the system</p>
         </div>
 
-        <!-- Filters -->
-        <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
-            <h2 class="text-xl font-bold text-gray-800 mb-4">Filters</h2>
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Search</label>
-                    <input type="text" wire:model.live="search" placeholder="Search description or employee..." 
-                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Employee</label>
-                    <select wire:model.live="filterEmployee" 
-                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent">
-                        <option value="">All</option>
-                        @foreach($employees as $employee)
-                            <option value="{{ $employee->employee_id }}">{{ $employee->full_name }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Date From</label>
-                    <input type="date" wire:model.live="dateFrom" 
-                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Date To</label>
-                    <input type="date" wire:model.live="dateTo" 
-                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent">
+        <!-- Filters Card -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-8">
+            <div class="px-8 py-6 border-b border-gray-200">
+                <h2 class="text-lg font-bold text-gray-900">Filters</h2>
+                <p class="mt-1 text-sm text-gray-500">Filter activity logs by employee, date range, or search</p>
+            </div>
+            <div class="px-8 py-6 bg-gray-50">
+                <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+                    <div class="space-y-2">
+                        <label class="text-xs font-medium text-gray-700 uppercase tracking-wide">Search</label>
+                        <input type="text" wire:model.live="search" placeholder="Activity description..." 
+                               class="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm">
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-xs font-medium text-gray-700 uppercase tracking-wide">Employee</label>
+                        <select wire:model.live="filterEmployee" 
+                                class="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm">
+                            <option value="">All Employees</option>
+                            @foreach($employees as $employee)
+                                <option value="{{ $employee->employee_id }}">{{ $employee->firstname }} {{ $employee->lastname }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-xs font-medium text-gray-700 uppercase tracking-wide">Date From</label>
+                        <input type="date" wire:model.live="dateFrom" 
+                               class="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm">
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-xs font-medium text-gray-700 uppercase tracking-wide">Date To</label>
+                        <input type="date" wire:model.live="dateTo" 
+                               class="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm">
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-xs font-medium text-gray-700 uppercase tracking-wide">Per Page</label>
+                        <select wire:model.live="perPage" 
+                                class="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm">
+                            <option value="25">25</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                            <option value="200">200</option>
+                        </select>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <div class="bg-white rounded-xl shadow-lg p-6">
-            <h2 class="text-xl font-bold text-gray-800 mb-4">Activity History</h2>
+        <!-- Activity Logs Table -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div class="px-8 py-6 border-b border-gray-200">
+                <h2 class="text-xl font-bold text-gray-900">Activity History</h2>
+                <p class="mt-1 text-sm text-gray-500">Showing {{ $logs->count() }} of {{ $logs->total() }} activities</p>
+            </div>
+
+            <!-- Table -->
             <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gradient-to-r from-pink-50 to-purple-50">
-                        <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">ID</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Date & Time</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Employee</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Description</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Actions</th>
+                <table class="w-full">
+                    <thead>
+                        <tr class="bg-gray-50 border-y border-gray-200">
+                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wide">ID</th>
+                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wide">Date & Time</th>
+                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wide">Employee</th>
+                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wide">Action</th>
                         </tr>
                     </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
+                    <tbody class="divide-y divide-gray-100 bg-white">
                         @forelse($logs as $log)
-                            <tr class="hover:bg-gray-50">
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $log->activity_log_id }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                                    {{ $log->datetime_added ? \Carbon\Carbon::parse($log->datetime_added)->format('m/d/Y h:i A') : 'N/A' }}
+                            <tr class="hover:bg-gray-50 transition-colors">
+                                <td class="px-4 py-3 whitespace-nowrap">
+                                    <span class="text-sm font-medium text-gray-900">#{{ $log->activity_log_id }}</span>
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                    {{ $log->employee->full_name ?? 'N/A' }}
+                                <td class="px-4 py-3 whitespace-nowrap">
+                                    <div class="text-sm font-medium text-gray-900">{{ $log->datetime_added->format('M d, Y') }}</div>
+                                    <div class="text-xs text-gray-500">{{ $log->datetime_added->format('h:i A') }}</div>
                                 </td>
-                                <td class="px-6 py-4 text-sm text-gray-600">{{ $log->description }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                                    <button wire:click="delete({{ $log->activity_log_id }})" 
-                                            wire:confirm="Are you sure you want to delete this log?"
-                                            class="text-red-600 hover:text-red-900">Delete</button>
+                                <td class="px-4 py-3 whitespace-nowrap">
+                                    <div class="flex items-center">
+                                        <div class="h-8 w-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-semibold text-sm">
+                                            {{ substr($log->employee->firstname ?? 'U', 0, 1) }}{{ substr($log->employee->lastname ?? 'N', 0, 1) }}
+                                        </div>
+                                        <div class="ml-3">
+                                            <div class="text-sm font-medium text-gray-900">
+                                                {{ $log->employee->firstname ?? 'Unknown' }} {{ $log->employee->lastname ?? '' }}
+                                            </div>
+                                            @if($log->employee->position)
+                                                <div class="text-xs text-gray-500">{{ $log->employee->position }}</div>
+                                            @endif
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="px-4 py-3">
+                                    <div class="text-sm text-gray-900">{{ $log->description }}</div>
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="5" class="px-6 py-4 text-center text-gray-500">No activity logs found.</td>
+                                <td colspan="4" class="px-4 py-12 text-center">
+                                    <svg class="mx-auto h-10 w-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                    </svg>
+                                    <p class="mt-2 text-sm text-gray-500">No activity logs found</p>
+                                    <p class="text-xs text-gray-400">Try adjusting your filters</p>
+                                </td>
                             </tr>
                         @endforelse
                     </tbody>
                 </table>
             </div>
-            <div class="mt-6">
+
+            <!-- Pagination -->
+            <div class="px-8 py-4 border-t border-gray-200 bg-gray-50">
                 {{ $logs->links() }}
             </div>
         </div>

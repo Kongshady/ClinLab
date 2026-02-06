@@ -8,9 +8,28 @@
         <p class="text-gray-600 mt-1">Register a new patient in the system</p>
     </div>
 
+<<<<<<< Updated upstream
     <!-- Form Card -->
     <div class="bg-white rounded-lg shadow border border-gray-200 max-w-4xl">
         <div class="p-6">
+=======
+        <!-- Success Message -->
+        @if(session('success'))
+        <div class="mb-6 bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg">
+            {{ session('success') }}
+        </div>
+        @endif
+
+        <!-- Duplicate Error Message -->
+        @error('duplicate')
+        <div class="mb-6 bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">
+            {{ $message }}
+        </div>
+        @enderror
+
+        <!-- Form Card -->
+        <div class="bg-white rounded-lg shadow-sm p-6">
+>>>>>>> Stashed changes
             <form action="{{ route('patients.store') }}" method="POST">
                 @csrf
                 
@@ -72,13 +91,19 @@
                     </div>
 
                     <div>
+<<<<<<< Updated upstream
                         <label for="contact_number" class="block text-sm font-semibold text-gray-700 mb-2">Contact Number</label>
                         <input type="text" name="contact_number" id="contact_number" value="{{ old('contact_number') }}" maxlength="11" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="09123456789">
                         <p id="contact_error" class="text-red-500 text-sm mt-1 hidden"></p>
                         <p id="contact_hint" class="text-gray-500 text-xs mt-1">Must be exactly 11 digits (09 format)</p>
+=======
+                        <label for="contact_number" class="block text-sm font-medium text-gray-700 mb-2">Contact Number</label>
+                        <input type="text" name="contact_number" id="contact_number" value="{{ old('contact_number') }}" maxlength="11" pattern="[0-9]{11}" oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 11)" placeholder="09XXXXXXXXX" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+>>>>>>> Stashed changes
                         @error('contact_number')
                             <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
                         @enderror
+                        <p class="text-xs text-gray-500 mt-1">11 digits only</p>
                     </div>
 
                     <div class="md:col-span-2">

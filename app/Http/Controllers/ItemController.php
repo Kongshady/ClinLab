@@ -2,10 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Item;
-use App\Models\Section;
-use Illuminate\Http\Request;
-
 class ItemController extends Controller
 {
     public function index()
@@ -17,6 +13,7 @@ class ItemController extends Controller
         
         return view('items.index', compact('items'));
     }
+<<<<<<< Updated upstream
 
     public function create()
     {
@@ -77,4 +74,6 @@ class ItemController extends Controller
         $item->softDelete();
         return redirect()->route('items.index')->with('success', 'Item deleted successfully.');
     }
+=======
+>>>>>>> Stashed changes
 }

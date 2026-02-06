@@ -18,6 +18,7 @@ class PatientController extends Controller
         
         return view('patients.index', compact('patients'));
     }
+<<<<<<< Updated upstream
 
     /**
      * Show the form for creating a new patient.
@@ -123,4 +124,6 @@ class PatientController extends Controller
         return redirect()->route('patients.index')
             ->with('success', 'Patient deleted successfully.');
     }
+=======
+>>>>>>> Stashed changes
 }

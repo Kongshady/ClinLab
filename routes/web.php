@@ -13,7 +13,12 @@ use App\Http\Controllers\CalibrationRecordController;
 use App\Http\Controllers\SectionController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\ActivityLogController;
+<<<<<<< Updated upstream
 use App\Http\Controllers\ReportsController;
+=======
+use App\Http\Controllers\AccountSettingsController;
+use App\Http\Controllers\InventoryController;
+>>>>>>> Stashed changes
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -28,6 +33,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    
+    // Account Settings
+    Route::get('/account-settings', [AccountSettingsController::class, 'index'])->name('account.settings');
+    Route::post('/account-settings/password', [AccountSettingsController::class, 'updatePassword'])->name('account.update-password');
     
     // Patient Management
     Route::middleware(['permission:patients.access'])->group(function () {
@@ -49,7 +58,12 @@ Route::middleware('auth')->group(function () {
     
     Route::middleware(['permission:certificates.access'])->group(function () {
         Route::resource('certificates', CertificateController::class);
+        Route::get('certificates-templates', [CertificateController::class, 'templates'])->name('certificates.templates');
+        Route::get('certificates-issued', [CertificateController::class, 'issued'])->name('certificates.issued');
     });
+    
+    // Public certificate verification (no auth required)
+    Route::get('certificates-verify', [CertificateController::class, 'verify'])->name('certificates.verify');
     
     // Resources
     Route::middleware(['permission:transactions.access'])->group(function () {
@@ -66,6 +80,11 @@ Route::middleware('auth')->group(function () {
     
     Route::middleware(['permission:calibration.access'])->group(function () {
         Route::resource('calibration', CalibrationRecordController::class);
+    });
+    
+    // Inventory Management
+    Route::middleware(['permission:inventory.access'])->group(function () {
+        Route::get('inventory', [InventoryController::class, 'index'])->name('inventory.index');
     });
     
     // MIT Management

@@ -16,6 +16,7 @@ class CertificateController extends Controller
     }
 
     /**
+<<<<<<< Updated upstream
      * Show the form for creating a new certificate.
      */
     public function create()
@@ -98,5 +99,28 @@ class CertificateController extends Controller
 
         return redirect()->route('certificates.index')
             ->with('success', 'Certificate deleted successfully.');
+=======
+     * Display certificate templates page.
+     */
+    public function templates()
+    {
+        return view('certificates.templates.index');
+    }
+
+    /**
+     * Display issued certificates page.
+     */
+    public function issued()
+    {
+        return view('certificates.issued.index');
+    }
+
+    /**
+     * Display certificate verification page.
+     */
+    public function verify()
+    {
+        return view('certificates.verify.index');
+>>>>>>> Stashed changes
     }
 }

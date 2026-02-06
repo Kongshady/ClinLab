@@ -38,6 +38,10 @@ new class extends Component
     public $perPage = 'all';
     public $flashMessage = '';
 
+    // Edit mode
+    public $editMode = false;
+    public $editingEquipmentId = null;
+
     public function mount()
     {
         if (session()->has('success')) {
@@ -66,6 +70,47 @@ new class extends Component
         $this->status = 'Operational';
         $this->flashMessage = 'Equipment added successfully!';
         $this->resetPage();
+    }
+
+    public function edit($id)
+    {
+        $equipment = Equipment::findOrFail($id);
+        $this->editingEquipmentId = $id;
+        $this->name = $equipment->name;
+        $this->model = $equipment->model ?? '';
+        $this->serial_no = $equipment->serial_no ?? '';
+        $this->section_id = $equipment->section_id;
+        $this->status = $equipment->status ?? 'Operational';
+        $this->purchase_date = $equipment->purchase_date ?? '';
+        $this->supplier = $equipment->supplier ?? '';
+        $this->remarks = $equipment->remarks ?? '';
+        $this->editMode = true;
+    }
+
+    public function update()
+    {
+        $this->validate();
+
+        $equipment = Equipment::findOrFail($this->editingEquipmentId);
+        $equipment->update([
+            'name' => $this->name,
+            'model' => $this->model,
+            'serial_no' => $this->serial_no,
+            'section_id' => $this->section_id,
+            'status' => $this->status,
+            'purchase_date' => $this->purchase_date,
+            'supplier' => $this->supplier,
+            'remarks' => $this->remarks,
+        ]);
+
+        $this->flashMessage = 'Equipment updated successfully!';
+        $this->cancelEdit();
+    }
+
+    public function cancelEdit()
+    {
+        $this->reset(['name', 'model', 'serial_no', 'section_id', 'purchase_date', 'supplier', 'remarks', 'editMode', 'editingEquipmentId']);
+        $this->status = 'Operational';
     }
 
     public function delete($id)
@@ -240,8 +285,8 @@ new class extends Component
                                     </span>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                                    <a href="/equipment/{{ $item->equipment_id }}/edit" 
-                                       class="text-orange-600 hover:text-orange-900">Edit</a>
+                                    <button wire:click="edit({{ $item->equipment_id }})" 
+                                       class="text-orange-600 hover:text-orange-900">Edit</button>
                                     <button wire:click="delete({{ $item->equipment_id }})" 
                                             wire:confirm="Are you sure you want to delete this equipment?"
                                             class="text-red-600 hover:text-red-900">Delete</button>
@@ -263,4 +308,85 @@ new class extends Component
             @endif
         </div>
     </div>
+
+    <!-- Edit Equipment Modal -->
+    @if($editMode)
+    <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 p-4">
+        <div class="relative top-10 mx-auto p-6 border w-full max-w-2xl shadow-lg rounded-xl bg-white">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-2xl font-bold text-gray-900">Edit Equipment</h3>
+                <button wire:click="cancelEdit" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <form wire:submit.prevent="update">
+                <div class="grid grid-cols-1 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Equipment Name *</label>
+                        <input type="text" wire:model="name" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent" required>
+                        @error('name') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Model</label>
+                            <input type="text" wire:model="model" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent">
+                            @error('model') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Serial Number</label>
+                            <input type="text" wire:model="serial_no" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent">
+                            @error('serial_no') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Section *</label>
+                            <select wire:model="section_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent" required>
+                                <option value="">Select Section</option>
+                                @foreach($sections as $section)
+                                    <option value="{{ $section->section_id }}">{{ $section->label }}</option>
+                                @endforeach
+                            </select>
+                            @error('section_id') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                            <select wire:model="status" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent">
+                                <option value="Operational">Operational</option>
+                                <option value="Under Maintenance">Under Maintenance</option>
+                                <option value="Broken">Broken</option>
+                                <option value="Decommissioned">Decommissioned</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Purchase Date</label>
+                            <input type="date" wire:model="purchase_date" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Supplier</label>
+                            <input type="text" wire:model="supplier" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Remarks</label>
+                        <textarea wire:model="remarks" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"></textarea>
+                    </div>
+                </div>
+                <div class="flex justify-end space-x-3 pt-4 border-t mt-6">
+                    <button type="button" wire:click="cancelEdit" class="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
+                        Cancel
+                    </button>
+                    <button type="submit" class="px-6 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition-colors">
+                        Update Equipment
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    @endif
 </div>

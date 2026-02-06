@@ -13,7 +13,6 @@ class Transaction extends Model
     protected $fillable = [
         'client_id',
         'or_number',
-        'client_designation',
         'datetime_added',
         'status_code',
     ];

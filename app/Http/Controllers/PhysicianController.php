@@ -2,15 +2,13 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Physician;
-use Illuminate\Http\Request;
-
 class PhysicianController extends Controller
 {
     public function index()
     {
         return view('physicians.index');
     }
+<<<<<<< Updated upstream
 
     public function create()
     {
@@ -57,4 +55,6 @@ class PhysicianController extends Controller
         $physician->softDelete();
         return redirect()->route('physicians.index')->with('success', 'Physician deleted successfully.');
     }
+=======
+>>>>>>> Stashed changes
 }

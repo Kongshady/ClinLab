@@ -2,10 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Equipment;
-use App\Models\Section;
-use Illuminate\Http\Request;
-
 class EquipmentController extends Controller
 {
     public function index()
@@ -17,6 +13,7 @@ class EquipmentController extends Controller
         
         return view('equipment.index', compact('equipment'));
     }
+<<<<<<< Updated upstream
 
     public function create()
     {
@@ -74,4 +71,6 @@ class EquipmentController extends Controller
         $equipment->softDelete();
         return redirect()->route('equipment.index')->with('success', 'Equipment deleted successfully.');
     }
+=======
+>>>>>>> Stashed changes
 }

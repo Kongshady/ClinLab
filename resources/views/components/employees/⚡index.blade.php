@@ -12,9 +12,6 @@ new class extends Component
 {
     use WithPagination;
 
-    #[Validate('required|exists:section,section_id')]
-    public $section_id = '';
-
     #[Validate('required|string|max:50')]
     public $firstname = '';
 
@@ -30,7 +27,7 @@ new class extends Component
     #[Validate('required|string|min:6')]
     public $password = '';
 
-    #[Validate('required|string|max:100')]
+    #[Validate('nullable|string|max:100')]
     public $position = '';
 
     #[Validate('required|exists:user_roles,id')]
@@ -39,6 +36,10 @@ new class extends Component
     public $search = '';
     public $flashMessage = '';
     public $perPage = 'all';
+
+    // Edit mode
+    public $editMode = false;
+    public $editingEmployeeId = null;
 
     public function mount()
     {
@@ -67,7 +68,6 @@ new class extends Component
         // Create Employee record linked to User
         Employee::create([
             'user_id' => $user->id,
-            'section_id' => $this->section_id,
             'firstname' => $this->firstname,
             'middlename' => $this->middlename,
             'lastname' => $this->lastname,
@@ -79,9 +79,62 @@ new class extends Component
             'is_deleted' => 0,
         ]);
 
-        $this->reset(['section_id', 'firstname', 'middlename', 'lastname', 'email', 'password', 'position', 'role_id']);
+        $this->reset(['firstname', 'middlename', 'lastname', 'email', 'password', 'position', 'role_id']);
         $this->flashMessage = 'Employee account created successfully!';
         $this->resetPage();
+    }
+
+    public function edit($id)
+    {
+        $employee = Employee::with('user.roles')->findOrFail($id);
+        $this->editingEmployeeId = $id;
+        $this->firstname = $employee->firstname;
+        $this->middlename = $employee->middlename ?? '';
+        $this->lastname = $employee->lastname;
+        $this->email = $employee->username;
+        $this->position = $employee->position ?? '';
+        $this->role_id = $employee->user && $employee->user->roles->isNotEmpty() ? $employee->user->roles->first()->id : '';
+        $this->editMode = true;
+    }
+
+    public function update()
+    {
+        $this->validate([
+            'firstname' => 'required|string|max:50',
+            'middlename' => 'nullable|string|max:50',
+            'lastname' => 'required|string|max:50',
+            'position' => 'nullable|string|max:100',
+            'role_id' => 'required|exists:user_roles,id',
+        ]);
+
+        $employee = Employee::findOrFail($this->editingEmployeeId);
+        $employee->update([
+            'firstname' => $this->firstname,
+            'middlename' => $this->middlename,
+            'lastname' => $this->lastname,
+            'position' => $this->position,
+        ]);
+
+        // Update user name and role
+        if ($employee->user) {
+            $employee->user->update([
+                'name' => trim("{$this->firstname} {$this->middlename} {$this->lastname}"),
+            ]);
+
+            // Update role
+            $role = Role::find($this->role_id);
+            if ($role) {
+                $employee->user->syncRoles([$role->name]);
+            }
+        }
+
+        $this->flashMessage = 'Employee updated successfully!';
+        $this->cancelEdit();
+    }
+
+    public function cancelEdit()
+    {
+        $this->reset(['firstname', 'middlename', 'lastname', 'email', 'position', 'role_id', 'editMode', 'editingEmployeeId']);
     }
 
     public function delete($id)
@@ -100,7 +153,7 @@ new class extends Component
     public function with(): array
     {
         $query = Employee::active()
-            ->with(['section', 'user.roles'])
+            ->with(['user.roles'])
             ->when($this->search, function ($query) {
                 $query->where(function ($q) {
                     $q->where('firstname', 'like', '%' . $this->search . '%')
@@ -115,7 +168,6 @@ new class extends Component
 
         return [
             'employees' => $employees,
-            'sections' => Section::active()->orderBy('label')->get(),
             'roles' => Role::all()
         ];
     }
@@ -179,23 +231,10 @@ new class extends Component
             <!-- Work Information -->
             <div class="mb-6">
                 <h3 class="text-sm font-medium text-gray-700 mb-4">Work Information</h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">
-                            Section <span class="text-red-500">*</span>
-                        </label>
-                        <select wire:model="section_id" 
-                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent">
-                            <option value="">Select Section</option>
-                            @foreach($sections as $section)
-                                <option value="{{ $section->section_id }}">{{ $section->label }}</option>
-                            @endforeach
-                        </select>
-                        @error('section_id') <span class="text-red-600 text-xs mt-1">{{ $message }}</span> @enderror
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">
-                            Position <span class="text-red-500">*</span>
+                            Position
                         </label>
                         <input type="text" 
                                wire:model="position" 
@@ -278,7 +317,6 @@ new class extends Component
                     <thead>
                         <tr class="bg-gray-50">
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Employee Name</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Section</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Position</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Email</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Role</th>
@@ -296,8 +334,7 @@ new class extends Component
                                         <span class="text-sm text-gray-900 font-medium">{{ $employee->firstname }} {{ $employee->middlename }} {{ $employee->lastname }}</span>
                                     </div>
                                 </td>
-                                <td class="px-4 py-3 text-sm text-gray-700">{{ $employee->section->label ?? 'N/A' }}</td>
-                                <td class="px-4 py-3 text-sm text-gray-700">{{ $employee->position }}</td>
+                                <td class="px-4 py-3 text-sm text-gray-700">{{ $employee->position ?? 'N/A' }}</td>
                                 <td class="px-4 py-3 text-sm text-gray-700">{{ $employee->username }}</td>
                                 <td class="px-4 py-3 text-sm text-gray-700">
                                     @if($employee->user && $employee->user->roles->isNotEmpty())
@@ -308,7 +345,7 @@ new class extends Component
                                 </td>
                                 <td class="px-4 py-3">
                                     <div class="flex items-center space-x-2">
-                                        <button type="button"
+                                        <button wire:click="edit({{ $employee->employee_id }})"
                                                 class="px-4 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg transition-colors">
                                             Edit
                                         </button>
@@ -322,7 +359,7 @@ new class extends Component
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="px-4 py-8 text-center text-gray-500">No employees found.</td>
+                                <td colspan="5" class="px-4 py-8 text-center text-gray-500">No employees found.</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -336,4 +373,69 @@ new class extends Component
             @endif
         </div>
     </div>
+
+    <!-- Edit Employee Modal -->
+    @if($editMode)
+    <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 p-4">
+        <div class="relative top-10 mx-auto p-6 border w-full max-w-2xl shadow-lg rounded-xl bg-white">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-2xl font-bold text-gray-900">Edit Employee</h3>
+                <button wire:click="cancelEdit" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <form wire:submit.prevent="update">
+                <div class="grid grid-cols-1 gap-6">
+                    <div class="grid grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">First Name *</label>
+                            <input type="text" wire:model="firstname" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent" required>
+                            @error('firstname') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Middle Name</label>
+                            <input type="text" wire:model="middlename" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent">
+                            @error('middlename') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Last Name *</label>
+                            <input type="text" wire:model="lastname" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent" required>
+                            @error('lastname') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Email (readonly)</label>
+                        <input type="email" wire:model="email" class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100" readonly>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Position</label>
+                        <input type="text" wire:model="position" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent">
+                        @error('position') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Role *</label>
+                        <select wire:model="role_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent" required>
+                            <option value="">Select Role</option>
+                            @foreach($roles as $role)
+                                <option value="{{ $role->id }}">{{ $role->name }}</option>
+                            @endforeach
+                        </select>
+                        @error('role_id') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
+                    </div>
+                </div>
+                <div class="flex justify-end space-x-3 pt-4 border-t mt-6">
+                    <button type="button" wire:click="cancelEdit" class="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
+                        Cancel
+                    </button>
+                    <button type="submit" class="px-6 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition-colors">
+                        Update Employee
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    @endif
 </div>

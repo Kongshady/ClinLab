@@ -2,10 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Employee;
-use App\Models\Section;
-use Illuminate\Http\Request;
-
 class EmployeeController extends Controller
 {
     public function index()
@@ -17,6 +13,7 @@ class EmployeeController extends Controller
         
         return view('employees.index', compact('employees'));
     }
+<<<<<<< Updated upstream
 
     public function create()
     {
@@ -80,4 +77,6 @@ class EmployeeController extends Controller
         $employee->softDelete();
         return redirect()->route('employees.index')->with('success', 'Employee deleted successfully.');
     }
+=======
+>>>>>>> Stashed changes
 }

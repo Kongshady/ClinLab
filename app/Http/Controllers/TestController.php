@@ -2,15 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Test;
-use App\Models\Section;
-use Illuminate\Http\Request;
-
 class TestController extends Controller
 {
-    /**
-     * Display a listing of the tests.
-     */
     public function index()
     {
         $tests = Test::with('section')
@@ -20,6 +13,7 @@ class TestController extends Controller
         
         return view('tests.index', compact('tests'));
     }
+<<<<<<< Updated upstream
 
     /**
      * Show the form for creating a new test.
@@ -117,4 +111,6 @@ class TestController extends Controller
         return redirect()->route('tests.index')
             ->with('success', 'Lab test deleted successfully.');
     }
+=======
+>>>>>>> Stashed changes
 }

@@ -23,6 +23,10 @@ new class extends Component
     public $flashMessage = '';
     public $perPage = 'all';
 
+    // Edit mode
+    public $editMode = false;
+    public $editingItemId = null;
+
     public function mount()
     {
         if (session()->has('success')) {
@@ -47,17 +51,43 @@ new class extends Component
             $itemTypeId = $itemType->item_type_id;
         }
 
-        Item::create([
-            'section_id' => $this->section_id,
-            'label' => $this->label,
-            'item_type_id' => $itemTypeId,
-            'status_code' => 1,
-            'is_deleted' => 0,
-        ]);
-
-        $this->reset(['section_id', 'label', 'item_type']);
-        $this->flashMessage = 'Item added successfully!';
+        if ($this->editMode) {
+            $item = Item::findOrFail($this->editingItemId);
+            $item->update([
+                'section_id' => $this->section_id,
+                'label' => $this->label,
+                'item_type_id' => $itemTypeId,
+            ]);
+            $this->flashMessage = 'Item updated successfully!';
+            $this->cancelEdit();
+        } else {
+            Item::create([
+                'section_id' => $this->section_id,
+                'label' => $this->label,
+                'item_type_id' => $itemTypeId,
+                'status_code' => 1,
+                'is_deleted' => 0,
+            ]);
+            $this->reset(['section_id', 'label', 'item_type']);
+            $this->flashMessage = 'Item added successfully!';
+        }
+        
         $this->resetPage();
+    }
+
+    public function edit($id)
+    {
+        $item = Item::with('itemType')->findOrFail($id);
+        $this->editingItemId = $id;
+        $this->section_id = $item->section_id;
+        $this->label = $item->label;
+        $this->item_type = $item->itemType->label ?? '';
+        $this->editMode = true;
+    }
+
+    public function cancelEdit()
+    {
+        $this->reset(['section_id', 'label', 'item_type', 'editMode', 'editingItemId']);
     }
 
     public function delete($id)
@@ -104,7 +134,7 @@ new class extends Component
         <svg class="w-8 h-8 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
         </svg>
-        <h1 class="text-2xl font-bold text-gray-900">Inventory Management</h1>
+        <h1 class="text-2xl font-bold text-gray-900">Items Management</h1>
     </div>
 
     <!-- Add New Item Form -->
@@ -196,8 +226,8 @@ new class extends Component
                                 <td class="px-4 py-3 text-sm text-gray-700">{{ $item->section->label ?? 'N/A' }}</td>
                                 <td class="px-4 py-3">
                                     <div class="flex items-center space-x-2">
-                                        <a href="/items/{{ $item->item_id }}/edit" 
-                                           class="px-4 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg transition-colors">Edit</a>
+                                        <button wire:click="edit({{ $item->item_id }})" 
+                                           class="px-4 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg transition-colors">Edit</button>
                                         <button wire:click="delete({{ $item->item_id }})" 
                                                 wire:confirm="Are you sure you want to delete this item?"
                                                 class="px-4 py-1.5 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors">Delete</button>
@@ -220,4 +250,53 @@ new class extends Component
             @endif
         </div>
     </div>
+
+    <!-- Edit Item Modal -->
+    @if($editMode)
+    <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 p-4">
+        <div class="relative top-10 mx-auto p-6 border w-full max-w-2xl shadow-lg rounded-xl bg-white">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-2xl font-bold text-gray-900">Edit Item</h3>
+                <button wire:click="cancelEdit" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <form wire:submit.prevent="save">
+                <div class="grid grid-cols-1 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Section *</label>
+                        <select wire:model="section_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent" required>
+                            <option value="">Select Section</option>
+                            @foreach($sections as $section)
+                                <option value="{{ $section->section_id }}">{{ $section->label }}</option>
+                            @endforeach
+                        </select>
+                        @error('section_id') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Item Name *</label>
+                        <input type="text" wire:model="label" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent" required>
+                        @error('label') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Item Type *</label>
+                        <input type="text" wire:model="item_type" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent" required>
+                        @error('item_type') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
+                    </div>
+                </div>
+                <div class="flex justify-end space-x-3 pt-4 border-t mt-6">
+                    <button type="button" wire:click="cancelEdit" class="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
+                        Cancel
+                    </button>
+                    <button type="submit" class="px-6 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition-colors">
+                        Update Item
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    @endif
 </div>

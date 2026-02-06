@@ -339,8 +339,8 @@ new class extends Component
 
     <!-- Edit Test Modal -->
     @if($editingTestId)
-    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl">
             <div class="flex items-center justify-between p-6 border-b">
                 <h3 class="text-lg font-semibold text-gray-900">Edit Test</h3>
                 <button wire:click="closeEditModal" class="text-gray-400 hover:text-gray-600">
@@ -392,8 +392,8 @@ new class extends Component
 
     <!-- Set Price Modal -->
     @if($setPriceTestId)
-    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
             <div class="flex items-center justify-between p-6 border-b">
                 <h3 class="text-lg font-semibold text-gray-900">Set Price</h3>
                 <button wire:click="closeSetPriceModal" class="text-gray-400 hover:text-gray-600">
@@ -448,8 +448,8 @@ new class extends Component
 
     <!-- View History Modal -->
     @if($viewHistoryTestId)
-    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-4xl mx-4 max-h-[90vh] flex flex-col">
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
             <div class="flex items-center justify-between p-6 border-b">
                 <div>
                     <h3 class="text-lg font-semibold text-gray-900">Price History</h3>

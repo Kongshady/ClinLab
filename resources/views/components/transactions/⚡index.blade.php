@@ -16,12 +16,10 @@ new class extends Component
     #[Validate('required|string|max:50')]
     public $or_number = '';
 
-    #[Validate('nullable|string|max:50')]
-    public $client_designation = '';
-
     public $search = '';
     public $perPage = 'all';
     public $flashMessage = '';
+    public $editingId = null;
 
     // Edit Modal Properties
     public $showEditModal = false;
@@ -78,17 +76,42 @@ new class extends Component
     {
         $this->validate();
 
-        Transaction::create([
-            'client_id' => $this->client_id,
-            'or_number' => $this->or_number,
-            'client_designation' => $this->client_designation,
-            'datetime_added' => now(),
-            'status_code' => 1,
-        ]);
+        if ($this->editingId) {
+            $transaction = Transaction::find($this->editingId);
+            if ($transaction) {
+                $transaction->update([
+                    'client_id' => $this->client_id,
+                    'or_number' => $this->or_number,
+                ]);
+                $this->flashMessage = 'Transaction updated successfully!';
+            }
+        } else {
+            Transaction::create([
+                'client_id' => $this->client_id,
+                'or_number' => $this->or_number,
+                'datetime_added' => now(),
+                'status_code' => 1,
+            ]);
+            $this->flashMessage = 'Transaction added successfully!';
+        }
 
-        $this->reset(['client_id', 'or_number', 'client_designation']);
-        $this->flashMessage = 'Transaction added successfully!';
+        $this->reset(['client_id', 'or_number', 'editingId']);
         $this->resetPage();
+    }
+
+    public function edit($id)
+    {
+        $transaction = Transaction::find($id);
+        if ($transaction) {
+            $this->editingId = $id;
+            $this->client_id = $transaction->client_id;
+            $this->or_number = $transaction->or_number;
+        }
+    }
+
+    public function cancelEdit()
+    {
+        $this->reset(['client_id', 'or_number', 'editingId']);
     }
 
     public function delete($id)
@@ -138,10 +161,10 @@ new class extends Component
 
     <div class="bg-white rounded-lg shadow-sm mb-6">
         <div class="px-6 py-4 border-b border-gray-200">
-            <h2 class="text-lg font-semibold text-gray-900">Add New Transaction</h2>
+            <h2 class="text-lg font-semibold text-gray-900">{{ $editingId ? 'Edit Transaction' : 'Add New Transaction' }}</h2>
         </div>
         <form wire:submit.prevent="save" class="p-6">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Patient *</label>
                         <select wire:model="client_id" 
@@ -159,17 +182,17 @@ new class extends Component
                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
                         @error('or_number') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Client Designation</label>
-                        <input type="text" wire:model="client_designation" placeholder="e.g., Walk-in, Company" 
-                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
-                        @error('client_designation') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
-                    </div>
                 </div>
-                <div class="flex justify-end mt-4">
+                <div class="flex justify-end mt-4 space-x-3">
+                    @if($editingId)
+                        <button type="button" wire:click="cancelEdit"
+                                class="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors">
+                            Cancel
+                        </button>
+                    @endif
                     <button type="submit" 
                             class="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors">
-                        Add Transaction
+                        {{ $editingId ? 'Update Transaction' : 'Add Transaction' }}
                     </button>
                 </div>
             </form>
@@ -202,10 +225,8 @@ new class extends Component
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">OR Number</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Designation</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date Added</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                         </tr>
@@ -213,21 +234,34 @@ new class extends Component
                     <tbody class="bg-white divide-y divide-gray-200">
                         @forelse($transactions as $transaction)
                             <tr class="hover:bg-gray-50">
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $transaction->transaction_id }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $transaction->or_number }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                                     {{ $transaction->patient->full_name ?? 'N/A' }}
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $transaction->client_designation ?? 'N/A' }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                                    {{ $transaction->datetime_added ? \Carbon\Carbon::parse($transaction->datetime_added)->format('m/d/Y h:i A') : 'N/A' }}
+                                    {{ $transaction->datetime_added ? \Carbon\Carbon::parse($transaction->datetime_added)->format('M d, Y') : 'N/A' }}
                                 </td>
+<<<<<<< Updated upstream
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                                     <button type="button" wire:click="openEditModal({{ $transaction->transaction_id }})" 
                                             class="text-orange-600 hover:text-orange-900">Edit</button>
                                     <button wire:click="delete({{ $transaction->transaction_id }})" 
                                             wire:confirm="Are you sure you want to delete this transaction?"
                                             class="text-red-600 hover:text-red-900">Delete</button>
+=======
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                    <div class="flex items-center space-x-2">
+                                        <button wire:click="edit({{ $transaction->transaction_id }})" 
+                                                class="px-3 py-1.5 bg-orange-100 text-orange-700 rounded-lg hover:bg-orange-200 transition-colors">
+                                            Edit
+                                        </button>
+                                        <button wire:click="delete({{ $transaction->transaction_id }})" 
+                                                wire:confirm="Are you sure you want to delete this transaction?"
+                                                class="px-3 py-1.5 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors">
+                                            Delete
+                                        </button>
+                                    </div>
+>>>>>>> Stashed changes
                                 </td>
                             </tr>
                         @empty

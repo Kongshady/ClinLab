@@ -15,7 +15,6 @@ return new class extends Migration
             $table->integer('transaction_id', true, true)->length(10);
             $table->integer('client_id')->length(10);
             $table->integer('or_number')->length(10);
-            $table->string('client_designation', 50)->nullable();
             $table->dateTime('datetime_added');
             $table->integer('status_code')->length(10);
             

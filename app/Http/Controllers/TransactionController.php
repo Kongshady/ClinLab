@@ -23,7 +23,6 @@ class TransactionController extends Controller
         $validated = $request->validate([
             'client_id' => 'required|exists:patient,patient_id',
             'or_number' => 'required|integer',
-            'client_designation' => 'nullable|string|max:50',
         ]);
 
         $validated['datetime_added'] = now();

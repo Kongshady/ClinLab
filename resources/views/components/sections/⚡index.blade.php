@@ -206,8 +206,8 @@ new class extends Component
 
     <!-- Edit Section Modal -->
     @if($editingSectionId)
-    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
             <div class="flex items-center justify-between p-6 border-b">
                 <h3 class="text-lg font-semibold text-gray-900">Edit Section</h3>
                 <button wire:click="closeEditModal" class="text-gray-400 hover:text-gray-600">

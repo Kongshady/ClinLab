@@ -6,7 +6,11 @@ use Livewire\Attributes\Validate;
 use App\Models\CalibrationRecord;
 use App\Models\Equipment;
 use App\Models\Employee;
+<<<<<<< Updated upstream
 use Illuminate\Support\Facades\DB;
+=======
+use App\Services\CertificateService;
+>>>>>>> Stashed changes
 
 new class extends Component
 {
@@ -165,6 +169,22 @@ new class extends Component
             $this->resetPage();
         } catch (\Exception $e) {
             session()->flash('error', 'Failed to record calibration: ' . $e->getMessage());
+        }
+    }
+
+    public function generateCertificate($calibrationId, $equipmentId)
+    {
+        try {
+            $certificateService = new CertificateService();
+            $result = $certificateService->generateFromCalibration($calibrationId, $equipmentId);
+
+            // Download PDF
+            return response()->streamDownload(function() use ($result) {
+                echo $result['pdf']->output();
+            }, $result['certificate']->certificate_no . '.pdf');
+
+        } catch (\Exception $e) {
+            $this->flashMessage = 'Error: ' . $e->getMessage();
         }
     }
 
@@ -740,5 +760,76 @@ new class extends Component
                 </div>
             </div>
         </div>
+<<<<<<< Updated upstream
     @endif
+=======
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Equipment</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Performed By</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Next Date</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        @forelse($records as $record)
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $record->record_id }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                    {{ $record->equipment->name ?? 'N/A' }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                                    {{ $record->calibration_date ? \Carbon\Carbon::parse($record->calibration_date)->format('m/d/Y') : 'N/A' }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                                    {{ $record->performedBy->full_name ?? 'N/A' }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                    <span class="px-2 py-1 text-xs rounded-full 
+                                        {{ $record->result_status == 'pass' ? 'bg-green-100 text-green-800' : '' }}
+                                        {{ $record->result_status == 'fail' ? 'bg-red-100 text-red-800' : '' }}
+                                        {{ $record->result_status == 'conditional' ? 'bg-yellow-100 text-yellow-800' : '' }}">
+                                        {{ ucfirst($record->result_status) }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                                    {{ $record->next_calibration_date ? \Carbon\Carbon::parse($record->next_calibration_date)->format('m/d/Y') : 'N/A' }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                                    <button 
+                                        wire:click="generateCertificate({{ $record->record_id }}, {{ $record->equipment_id }})"
+                                        class="text-blue-600 hover:text-blue-900"
+                                        title="Generate Certificate"
+                                    >
+                                        Certificate
+                                    </button>
+                                    <a href="/calibration/{{ $record->record_id }}/edit" 
+                                       class="text-orange-600 hover:text-orange-900">Edit</a>
+                                    <button wire:click="delete({{ $record->record_id }})" 
+                                            wire:confirm="Are you sure you want to delete this record?"
+                                            class="text-red-600 hover:text-red-900">Delete</button>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="7" class="px-6 py-4 text-center text-gray-500">No calibration records found.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+            
+            @if($perPage !== 'all' && method_exists($records, 'hasPages') && $records->hasPages())
+                <div class="px-6 py-4 border-t border-gray-200">
+                    {{ $records->links() }}
+                </div>
+            @endif
+        </div>
+    </div>
+>>>>>>> Stashed changes
 </div>
