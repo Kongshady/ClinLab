@@ -13,12 +13,9 @@ use App\Http\Controllers\CalibrationRecordController;
 use App\Http\Controllers\SectionController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\ActivityLogController;
-<<<<<<< Updated upstream
-use App\Http\Controllers\ReportsController;
-=======
 use App\Http\Controllers\AccountSettingsController;
 use App\Http\Controllers\InventoryController;
->>>>>>> Stashed changes
+use App\Http\Controllers\ReportsController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -102,6 +99,10 @@ Route::middleware('auth')->group(function () {
     // Analytics
     Route::middleware(['permission:reports.access'])->group(function () {
         Route::get('reports', [ReportsController::class, 'index'])->name('reports.index');
+        Route::get('reports/patients', [ReportsController::class, 'patients'])->name('reports.patients');
+        Route::get('reports/transactions', [ReportsController::class, 'transactions'])->name('reports.transactions');
+        Route::get('reports/inventory', [ReportsController::class, 'inventory'])->name('reports.inventory');
+        Route::get('reports/activities', [ReportsController::class, 'activities'])->name('reports.activities');
     });
     
     Route::middleware(['permission:activity-logs.access'])->group(function () {

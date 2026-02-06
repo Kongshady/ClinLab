@@ -241,17 +241,9 @@ new class extends Component
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                                     {{ $transaction->datetime_added ? \Carbon\Carbon::parse($transaction->datetime_added)->format('M d, Y') : 'N/A' }}
                                 </td>
-<<<<<<< Updated upstream
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                                    <button type="button" wire:click="openEditModal({{ $transaction->transaction_id }})" 
-                                            class="text-orange-600 hover:text-orange-900">Edit</button>
-                                    <button wire:click="delete({{ $transaction->transaction_id }})" 
-                                            wire:confirm="Are you sure you want to delete this transaction?"
-                                            class="text-red-600 hover:text-red-900">Delete</button>
-=======
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                     <div class="flex items-center space-x-2">
-                                        <button wire:click="edit({{ $transaction->transaction_id }})" 
+                                        <button wire:click="openEditModal({{ $transaction->transaction_id }})" 
                                                 class="px-3 py-1.5 bg-orange-100 text-orange-700 rounded-lg hover:bg-orange-200 transition-colors">
                                             Edit
                                         </button>
@@ -261,7 +253,6 @@ new class extends Component
                                             Delete
                                         </button>
                                     </div>
->>>>>>> Stashed changes
                                 </td>
                             </tr>
                         @empty

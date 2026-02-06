@@ -37,6 +37,30 @@ class Equipment extends Model
         return $this->belongsTo(Section::class, 'section_id', 'section_id');
     }
 
+    public function maintenanceRecords()
+    {
+        return $this->hasMany(MaintenanceRecord::class, 'equipment_id', 'equipment_id');
+    }
+
+    public function calibrationRecords()
+    {
+        return $this->hasMany(CalibrationRecord::class, 'equipment_id', 'equipment_id');
+    }
+
+    public function latestMaintenance()
+    {
+        return $this->hasOne(MaintenanceRecord::class, 'equipment_id', 'equipment_id')
+            ->where('is_deleted', 0)
+            ->latest('performed_date');
+    }
+
+    public function latestCalibration()
+    {
+        return $this->hasOne(CalibrationRecord::class, 'equipment_id', 'equipment_id')
+            ->where('is_deleted', 0)
+            ->latest('calibration_date');
+    }
+
     public function softDelete($employeeId = null)
     {
         $this->is_deleted = 1;
