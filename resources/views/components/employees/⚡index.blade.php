@@ -7,6 +7,7 @@ use App\Models\Employee;
 use App\Models\Section;
 use App\Models\User;
 use Spatie\Permission\Models\Role;
+use Illuminate\Support\Facades\Hash;
 
 new class extends Component
 {
@@ -32,6 +33,11 @@ new class extends Component
 
     #[Validate('required|exists:user_roles,id')]
     public $role_id = '';
+
+    // Edit mode password fields for MIT Staff
+    public $new_password = '';
+    public $new_password_confirmation = '';
+    public $change_password = false;
 
     public $search = '';
     public $flashMessage = '';
@@ -94,18 +100,41 @@ new class extends Component
         $this->email = $employee->username;
         $this->position = $employee->position ?? '';
         $this->role_id = $employee->user && $employee->user->roles->isNotEmpty() ? $employee->user->roles->first()->id : '';
+        
+        // Reset password fields
+        $this->new_password = '';
+        $this->new_password_confirmation = '';
+        $this->change_password = false;
+        
         $this->editMode = true;
     }
 
     public function update()
     {
-        $this->validate([
+        $validationRules = [
             'firstname' => 'required|string|max:50',
             'middlename' => 'nullable|string|max:50',
             'lastname' => 'required|string|max:50',
             'position' => 'nullable|string|max:100',
             'role_id' => 'required|exists:user_roles,id',
-        ]);
+        ];
+
+        // Add password validation if current logged-in user can edit passwords (MIT Staff or Admin)
+        $currentUserIsMitStaff = auth()->user() && auth()->user()->hasRole('MIT Staff');
+        $currentUserIsAdmin = auth()->user() && (
+            auth()->user()->hasRole('admin') || 
+            auth()->user()->hasRole('super admin') ||
+            auth()->user()->hasRole('Super Admin') ||
+            auth()->user()->hasRole('Administrator')
+        );
+        $canEditPassword = $currentUserIsMitStaff || $currentUserIsAdmin;
+        
+        if ($canEditPassword && $this->change_password) {
+            $validationRules['new_password'] = 'required|string|min:6|confirmed';
+            $validationRules['new_password_confirmation'] = 'required';
+        }
+
+        $this->validate($validationRules);
 
         $employee = Employee::findOrFail($this->editingEmployeeId);
         $employee->update([
@@ -117,9 +146,18 @@ new class extends Component
 
         // Update user name and role
         if ($employee->user) {
-            $employee->user->update([
+            $userUpdates = [
                 'name' => trim("{$this->firstname} {$this->middlename} {$this->lastname}"),
-            ]);
+            ];
+
+            // Update password if current user can edit passwords and password change is requested
+            if ($canEditPassword && $this->change_password && $this->new_password) {
+                $userUpdates['password'] = Hash::make($this->new_password);
+                // Also update employee password
+                $employee->update(['password' => Hash::make($this->new_password)]);
+            }
+
+            $employee->user->update($userUpdates);
 
             // Update role
             $role = Role::find($this->role_id);
@@ -128,13 +166,18 @@ new class extends Component
             }
         }
 
-        $this->flashMessage = 'Employee updated successfully!';
+        $message = 'Employee updated successfully!';
+        if ($canEditPassword && $this->change_password) {
+            $message .= ' Password has been updated.';
+        }
+        
+        $this->flashMessage = $message;
         $this->cancelEdit();
     }
 
     public function cancelEdit()
     {
-        $this->reset(['firstname', 'middlename', 'lastname', 'email', 'position', 'role_id', 'editMode', 'editingEmployeeId']);
+        $this->reset(['firstname', 'middlename', 'lastname', 'email', 'position', 'role_id', 'editMode', 'editingEmployeeId', 'new_password', 'new_password_confirmation', 'change_password']);
     }
 
     public function delete($id)
@@ -147,6 +190,13 @@ new class extends Component
             
             $employee->softDelete();
             $this->flashMessage = 'Employee account deleted successfully!';
+        }
+    }
+
+    public function updatedChangePassword($value)
+    {
+        if (!$value) {
+            $this->reset(['new_password', 'new_password_confirmation']);
         }
     }
 
@@ -425,6 +475,74 @@ new class extends Component
                         </select>
                         @error('role_id') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
                     </div>
+
+                    @php
+                        // Check if the CURRENT logged-in user has MIT Staff role (not the employee being edited)
+                        $currentUserIsMitStaff = auth()->user() && auth()->user()->hasRole('MIT Staff');
+                        
+                        // Fallback: Also allow admin/super admin users to edit passwords
+                        $currentUserIsAdmin = auth()->user() && (
+                            auth()->user()->hasRole('admin') || 
+                            auth()->user()->hasRole('super admin') ||
+                            auth()->user()->hasRole('Super Admin') ||
+                            auth()->user()->hasRole('Administrator')
+                        );
+                        
+                        $canEditPassword = $currentUserIsMitStaff || $currentUserIsAdmin;
+                        
+                        // Debug: Show current user info (remove in production)
+                        $currentUserRoles = auth()->user() ? auth()->user()->roles->pluck('name')->toArray() : [];
+                        $debugInfo = [
+                            'user_id' => auth()->id(),
+                            'user_roles' => $currentUserRoles,
+                            'has_mit_staff' => $currentUserIsMitStaff,
+                            'has_admin' => $currentUserIsAdmin,
+                            'can_edit_password' => $canEditPassword
+                        ];
+                    @endphp
+
+                    {{-- Debug Info (remove in production) --}}
+                    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
+                        <p class="text-xs text-yellow-700">
+                            <strong>Debug Info:</strong> User ID: {{ $debugInfo['user_id'] }} | 
+                            Roles: {{ implode(', ', $debugInfo['user_roles']) }} | 
+                            MIT Staff: {{ $debugInfo['has_mit_staff'] ? 'Yes' : 'No' }} | 
+                            Admin: {{ $debugInfo['has_admin'] ? 'Yes' : 'No' }} |
+                            Can Edit Password: {{ $debugInfo['can_edit_password'] ? 'Yes' : 'No' }}
+                        </p>
+                    </div>
+
+                    @if($canEditPassword)
+                        <!-- Password Change Section for MIT Staff -->
+                        <div class="border-t pt-6">
+                            <div class="flex items-center mb-4">
+                                <input type="checkbox" id="change_password" wire:model.live="change_password" class="h-4 w-4 text-pink-600 border-gray-300 rounded focus:ring-pink-500">
+                                <label for="change_password" class="ml-2 text-sm font-medium text-gray-700">Change Password</label>
+                                <span class="ml-2 text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded-full">MIT Staff Admin</span>
+                            </div>
+
+                            @if($change_password)
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">New Password *</label>
+                                        <input type="password" wire:model="new_password" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent" placeholder="Enter new password">
+                                        @error('new_password') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Confirm New Password *</label>
+                                        <input type="password" wire:model="new_password_confirmation" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent" placeholder="Confirm new password">
+                                        @error('new_password_confirmation') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
+                                    </div>
+                                </div>
+                                <p class="text-xs text-gray-500 mt-2">
+                                    <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+                                    </svg>
+                                    MIT Staff can change employee passwords as secondary admin.
+                                </p>
+                            @endif
+                        </div>
+                    @endif
                 </div>
                 <div class="flex justify-end space-x-3 pt-4 border-t mt-6">
                     <button type="button" wire:click="cancelEdit" class="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">

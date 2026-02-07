@@ -30,9 +30,9 @@ return new class extends Migration
             $table->string('pdf_path')->nullable();
             $table->timestamps();
 
-            $table->foreign('template_id')->references('id')->on('certificate_templates')->onDelete('cascade');
-            $table->foreign('generated_by')->references('id')->on('users')->onDelete('cascade');
-            $table->foreign('equipment_id')->references('equipment_id')->on('equipment')->onDelete('set null');
+            $table->foreign('template_id')->references('id')->on('certificate_templates')->noActionOnDelete();
+            $table->foreign('generated_by')->references('id')->on('users')->noActionOnDelete();
+            $table->foreign('equipment_id')->references('equipment_id')->on('equipment')->noActionOnDelete();
             
             $table->index(['certificate_no', 'verification_code']);
             $table->index(['status', 'issued_at']);

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PatientController;
 use App\Http\Controllers\PhysicianController;
 use App\Http\Controllers\LabResultController;
@@ -22,9 +23,29 @@ Route::get('/', function () {
     return redirect('/dashboard');
 });
 
-Route::get('/dashboard', function () {
-    return view('dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+// Main dashboard - redirects to role-specific dashboard
+Route::get('/dashboard', [DashboardController::class, 'index'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard');
+
+// Role-specific dashboards
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/dashboard/manager', [DashboardController::class, 'manager'])
+        ->middleware('role:Laboratory Manager')
+        ->name('dashboard.manager');
+    
+    Route::get('/dashboard/staff', [DashboardController::class, 'staff'])
+        ->middleware('role:Staff-in-Charge')
+        ->name('dashboard.staff');
+    
+    Route::get('/dashboard/mit', [DashboardController::class, 'mit'])
+        ->middleware('role:MIT Staff')
+        ->name('dashboard.mit');
+    
+    Route::get('/dashboard/secretary', [DashboardController::class, 'secretary'])
+        ->middleware('role:Secretary')
+        ->name('dashboard.secretary');
+});
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

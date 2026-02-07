@@ -145,10 +145,10 @@ return new class extends Migration
         if (Schema::hasTable('stock_usage')) {
             Schema::table('stock_usage', function (Blueprint $table) {
                 if (Schema::hasColumn('stock_usage', 'item_id')) {
-                    $table->index(['item_id', 'datetime_used']); // For item usage history
+                    $table->index(['item_id', 'datetime_added']); // For item usage history
                 }
-                if (Schema::hasColumn('stock_usage', 'datetime_used')) {
-                    $table->index(['datetime_used']); // For date-based queries
+                if (Schema::hasColumn('stock_usage', 'datetime_added')) {
+                    $table->index(['datetime_added']); // For date-based queries
                 }
             });
         }
@@ -158,8 +158,8 @@ return new class extends Migration
     {
         // Drop indexes in reverse order
         Schema::table('stock_usage', function (Blueprint $table) {
-            $table->dropIndex(['item_id', 'datetime_used']);
-            $table->dropIndex(['datetime_used']);
+            $table->dropIndex(['item_id', 'datetime_added']);
+            $table->dropIndex(['datetime_added']);
         });
 
         Schema::table('stock_out', function (Blueprint $table) {
