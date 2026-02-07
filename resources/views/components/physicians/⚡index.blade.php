@@ -272,23 +272,14 @@ new class extends Component
 
     <!-- Edit Modal -->
     @if($showEditModal)
-    <div class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-        <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <!-- Background overlay -->
-            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" wire:click="cancelEdit"></div>
-
-            <!-- Modal panel -->
-            <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
+    <div class="fixed inset-0 z-50 overflow-y-auto" style="background-color: rgba(0, 0, 0, 0.5);">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full">
                 <!-- Modal Header -->
-                <div class="bg-gradient-to-r from-pink-500 to-pink-600 px-6 py-4">
+                <div class="px-6 py-4 border-b border-gray-200">
                     <div class="flex items-center justify-between">
-                        <h3 class="text-xl font-semibold text-white flex items-center">
-                            <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                            </svg>
-                            Edit Physician
-                        </h3>
-                        <button wire:click="cancelEdit" class="text-white hover:text-gray-200 transition-colors">
+                        <h3 class="text-xl font-semibold text-gray-900">Edit Physician</h3>
+                        <button wire:click="cancelEdit" class="text-gray-400 hover:text-gray-600">
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                             </svg>
@@ -298,14 +289,14 @@ new class extends Component
 
                 <!-- Modal Body -->
                 <form wire:submit.prevent="save">
-                    <div class="bg-white px-6 py-6">
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="p-6">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">
                                     Physician Name <span class="text-red-500">*</span>
                                 </label>
                                 <input type="text" wire:model="physician_name" 
-                                       class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all">
+                                       class="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
                                 @error('physician_name') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
                             </div>
                             <div>
@@ -313,7 +304,7 @@ new class extends Component
                                     Specialization
                                 </label>
                                 <input type="text" wire:model="specialization" 
-                                       class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all">
+                                       class="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
                                 @error('specialization') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
                             </div>
                             <div>
@@ -322,7 +313,7 @@ new class extends Component
                                 </label>
                                 <input type="text" wire:model="contact_number" id="edit_contact_number"
                                        maxlength="11" placeholder="09123456789"
-                                       class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all">
+                                       class="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
                                 <p id="edit_contact_error" class="text-red-500 text-xs mt-1 hidden"></p>
                                 <p class="text-gray-500 text-xs mt-1">Must be exactly 11 digits (09 format)</p>
                                 @error('contact_number') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
@@ -332,26 +323,21 @@ new class extends Component
                                     Email
                                 </label>
                                 <input type="email" wire:model="email" 
-                                       class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all">
+                                       class="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
                                 @error('email') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
                             </div>
                         </div>
                     </div>
 
                     <!-- Modal Footer -->
-                    <div class="bg-gray-50 px-6 py-4 flex items-center justify-end space-x-3">
+                    <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end space-x-3 rounded-b-lg">
                         <button type="button" wire:click="cancelEdit" 
-                                class="px-6 py-2.5 bg-white border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors">
+                                class="px-5 py-2.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none">
                             Cancel
                         </button>
                         <button type="submit" 
-                                class="px-6 py-2.5 bg-gradient-to-r from-pink-500 to-pink-600 text-white font-medium rounded-lg hover:from-pink-600 hover:to-pink-700 shadow-lg hover:shadow-xl transition-all">
-                            <span class="flex items-center">
-                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-                                </svg>
-                                Update Physician
-                            </span>
+                                class="px-5 py-2.5 bg-orange-500 text-white text-sm rounded-md font-medium hover:bg-orange-600 focus:outline-none">
+                            Update Physician
                         </button>
                     </div>
                 </form>

@@ -39,7 +39,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('dashboard.staff');
     
     Route::get('/dashboard/mit', [DashboardController::class, 'mit'])
-        ->middleware('role:MIT Staff')
+        ->middleware('role:MIT')
         ->name('dashboard.mit');
     
     Route::get('/dashboard/secretary', [DashboardController::class, 'secretary'])

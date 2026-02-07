@@ -181,10 +181,10 @@ $stats = Cache::remember('mit_dashboard_stats', 300, function() {
                 <div>
                     <h3 class="text-lg font-semibold text-gray-800 mb-3">Recent Tests</h3>
                     <div class="space-y-2">
-                        @forelse(Test::where('is_deleted', 0)->orderBy('datetime_added', 'desc')->limit(5)->get() as $test)
+                        @forelse(Test::where('is_deleted', 0)->orderBy('test_id', 'desc')->limit(5)->get() as $test)
                         <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                            <span class="text-sm font-medium text-gray-900">{{ $test->test_name }}</span>
-                            <span class="text-xs text-gray-500">{{ $test->section->section ?? 'N/A' }}</span>
+                            <span class="text-sm font-medium text-gray-900">{{ $test->label }}</span>
+                            <span class="text-xs text-gray-500">{{ $test->section->label ?? 'N/A' }}</span>
                         </div>
                         @empty
                         <p class="text-gray-500 text-center py-4">No tests found</p>
@@ -196,7 +196,7 @@ $stats = Cache::remember('mit_dashboard_stats', 300, function() {
                 <div>
                     <h3 class="text-lg font-semibold text-gray-800 mb-3">Recent Employees</h3>
                     <div class="space-y-2">
-                        @forelse(Employee::where('is_deleted', 0)->orderBy('datetime_added', 'desc')->limit(5)->get() as $employee)
+                        @forelse(Employee::where('is_deleted', 0)->orderBy('employee_id', 'desc')->limit(5)->get() as $employee)
                         <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                             <span class="text-sm font-medium text-gray-900">{{ $employee->firstname }} {{ $employee->lastname }}</span>
                             <span class="text-xs text-gray-500">{{ $employee->role->role ?? 'N/A' }}</span>

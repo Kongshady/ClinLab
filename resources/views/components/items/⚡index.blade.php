@@ -23,9 +23,12 @@ new class extends Component
     public $flashMessage = '';
     public $perPage = 'all';
 
-    // Edit mode
-    public $editMode = false;
-    public $editingItemId = null;
+    // Edit Modal Properties
+    public $showEditModal = false;
+    public $editItemId = '';
+    public $editSectionId = '';
+    public $editLabel = '';
+    public $editItemType = '';
 
     public function mount()
     {
@@ -51,43 +54,71 @@ new class extends Component
             $itemTypeId = $itemType->item_type_id;
         }
 
-        if ($this->editMode) {
-            $item = Item::findOrFail($this->editingItemId);
-            $item->update([
-                'section_id' => $this->section_id,
-                'label' => $this->label,
-                'item_type_id' => $itemTypeId,
-            ]);
-            $this->flashMessage = 'Item updated successfully!';
-            $this->cancelEdit();
-        } else {
-            Item::create([
-                'section_id' => $this->section_id,
-                'label' => $this->label,
-                'item_type_id' => $itemTypeId,
-                'status_code' => 1,
-                'is_deleted' => 0,
-            ]);
-            $this->reset(['section_id', 'label', 'item_type']);
-            $this->flashMessage = 'Item added successfully!';
-        }
+        Item::create([
+            'section_id' => $this->section_id,
+            'label' => $this->label,
+            'item_type_id' => $itemTypeId,
+            'status_code' => 1,
+            'is_deleted' => 0,
+        ]);
+        $this->reset(['section_id', 'label', 'item_type']);
+        $this->flashMessage = 'Item added successfully!';
         
         $this->resetPage();
     }
 
-    public function edit($id)
+    public function openEditModal($itemId)
     {
-        $item = Item::with('itemType')->findOrFail($id);
-        $this->editingItemId = $id;
-        $this->section_id = $item->section_id;
-        $this->label = $item->label;
-        $this->item_type = $item->itemType->label ?? '';
-        $this->editMode = true;
+        $item = Item::findOrFail($itemId);
+        
+        // Get item type label from join
+        $itemTypeData = \DB::table('item_type')
+            ->where('item_type_id', $item->item_type_id)
+            ->first();
+        
+        $this->editItemId = $itemId;
+        $this->editSectionId = $item->section_id;
+        $this->editLabel = $item->label;
+        $this->editItemType = $itemTypeData->label ?? '';
+        $this->showEditModal = true;
     }
 
-    public function cancelEdit()
+    public function closeEditModal()
     {
-        $this->reset(['section_id', 'label', 'item_type', 'editMode', 'editingItemId']);
+        $this->showEditModal = false;
+        $this->reset(['editItemId', 'editSectionId', 'editLabel', 'editItemType']);
+    }
+
+    public function updateItem()
+    {
+        $validated = $this->validate([
+            'editSectionId' => 'required|exists:section,section_id',
+            'editLabel' => 'required|string|max:255',
+            'editItemType' => 'required|string|max:50',
+        ]);
+
+        // Find or create item_type
+        $itemType = \DB::table('item_type')
+            ->where('label', $this->editItemType)
+            ->first();
+
+        if (!$itemType) {
+            $itemTypeId = \DB::table('item_type')->insertGetId([
+                'label' => $this->editItemType
+            ]);
+        } else {
+            $itemTypeId = $itemType->item_type_id;
+        }
+
+        $item = Item::findOrFail($this->editItemId);
+        $item->update([
+            'section_id' => $this->editSectionId,
+            'label' => $this->editLabel,
+            'item_type_id' => $itemTypeId,
+        ]);
+
+        $this->flashMessage = 'Item updated successfully!';
+        $this->closeEditModal();
     }
 
     public function delete($id)
@@ -226,7 +257,7 @@ new class extends Component
                                 <td class="px-4 py-3 text-sm text-gray-700">{{ $item->section->label ?? 'N/A' }}</td>
                                 <td class="px-4 py-3">
                                     <div class="flex items-center space-x-2">
-                                        <button wire:click="edit({{ $item->item_id }})" 
+                                        <button wire:click="openEditModal({{ $item->item_id }})" 
                                            class="px-4 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg transition-colors">Edit</button>
                                         <button wire:click="delete({{ $item->item_id }})" 
                                                 wire:confirm="Are you sure you want to delete this item?"
@@ -252,51 +283,94 @@ new class extends Component
     </div>
 
     <!-- Edit Item Modal -->
-    @if($editMode)
-    <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 p-4">
-        <div class="relative top-10 mx-auto p-6 border w-full max-w-2xl shadow-lg rounded-xl bg-white">
-            <div class="flex items-center justify-between mb-6">
-                <h3 class="text-2xl font-bold text-gray-900">Edit Item</h3>
-                <button wire:click="cancelEdit" class="text-gray-400 hover:text-gray-600">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                    </svg>
-                </button>
-            </div>
+    @if($showEditModal)
+    <div class="fixed inset-0 z-50 overflow-y-auto" style="background-color: rgba(0, 0, 0, 0.5);">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-lg shadow-xl max-w-lg w-full">
+                <!-- Modal Header -->
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-xl font-semibold text-gray-900">
+                            Edit Item
+                        </h3>
+                        <button type="button" wire:click="closeEditModal" class="text-gray-400 hover:text-gray-600">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
 
-            <form wire:submit.prevent="save">
-                <div class="grid grid-cols-1 gap-6">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Section *</label>
-                        <select wire:model="section_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent" required>
-                            <option value="">Select Section</option>
-                            @foreach($sections as $section)
-                                <option value="{{ $section->section_id }}">{{ $section->label }}</option>
-                            @endforeach
-                        </select>
-                        @error('section_id') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
+                <!-- Modal Body -->
+                <form wire:submit.prevent="updateItem">
+                    <div class="p-6 space-y-5">
+                        <!-- Section -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Section <span class="text-red-500">*</span>
+                            </label>
+                            <select wire:model="editSectionId" 
+                                    class="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="">Select Section</option>
+                                @foreach($sections as $section)
+                                    <option value="{{ $section->section_id }}">{{ $section->label }}</option>
+                                @endforeach
+                            </select>
+                            @error('editSectionId') <span class="text-red-500 text-xs mt-1">{{ $message }}</span> @enderror
+                        </div>
+
+                        <!-- Item Name -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Item Name <span class="text-red-500">*</span>
+                            </label>
+                            <input type="text" wire:model="editLabel" 
+                                   class="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                   placeholder="Enter item name">
+                            @error('editLabel') <span class="text-red-500 text-xs mt-1">{{ $message }}</span> @enderror
+                        </div>
+
+                        <!-- Item Type -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Item Type <span class="text-red-500">*</span>
+                            </label>
+                            <input type="text" wire:model="editItemType" 
+                                   class="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                   placeholder="Enter item type">
+                            @error('editItemType') <span class="text-red-500 text-xs mt-1">{{ $message }}</span> @enderror
+                        </div>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Item Name *</label>
-                        <input type="text" wire:model="label" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent" required>
-                        @error('label') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
+
+                    <!-- Modal Footer -->
+                    <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end space-x-3 rounded-b-lg">
+                        <button type="button" wire:click="closeEditModal" 
+                                class="px-5 py-2.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none">
+                            Cancel
+                        </button>
+                        <button type="submit" 
+                                class="px-5 py-2.5 bg-orange-500 text-white text-sm rounded-md font-medium hover:bg-orange-600 focus:outline-none">
+                            Update Item
+                        </button>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Item Type *</label>
-                        <input type="text" wire:model="item_type" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent" required>
-                        @error('item_type') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
-                    </div>
-                </div>
-                <div class="flex justify-end space-x-3 pt-4 border-t mt-6">
-                    <button type="button" wire:click="cancelEdit" class="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
-                        Cancel
-                    </button>
-                    <button type="submit" class="px-6 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition-colors">
-                        Update Item
-                    </button>
-                </div>
-            </form>
+                </form>
+            </div>
         </div>
     </div>
     @endif
 </div>
+
+<script>
+    document.addEventListener('livewire:initialized', () => {
+        Livewire.on('close-edit-modal', () => {
+            @this.closeEditModal();
+        });
+    });
+
+    // Close modal on Escape key
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape' && @this.showEditModal) {
+            @this.closeEditModal();
+        }
+    });
+</script>

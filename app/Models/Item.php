@@ -33,12 +33,6 @@ class Item extends Model
         return $this->belongsTo(Section::class, 'section_id', 'section_id');
     }
 
-    public function itemType()
-    {
-        return $this->hasOne(\stdClass::class, 'item_type_id', 'item_type_id')
-            ->from('item_type');
-    }
-
     public function softDelete($employeeId = null)
     {
         $this->is_deleted = 1;

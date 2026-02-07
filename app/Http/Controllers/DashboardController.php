@@ -18,7 +18,7 @@ class DashboardController extends Controller
             return redirect()->route('dashboard.manager');
         }
         
-        if ($user->hasRole('MIT Staff')) {
+        if ($user->hasRole('MIT')) {
             return redirect()->route('dashboard.mit');
         }
         

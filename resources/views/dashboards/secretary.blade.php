@@ -7,16 +7,13 @@ use Illuminate\Support\Facades\Cache;
 
 // Cache dashboard statistics for 5 minutes
 $stats = Cache::remember('secretary_dashboard_stats', 300, function() {
-    $transactionsToday = Transaction::where('is_deleted', 0)
-        ->whereDate('datetime_added', today())
+    $transactionsToday = Transaction::whereDate('datetime_added', today())
         ->count();
     
-    $stockInToday = StockIn::where('is_deleted', 0)
-        ->whereDate('datetime_added', today())
+    $stockInToday = StockIn::whereDate('datetime_added', today())
         ->count();
     
-    $stockOutToday = StockOut::where('is_deleted', 0)
-        ->whereDate('datetime_added', today())
+    $stockOutToday = StockOut::whereDate('datetime_added', today())
         ->count();
     
     $lowStockCount = Item::where('is_deleted', 0)

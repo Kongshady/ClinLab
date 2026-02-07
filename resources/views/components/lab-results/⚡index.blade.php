@@ -406,12 +406,12 @@ new class extends Component
     @if($showEditModal)
     <div class="fixed inset-0 z-50 overflow-y-auto" style="background-color: rgba(0, 0, 0, 0.5);">
         <div class="flex items-center justify-center min-h-screen p-4">
-            <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full">
+            <div class="bg-white rounded-lg shadow-xl max-w-3xl w-full">
                 <!-- Modal Header -->
-                <div class="px-6 py-4 border-b" style="background-color: #E91E8C;">
+                <div class="px-6 py-4 border-b border-gray-200">
                     <div class="flex items-center justify-between">
-                        <h3 class="text-lg font-semibold text-white">Edit Lab Result</h3>
-                        <button type="button" wire:click="closeEditModal" class="text-white hover:text-gray-200">
+                        <h3 class="text-xl font-semibold text-gray-900">Edit Lab Result</h3>
+                        <button type="button" wire:click="closeEditModal" class="text-gray-400 hover:text-gray-600">
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                             </svg>
@@ -422,14 +422,14 @@ new class extends Component
                 <!-- Modal Body -->
                 <form wire:submit.prevent="updateResult">
                     <div class="p-6 max-h-[70vh] overflow-y-auto">
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
                             <!-- Patient -->
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
                                     Patient <span class="text-red-500">*</span>
                                 </label>
                                 <select wire:model="editPatientId" 
-                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                        class="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
                                     <option value="">Select Patient</option>
                                     @foreach($patients as $patient)
                                         <option value="{{ $patient->patient_id }}">{{ $patient->full_name }}</option>
@@ -540,17 +540,13 @@ new class extends Component
                     </div>
 
                     <!-- Modal Footer -->
-                    <div class="px-6 py-4 border-t border-gray-200 flex justify-end space-x-3">
+                    <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end space-x-3 rounded-b-lg">
                         <button type="button" wire:click="closeEditModal" 
-                                class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 font-medium">
+                                class="px-5 py-2.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none">
                             Cancel
                         </button>
                         <button type="submit" 
-                                class="px-4 py-2 text-white rounded-md font-medium hover:opacity-90 flex items-center"
-                                style="background-color: #E91E8C;">
-                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-                            </svg>
+                                class="px-5 py-2.5 bg-orange-500 text-white text-sm rounded-md font-medium hover:bg-orange-600 focus:outline-none">
                             Update Result
                         </button>
                     </div>
