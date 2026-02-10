@@ -119,8 +119,8 @@ new class extends Component
             'role_id' => 'required|exists:user_roles,id',
         ];
 
-        // Add password validation if current logged-in user can edit passwords (MIT Staff or Admin)
-        $currentUserIsMitStaff = auth()->user() && auth()->user()->hasRole('MIT Staff');
+        // Add password validation if current logged-in user can edit passwords (MIT or Admin)
+        $currentUserIsMitStaff = auth()->user() && auth()->user()->hasRole('MIT');
         $currentUserIsAdmin = auth()->user() && (
             auth()->user()->hasRole('admin') || 
             auth()->user()->hasRole('super admin') ||
@@ -475,8 +475,8 @@ new class extends Component
                     </div>
 
                     @php
-                        // Check if the CURRENT logged-in user has MIT Staff role (not the employee being edited)
-                        $currentUserIsMitStaff = auth()->user() && auth()->user()->hasRole('MIT Staff');
+                        // Check if the CURRENT logged-in user has MIT role (not the employee being edited)
+                        $currentUserIsMitStaff = auth()->user() && auth()->user()->hasRole('MIT');
                         
                         // Fallback: Also allow admin/super admin users to edit passwords
                         $currentUserIsAdmin = auth()->user() && (

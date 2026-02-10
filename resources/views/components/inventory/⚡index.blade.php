@@ -17,12 +17,8 @@ new class extends Component
 
     public $activeTab = 'stock_in';
     
-    // Stock In Properties
-    #[Validate('required|exists:item,item_id')]
-    public $stock_in_item_id = '';
-    
-    #[Validate('required|integer|min:1')]
-    public $stock_in_quantity = '';
+    // Stock In Properties - Multiple Items Support
+    public $stock_in_items = [];
     
     #[Validate('nullable|string|max:100')]
     public $stock_in_supplier = '';
@@ -30,31 +26,20 @@ new class extends Component
     #[Validate('nullable|string|max:50')]
     public $stock_in_reference = '';
     
-    #[Validate('nullable|date')]
-    public $stock_in_expiry = '';
-    
     #[Validate('nullable|string|max:500')]
     public $stock_in_remarks = '';
 
-    // Stock Out Properties
-    #[Validate('required|exists:item,item_id')]
-    public $stock_out_item_id = '';
-    
-    #[Validate('required|integer|min:1')]
-    public $stock_out_quantity = '';
+    // Stock Out Properties - Multiple Items Support
+    public $stock_out_items = [];
     
     #[Validate('nullable|string|max:50')]
     public $stock_out_reference = '';
     
-    #[Validate('required|string|max:500')]
+    #[Validate('nullable|string|max:500')]
     public $stock_out_remarks = '';
 
-    // Stock Usage Properties
-    #[Validate('required|exists:item,item_id')]
-    public $stock_usage_item_id = '';
-    
-    #[Validate('required|integer|min:1')]
-    public $stock_usage_quantity = 1;
+    // Stock Usage Properties - Multiple Items Support
+    public $stock_usage_items = [];
     
     #[Validate('required|exists:employee,employee_id')]
     public $stock_usage_employee_id = '';
@@ -62,7 +47,7 @@ new class extends Component
     #[Validate('required|string|max:30')]
     public $stock_usage_purpose = '';
     
-    #[Validate('nullable|integer')]
+    #[Validate('nullable|string|max:50')]
     public $stock_usage_or_number = '';
 
     // Inventory Table Filters
@@ -79,6 +64,103 @@ new class extends Component
         if (session('success')) {
             $this->flashMessage = session('success');
         }
+        // Initialize with one empty row for each form
+        $this->addStockInRow();
+        $this->addStockOutRow();
+        $this->addStockUsageRow();
+    }
+    
+    // Stock In Row Management
+    public function addStockInRow()
+    {
+        $this->stock_in_items[] = ['item_id' => '', 'quantity' => '', 'expiry_date' => ''];
+    }
+    
+    public function removeStockInRow($index)
+    {
+        unset($this->stock_in_items[$index]);
+        $this->stock_in_items = array_values($this->stock_in_items);
+        if (count($this->stock_in_items) === 0) {
+            $this->addStockInRow();
+        }
+    }
+    
+    // Stock Out Row Management
+    public function addStockOutRow()
+    {
+        $this->stock_out_items[] = ['item_id' => '', 'quantity' => ''];
+    }
+    
+    public function removeStockOutRow($index)
+    {
+        unset($this->stock_out_items[$index]);
+        $this->stock_out_items = array_values($this->stock_out_items);
+        if (count($this->stock_out_items) === 0) {
+            $this->addStockOutRow();
+        }
+    }
+    
+    // Stock Usage Row Management
+    public function addStockUsageRow()
+    {
+        $this->stock_usage_items[] = ['item_id' => '', 'quantity' => 1];
+    }
+    
+    public function removeStockUsageRow($index)
+    {
+        unset($this->stock_usage_items[$index]);
+        $this->stock_usage_items = array_values($this->stock_usage_items);
+        if (count($this->stock_usage_items) === 0) {
+            $this->addStockUsageRow();
+        }
+    }
+
+    // Get available items for Stock In row, excluding items selected in other rows
+    public function getAvailableItemsForStockIn($currentIndex, $allItems)
+    {
+        $selectedItems = collect($this->stock_in_items)
+            ->pluck('item_id')
+            ->filter()
+            ->reject(function($itemId, $index) use ($currentIndex) {
+                return $index == $currentIndex;
+            })
+            ->toArray();
+        
+        return $allItems->reject(function($item) use ($selectedItems) {
+            return in_array($item->item_id, $selectedItems);
+        });
+    }
+
+    // Get available items for Stock Out row, excluding items selected in other rows
+    public function getAvailableItemsForStockOut($currentIndex, $allItems)
+    {
+        $selectedItems = collect($this->stock_out_items)
+            ->pluck('item_id')
+            ->filter()
+            ->reject(function($itemId, $index) use ($currentIndex) {
+                return $index == $currentIndex;
+            })
+            ->toArray();
+        
+        return $allItems->reject(function($item) use ($selectedItems) {
+            return in_array($item->item_id, $selectedItems);
+        });
+    }
+
+    // Get available items for Stock Usage row, excluding items selected in other rows
+    public function getAvailableItemsForStockUsage($currentIndex, $allItems)
+    {
+        $selectedItems = collect($this->stock_usage_items)
+            ->pluck('item_id')
+            ->filter()
+            ->reject(function($itemId, $index) use ($currentIndex) {
+                return $index == $currentIndex;
+            })
+            ->toArray();
+        
+        return $allItems->reject(function($item) use ($selectedItems) {
+            return in_array($item->item_id, $selectedItems);
+        });
     }
 
     public function setTab($tab)
@@ -89,125 +171,165 @@ new class extends Component
 
     public function addStock()
     {
+        // Validate items array
         $this->validate([
-            'stock_in_item_id' => 'required|exists:item,item_id',
-            'stock_in_quantity' => 'required|integer|min:1',
+            'stock_in_items.*.item_id' => 'required|exists:item,item_id',
+            'stock_in_items.*.quantity' => 'required|integer|min:1',
+            'stock_in_items.*.expiry_date' => 'nullable|date',
             'stock_in_supplier' => 'nullable|string|max:100',
             'stock_in_reference' => 'nullable|string|max:50',
-            'stock_in_expiry' => 'nullable|date',
             'stock_in_remarks' => 'nullable|string|max:500',
         ]);
 
-        StockIn::create([
-            'item_id' => $this->stock_in_item_id,
-            'quantity' => $this->stock_in_quantity,
-            'performed_by' => auth()->user()->employee->employee_id ?? null,
-            'supplier' => $this->stock_in_supplier,
-            'reference_number' => $this->stock_in_reference,
-            'expiry_date' => $this->stock_in_expiry,
-            'remarks' => $this->stock_in_remarks,
-            'datetime_added' => now(),
-        ]);
+        $itemsAdded = 0;
+        foreach ($this->stock_in_items as $item) {
+            if (!empty($item['item_id']) && !empty($item['quantity'])) {
+                StockIn::create([
+                    'item_id' => $item['item_id'],
+                    'quantity' => $item['quantity'],
+                    'performed_by' => auth()->user()->employee->employee_id ?? null,
+                    'supplier' => $this->stock_in_supplier,
+                    'reference_number' => $this->stock_in_reference,
+                    'expiry_date' => $item['expiry_date'] ?? null,
+                    'remarks' => $this->stock_in_remarks,
+                    'datetime_added' => now(),
+                ]);
 
-        // Log activity
-        $item = Item::find($this->stock_in_item_id);
-        $this->logActivity("Added {$this->stock_in_quantity} units of {$item->label} to stock" . 
-            ($this->stock_in_supplier ? " from {$this->stock_in_supplier}" : ""));
+                // Log activity
+                $itemModel = Item::find($item['item_id']);
+                $this->logActivity("Added {$item['quantity']} units of {$itemModel->label} to stock" . 
+                    ($this->stock_in_supplier ? " from {$this->stock_in_supplier}" : ""));
+                
+                $itemsAdded++;
+            }
+        }
 
         // Clear cache
         cache()->forget('items_with_stock');
 
-        $this->reset(['stock_in_item_id', 'stock_in_quantity', 'stock_in_supplier', 'stock_in_reference', 'stock_in_expiry', 'stock_in_remarks']);
-        $this->flashMessage = 'Stock added successfully!';
+        $this->reset(['stock_in_items', 'stock_in_supplier', 'stock_in_reference', 'stock_in_remarks']);
+        $this->addStockInRow();
+        $this->flashMessage = $itemsAdded . ' item(s) added to stock successfully!';
     }
 
     public function removeStock()
     {
+        // Validate items array
         $this->validate([
-            'stock_out_item_id' => 'required|exists:item,item_id',
-            'stock_out_quantity' => 'required|integer|min:1',
+            'stock_out_items.*.item_id' => 'required|exists:item,item_id',
+            'stock_out_items.*.quantity' => 'required|integer|min:1',
             'stock_out_reference' => 'nullable|string|max:50',
-            'stock_out_remarks' => 'required|string|max:500',
+            'stock_out_remarks' => 'nullable|string|max:500',
         ]);
 
-        // Check if item has sufficient stock
-        $item = Item::find($this->stock_out_item_id);
-        $totalIn = StockIn::where('item_id', $this->stock_out_item_id)->sum('quantity');
-        $totalOut = StockOut::where('item_id', $this->stock_out_item_id)->sum('quantity');
-        $totalUsage = StockUsage::where('item_id', $this->stock_out_item_id)->sum('quantity');
-        $currentStock = $totalIn - $totalOut - $totalUsage;
+        $itemsRemoved = 0;
+        $errors = [];
+        
+        foreach ($this->stock_out_items as $index => $item) {
+            if (!empty($item['item_id']) && !empty($item['quantity'])) {
+                // Check if item has sufficient stock
+                $totalIn = StockIn::where('item_id', $item['item_id'])->sum('quantity');
+                $totalOut = StockOut::where('item_id', $item['item_id'])->sum('quantity');
+                $totalUsage = StockUsage::where('item_id', $item['item_id'])->sum('quantity');
+                $currentStock = $totalIn - $totalOut - $totalUsage;
 
-        if ($currentStock < $this->stock_out_quantity) {
-            $this->addError('stock_out_quantity', 'Insufficient stock. Available: ' . number_format($currentStock));
-            return;
+                if ($currentStock < $item['quantity']) {
+                    $itemModel = Item::find($item['item_id']);
+                    $this->addError('stock_out_items.'.$index.'.quantity', 'Insufficient stock for ' . $itemModel->label . '. Available: ' . number_format($currentStock));
+                    $errors[] = true;
+                    continue;
+                }
+
+                StockOut::create([
+                    'item_id' => $item['item_id'],
+                    'quantity' => $item['quantity'],
+                    'performed_by' => auth()->user()->employee->employee_id ?? null,
+                    'reference_number' => $this->stock_out_reference,
+                    'remarks' => $this->stock_out_remarks,
+                    'datetime_added' => now(),
+                ]);
+
+                // Log activity
+                $itemModel = Item::find($item['item_id']);
+                $this->logActivity("Removed {$item['quantity']} units of {$itemModel->label} from stock" . 
+                    ($this->stock_out_remarks ? " - {$this->stock_out_remarks}" : ""));
+                
+                $itemsRemoved++;
+            }
         }
 
-        StockOut::create([
-            'item_id' => $this->stock_out_item_id,
-            'quantity' => $this->stock_out_quantity,
-            'performed_by' => auth()->user()->employee->employee_id ?? null,
-            'reference_number' => $this->stock_out_reference,
-            'remarks' => $this->stock_out_remarks,
-            'datetime_added' => now(),
-        ]);
-
-        // Log activity
-        $item = Item::find($this->stock_out_item_id);
-        $this->logActivity("Removed {$this->stock_out_quantity} units of {$item->label} from stock - {$this->stock_out_remarks}");
+        if (!empty($errors)) {
+            return;
+        }
 
         // Clear cache
         cache()->forget('items_with_stock');
 
-        $this->reset(['stock_out_item_id', 'stock_out_quantity', 'stock_out_reference', 'stock_out_remarks']);
-        $this->flashMessage = 'Stock removed successfully!';
+        $this->reset(['stock_out_items', 'stock_out_reference', 'stock_out_remarks']);
+        $this->addStockOutRow();
+        $this->flashMessage = $itemsRemoved . ' item(s) removed from stock successfully!';
     }
 
     public function recordUsage()
     {
+        // Validate items array
         $this->validate([
-            'stock_usage_item_id' => 'required|exists:item,item_id',
-            'stock_usage_quantity' => 'required|integer|min:1',
+            'stock_usage_items.*.item_id' => 'required|exists:item,item_id',
+            'stock_usage_items.*.quantity' => 'required|integer|min:1',
             'stock_usage_employee_id' => 'required|exists:employee,employee_id',
             'stock_usage_purpose' => 'required|string|max:30',
-            'stock_usage_or_number' => 'nullable|integer',
+            'stock_usage_or_number' => 'nullable|string|max:50',
         ]);
 
-        // Check if item has sufficient stock
-        $item = Item::find($this->stock_usage_item_id);
-        $totalIn = StockIn::where('item_id', $this->stock_usage_item_id)->sum('quantity');
-        $totalOut = StockOut::where('item_id', $this->stock_usage_item_id)->sum('quantity');
-        $totalUsage = StockUsage::where('item_id', $this->stock_usage_item_id)->sum('quantity');
-        $currentStock = $totalIn - $totalOut - $totalUsage;
+        $itemsRecorded = 0;
+        $errors = [];
+        $employee = Employee::find($this->stock_usage_employee_id);
+        
+        foreach ($this->stock_usage_items as $index => $item) {
+            if (!empty($item['item_id']) && !empty($item['quantity'])) {
+                // Check if item has sufficient stock
+                $totalIn = StockIn::where('item_id', $item['item_id'])->sum('quantity');
+                $totalOut = StockOut::where('item_id', $item['item_id'])->sum('quantity');
+                $totalUsage = StockUsage::where('item_id', $item['item_id'])->sum('quantity');
+                $currentStock = $totalIn - $totalOut - $totalUsage;
 
-        if ($currentStock < $this->stock_usage_quantity) {
-            $this->addError('stock_usage_quantity', 'Insufficient stock. Available: ' . number_format($currentStock));
-            return;
+                if ($currentStock < $item['quantity']) {
+                    $itemModel = Item::find($item['item_id']);
+                    $this->addError('stock_usage_items.'.$index.'.quantity', 'Insufficient stock for ' . $itemModel->label . '. Available: ' . number_format($currentStock));
+                    $errors[] = true;
+                    continue;
+                }
+
+                StockUsage::create([
+                    'item_id' => $item['item_id'],
+                    'quantity' => $item['quantity'],
+                    'employee_id' => $this->stock_usage_employee_id,
+                    'firstname' => $employee->firstname,
+                    'middlename' => $employee->middlename,
+                    'lastname' => $employee->lastname,
+                    'purpose' => $this->stock_usage_purpose,
+                    'datetime_added' => now(),
+                    'or_number' => $this->stock_usage_or_number ?? null,
+                ]);
+
+                // Log activity
+                $itemModel = Item::find($item['item_id']);
+                $this->logActivity("Recorded usage of {$item['quantity']} units of {$itemModel->label} for {$this->stock_usage_purpose}");
+                
+                $itemsRecorded++;
+            }
         }
 
-        $employee = Employee::find($this->stock_usage_employee_id);
-
-        StockUsage::create([
-            'item_id' => $this->stock_usage_item_id,
-            'quantity' => $this->stock_usage_quantity,
-            'employee_id' => $this->stock_usage_employee_id,
-            'firstname' => $employee->firstname,
-            'middlename' => $employee->middlename,
-            'lastname' => $employee->lastname,
-            'purpose' => $this->stock_usage_purpose,
-            'datetime_added' => now(),
-            'or_number' => $this->stock_usage_or_number ?? 0,
-        ]);
-
-        // Log activity
-        $item = Item::find($this->stock_usage_item_id);
-        $this->logActivity("Recorded usage of {$this->stock_usage_quantity} units of {$item->label} for {$this->stock_usage_purpose}");
+        if (!empty($errors)) {
+            return;
+        }
 
         // Clear cache
         cache()->forget('items_with_stock');
 
-        $this->reset(['stock_usage_item_id', 'stock_usage_quantity', 'stock_usage_employee_id', 'stock_usage_purpose', 'stock_usage_or_number']);
-        $this->stock_usage_quantity = 1;
-        $this->flashMessage = 'Stock usage recorded successfully!';
+        $this->reset(['stock_usage_items', 'stock_usage_employee_id', 'stock_usage_purpose', 'stock_usage_or_number']);
+        $this->addStockUsageRow();
+        $this->flashMessage = $itemsRecorded . ' item(s) usage recorded successfully!';
     }
 
     public function with(): array
@@ -302,16 +424,10 @@ new class extends Component
         });
 
         return [
-            'items' => cache()->remember('items_dropdown', 300, function() {
-                return Item::active()->select('item_id', 'label')->orderBy('label')->get();
-            }),
+            'items' => Item::active()->select('item_id', 'label')->orderBy('label')->get(),
             'itemsWithStock' => $itemsWithStock,
-            'employees' => cache()->remember('employees_dropdown', 300, function() {
-                return Employee::active()->select('employee_id', 'firstname', 'lastname')->orderBy('firstname')->get();
-            }),
-            'sections' => cache()->remember('sections_dropdown', 300, function() {
-                return Section::active()->select('section_id', 'label')->orderBy('label')->get();
-            }),
+            'employees' => Employee::active()->select('employee_id', 'firstname', 'lastname')->orderBy('firstname')->get(),
+            'sections' => Section::active()->select('section_id', 'label')->orderBy('label')->get(),
             'inventory' => $paginatedInventory,
             'movements' => $paginatedMovements,
         ];
@@ -374,22 +490,57 @@ new class extends Component
                 <!-- Stock In Form -->
                 @if($activeTab === 'stock_in')
                 <form wire:submit.prevent="addStock" class="space-y-6">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div class="space-y-2">
-                            <label class="text-sm font-medium text-gray-700">Item <span class="text-rose-500">*</span></label>
-                            <select wire:model="stock_in_item_id" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all" required>
-                                <option value="">Select Item</option>
-                                @foreach($items as $item)
-                                    <option value="{{ $item->item_id }}">{{ $item->label }}</option>
-                                @endforeach
-                            </select>
-                            @error('stock_in_item_id') <span class="text-xs text-rose-600">{{ $message }}</span> @enderror
+                    <!-- Multiple Items Section -->
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between">
+                            <label class="text-sm font-semibold text-gray-700">Items to Add</label>
+                            <button type="button" wire:click="addStockInRow" class="px-3 py-1.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 text-sm font-medium rounded-lg transition-all flex items-center">
+                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                                </svg>
+                                Add Item
+                            </button>
                         </div>
-                        <div class="space-y-2">
-                            <label class="text-sm font-medium text-gray-700">Quantity <span class="text-rose-500">*</span></label>
-                            <input type="number" wire:model="stock_in_quantity" min="1" placeholder="0" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all" required>
-                            @error('stock_in_quantity') <span class="text-xs text-rose-600">{{ $message }}</span> @enderror
+                        
+                        @foreach($stock_in_items as $index => $item)
+                        <div class="bg-gray-50 rounded-lg p-4 border-2 border-gray-200">
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div class="space-y-2">
+                                    <label class="text-sm font-medium text-gray-700">Item <span class="text-rose-500">*</span></label>
+                                    <select wire:model.live="stock_in_items.{{ $index }}.item_id" class="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all">
+                                        <option value="">Select Item</option>
+                                        @foreach($this->getAvailableItemsForStockIn($index, $items) as $itemOption)
+                                            <option value="{{ $itemOption->item_id }}">{{ $itemOption->label }}</option>
+                                        @endforeach
+                                    </select>
+                                    @error('stock_in_items.'.$index.'.item_id') <span class="text-xs text-rose-600">{{ $message }}</span> @enderror
+                                </div>
+                                <div class="space-y-2">
+                                    <label class="text-sm font-medium text-gray-700">Quantity <span class="text-rose-500">*</span></label>
+                                    <input type="number" wire:model="stock_in_items.{{ $index }}.quantity" min="1" placeholder="0" class="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all">
+                                    @error('stock_in_items.'.$index.'.quantity') <span class="text-xs text-rose-600">{{ $message }}</span> @enderror
+                                </div>
+                                <div class="space-y-2">
+                                    <label class="text-sm font-medium text-gray-700">Expiry Date</label>
+                                    <div class="flex gap-2">
+                                        <input type="date" wire:model="stock_in_items.{{ $index }}.expiry_date" class="flex-1 px-4 py-2.5 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all">
+                                        @if(count($stock_in_items) > 1)
+                                        <button type="button" wire:click="removeStockInRow({{ $index }})" class="px-3 py-2.5 bg-rose-100 hover:bg-rose-200 text-rose-700 rounded-lg transition-all">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>
+                                            </svg>
+                                        </button>
+                                        @endif
+                                    </div>
+                                    @error('stock_in_items.'.$index.'.expiry_date') <span class="text-xs text-rose-600">{{ $message }}</span> @enderror
+                                </div>
+                            </div>
                         </div>
+                        @endforeach
+                    </div>
+                    
+                    <!-- Common Fields -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t border-gray-200">
                         <div class="space-y-2">
                             <label class="text-sm font-medium text-gray-700">Supplier</label>
                             <input type="text" wire:model="stock_in_supplier" placeholder="Supplier name" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all">
@@ -401,16 +552,12 @@ new class extends Component
                             @error('stock_in_reference') <span class="text-xs text-rose-600">{{ $message }}</span> @enderror
                         </div>
                         <div class="space-y-2">
-                            <label class="text-sm font-medium text-gray-700">Expiry Date</label>
-                            <input type="date" wire:model="stock_in_expiry" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all">
-                            @error('stock_in_expiry') <span class="text-xs text-rose-600">{{ $message }}</span> @enderror
-                        </div>
-                        <div class="space-y-2">
                             <label class="text-sm font-medium text-gray-700">Remarks</label>
                             <input type="text" wire:model="stock_in_remarks" placeholder="Optional notes" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all">
                             @error('stock_in_remarks') <span class="text-xs text-rose-600">{{ $message }}</span> @enderror
                         </div>
                     </div>
+                    
                     <div class="flex justify-end pt-4 border-t border-gray-100">
                         <button type="submit" class="px-8 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg transition-all shadow-sm hover:shadow flex items-center">
                             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -425,33 +572,64 @@ new class extends Component
                 <!-- Stock Out Form -->
                 @if($activeTab === 'stock_out')
                 <form wire:submit.prevent="removeStock" class="space-y-6">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div class="space-y-2">
-                            <label class="text-sm font-medium text-gray-700">Item <span class="text-rose-500">*</span></label>
-                            <select wire:model="stock_out_item_id" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent transition-all" required>
-                                <option value="">Select Item</option>
-                                @foreach($itemsWithStock as $item)
-                                    <option value="{{ $item->item_id }}">{{ $item->label }} (Available: {{ number_format($item->current_stock) }})</option>
-                                @endforeach
-                            </select>
-                            @error('stock_out_item_id') <span class="text-xs text-rose-600">{{ $message }}</span> @enderror
+                    <!-- Multiple Items Section -->
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between">
+                            <label class="text-sm font-semibold text-gray-700">Items to Remove</label>
+                            <button type="button" wire:click="addStockOutRow" class="px-3 py-1.5 bg-rose-100 hover:bg-rose-200 text-rose-700 text-sm font-medium rounded-lg transition-all flex items-center">
+                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                                </svg>
+                                Add Item
+                            </button>
                         </div>
-                        <div class="space-y-2">
-                            <label class="text-sm font-medium text-gray-700">Quantity <span class="text-rose-500">*</span></label>
-                            <input type="number" wire:model="stock_out_quantity" min="1" placeholder="0" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent transition-all" required>
-                            @error('stock_out_quantity') <span class="text-xs text-rose-600">{{ $message }}</span> @enderror
+                        
+                        @foreach($stock_out_items as $index => $item)
+                        <div class="bg-gray-50 rounded-lg p-4 border-2 border-gray-200">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="space-y-2">
+                                    <label class="text-sm font-medium text-gray-700">Item <span class="text-rose-500">*</span></label>
+                                    <select wire:model.live="stock_out_items.{{ $index }}.item_id" class="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent transition-all">
+                                        <option value="">Select Item</option>
+                                        @foreach($this->getAvailableItemsForStockOut($index, $itemsWithStock) as $itemOption)
+                                            <option value="{{ $itemOption->item_id }}">{{ $itemOption->label }} (Available: {{ number_format($itemOption->current_stock) }})</option>
+                                        @endforeach
+                                    </select>
+                                    @error('stock_out_items.'.$index.'.item_id') <span class="text-xs text-rose-600">{{ $message }}</span> @enderror
+                                </div>
+                                <div class="space-y-2">
+                                    <label class="text-sm font-medium text-gray-700">Quantity <span class="text-rose-500">*</span></label>
+                                    <div class="flex gap-2">
+                                        <input type="number" wire:model="stock_out_items.{{ $index }}.quantity" min="1" placeholder="0" class="flex-1 px-4 py-2.5 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent transition-all">
+                                        @if(count($stock_out_items) > 1)
+                                        <button type="button" wire:click="removeStockOutRow({{ $index }})" class="px-3 py-2.5 bg-rose-100 hover:bg-rose-200 text-rose-700 rounded-lg transition-all">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>
+                                            </svg>
+                                        </button>
+                                        @endif
+                                    </div>
+                                    @error('stock_out_items.'.$index.'.quantity') <span class="text-xs text-rose-600">{{ $message }}</span> @enderror
+                                </div>
+                            </div>
                         </div>
+                        @endforeach
+                    </div>
+                    
+                    <!-- Common Fields -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-gray-200">
                         <div class="space-y-2">
                             <label class="text-sm font-medium text-gray-700">Reference No.</label>
                             <input type="text" wire:model="stock_out_reference" placeholder="Requisition number" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent transition-all">
                             @error('stock_out_reference') <span class="text-xs text-rose-600">{{ $message }}</span> @enderror
                         </div>
                         <div class="space-y-2">
-                            <label class="text-sm font-medium text-gray-700">Remarks <span class="text-rose-500">*</span></label>
-                            <input type="text" wire:model="stock_out_remarks" placeholder="Reason for removal" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent transition-all" required>
+                            <label class="text-sm font-medium text-gray-700">Remarks</label>
+                            <input type="text" wire:model="stock_out_remarks" placeholder="Reason for removal" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent transition-all">
                             @error('stock_out_remarks') <span class="text-xs text-rose-600">{{ $message }}</span> @enderror
                         </div>
                     </div>
+                    
                     <div class="flex justify-end pt-4 border-t border-gray-100">
                         <button type="submit" class="px-8 py-3 bg-rose-600 hover:bg-rose-700 text-white font-medium rounded-lg transition-all shadow-sm hover:shadow flex items-center">
                             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -466,25 +644,55 @@ new class extends Component
                 <!-- Stock Usage Form -->
                 @if($activeTab === 'stock_usage')
                 <form wire:submit.prevent="recordUsage" class="space-y-6">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div class="space-y-2">
-                            <label class="text-sm font-medium text-gray-700">Item <span class="text-rose-500">*</span></label>
-                            <select wire:model="stock_usage_item_id" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" required>
-                                <option value="">Select Item</option>
-                                @foreach($itemsWithStock as $item)
-                                    <option value="{{ $item->item_id }}">{{ $item->label }} (Available: {{ number_format($item->current_stock) }})</option>
-                                @endforeach
-                            </select>
-                            @error('stock_usage_item_id') <span class="text-xs text-rose-600">{{ $message }}</span> @enderror
+                    <!-- Multiple Items Section -->
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between">
+                            <label class="text-sm font-semibold text-gray-700">Items to Record</label>
+                            <button type="button" wire:click="addStockUsageRow" class="px-3 py-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 text-sm font-medium rounded-lg transition-all flex items-center">
+                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                                </svg>
+                                Add Item
+                            </button>
                         </div>
-                        <div class="space-y-2">
-                            <label class="text-sm font-medium text-gray-700">Quantity <span class="text-rose-500">*</span></label>
-                            <input type="number" wire:model="stock_usage_quantity" min="1" placeholder="1" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" required>
-                            @error('stock_usage_quantity') <span class="text-xs text-rose-600">{{ $message }}</span> @enderror
+                        
+                        @foreach($stock_usage_items as $index => $item)
+                        <div class="bg-gray-50 rounded-lg p-4 border-2 border-gray-200">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="space-y-2">
+                                    <label class="text-sm font-medium text-gray-700">Item <span class="text-rose-500">*</span></label>
+                                    <select wire:model.live="stock_usage_items.{{ $index }}.item_id" class="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+                                        <option value="">Select Item</option>
+                                        @foreach($this->getAvailableItemsForStockUsage($index, $itemsWithStock) as $itemOption)
+                                            <option value="{{ $itemOption->item_id }}">{{ $itemOption->label }} (Available: {{ number_format($itemOption->current_stock) }})</option>
+                                        @endforeach
+                                    </select>
+                                    @error('stock_usage_items.'.$index.'.item_id') <span class="text-xs text-rose-600">{{ $message }}</span> @enderror
+                                </div>
+                                <div class="space-y-2">
+                                    <label class="text-sm font-medium text-gray-700">Quantity <span class="text-rose-500">*</span></label>
+                                    <div class="flex gap-2">
+                                        <input type="number" wire:model="stock_usage_items.{{ $index }}.quantity" min="1" placeholder="1" class="flex-1 px-4 py-2.5 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+                                        @if(count($stock_usage_items) > 1)
+                                        <button type="button" wire:click="removeStockUsageRow({{ $index }})" class="px-3 py-2.5 bg-rose-100 hover:bg-rose-200 text-rose-700 rounded-lg transition-all">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>
+                                            </svg>
+                                        </button>
+                                        @endif
+                                    </div>
+                                    @error('stock_usage_items.'.$index.'.quantity') <span class="text-xs text-rose-600">{{ $message }}</span> @enderror
+                                </div>
+                            </div>
                         </div>
+                        @endforeach
+                    </div>
+                    
+                    <!-- Common Fields -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t border-gray-200">
                         <div class="space-y-2">
                             <label class="text-sm font-medium text-gray-700">Employee <span class="text-rose-500">*</span></label>
-                            <select wire:model="stock_usage_employee_id" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" required>
+                            <select wire:model="stock_usage_employee_id" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
                                 <option value="">Select Employee</option>
                                 @foreach($employees as $employee)
                                     <option value="{{ $employee->employee_id }}">{{ $employee->firstname }} {{ $employee->lastname }}</option>
@@ -494,15 +702,16 @@ new class extends Component
                         </div>
                         <div class="space-y-2">
                             <label class="text-sm font-medium text-gray-700">Purpose <span class="text-rose-500">*</span></label>
-                            <input type="text" wire:model="stock_usage_purpose" placeholder="Purpose of use" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" required>
+                            <input type="text" wire:model="stock_usage_purpose" placeholder="Purpose of use" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
                             @error('stock_usage_purpose') <span class="text-xs text-rose-600">{{ $message }}</span> @enderror
                         </div>
                         <div class="space-y-2">
                             <label class="text-sm font-medium text-gray-700">OR Number</label>
-                            <input type="number" wire:model="stock_usage_or_number" placeholder="Official receipt number" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+                            <input type="text" wire:model="stock_usage_or_number" placeholder="Official receipt number" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
                             @error('stock_usage_or_number') <span class="text-xs text-rose-600">{{ $message }}</span> @enderror
                         </div>
                     </div>
+                    
                     <div class="flex justify-end pt-4 border-t border-gray-100">
                         <button type="submit" class="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-all shadow-sm hover:shadow flex items-center">
                             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">

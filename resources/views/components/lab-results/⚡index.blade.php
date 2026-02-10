@@ -92,7 +92,7 @@ new class extends Component
         $this->editResultId = $result->lab_result_id;
         $this->editPatientId = $result->patient_id;
         $this->editTestId = $result->test_id;
-        $this->editResultDate = $result->result_date;
+        $this->editResultDate = $result->result_date ? \Carbon\Carbon::parse($result->result_date)->format('Y-m-d') : '';
         $this->editFindings = $result->findings;
         $this->editNormalRange = $result->normal_range;
         $this->editResultValue = $result->result_value;

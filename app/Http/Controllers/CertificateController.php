@@ -16,6 +16,15 @@ class CertificateController extends Controller
     }
 
     /**
+     * Display a specific certificate.
+     */
+    public function show($id)
+    {
+        $certificate = Certificate::with(['patient', 'equipment', 'issuedBy', 'verifiedBy'])->findOrFail($id);
+        return view('certificates.show', compact('certificate'));
+    }
+
+    /**
      * Display certificate templates page.
      */
     public function templates()

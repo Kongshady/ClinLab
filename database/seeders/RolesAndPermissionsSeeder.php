@@ -34,6 +34,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'employees.access',
             'certificates.access',
             'activity-logs.access',
+            'inventory.access',
 
             // CRUD Permissions - Patients
             'patients.create',
@@ -102,7 +103,7 @@ class RolesAndPermissionsSeeder extends Seeder
         $labManager = Role::firstOrCreate(['name' => 'Laboratory Manager', 'guard_name' => 'web']);
         $labManager->syncPermissions($permissions);
 
-        // 2. Staff-in-Charge - Access to 10 modules
+        // 2. Staff-in-Charge - Access to 11 modules
         $staffInCharge = Role::firstOrCreate(['name' => 'Staff-in-Charge', 'guard_name' => 'web']);
         $staffInCharge->syncPermissions([
             'patients.access', 'patients.create', 'patients.edit', 'patients.view', 'patients.delete',
@@ -115,6 +116,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'reports.access',
             'tests.access', 'tests.create', 'tests.edit', 'tests.delete',
             'certificates.access', 'certificates.create', 'certificates.edit', 'certificates.delete',
+            'inventory.access',
         ]);
 
         // 3. MIT Staff - Access to 3 modules (sections, employees, activity logs)
@@ -139,8 +141,8 @@ class RolesAndPermissionsSeeder extends Seeder
         $this->command->info('✅ Role-Based Access Control Setup Complete!');
         $this->command->info('');
         $this->command->info('📊 Roles & Module Access:');
-        $this->command->info('1. Laboratory Manager - All 13 modules (Full Access)');
-        $this->command->info('2. Staff-in-Charge - 10 modules');
+        $this->command->info('1. Laboratory Manager - All 14 modules (Full Access)');
+        $this->command->info('2. Staff-in-Charge - 11 modules (includes Inventory)');
         $this->command->info('3. MIT Staff - 3 modules (Sections, Employees, Activity Logs)');
         $this->command->info('4. Secretary - 2 modules (Patients, Physicians)');
     }

@@ -39,7 +39,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('dashboard.staff');
     
     Route::get('/dashboard/mit', [DashboardController::class, 'mit'])
-        ->middleware('role:MIT Staff')
+        ->middleware('role:MIT')
         ->name('dashboard.mit');
     
     Route::get('/dashboard/secretary', [DashboardController::class, 'secretary'])
@@ -75,7 +75,7 @@ Route::middleware('auth')->group(function () {
     });
     
     Route::middleware(['permission:certificates.access'])->group(function () {
-        Route::resource('certificates', CertificateController::class);
+        Route::resource('certificates', CertificateController::class)->only(['index', 'show']);
         Route::get('certificates-templates', [CertificateController::class, 'templates'])->name('certificates.templates');
         Route::get('certificates-issued', [CertificateController::class, 'issued'])->name('certificates.issued');
     });

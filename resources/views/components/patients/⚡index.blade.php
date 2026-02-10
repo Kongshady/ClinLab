@@ -123,7 +123,7 @@ new class extends Component
         $this->firstname = $patient->firstname;
         $this->middlename = $patient->middlename;
         $this->lastname = $patient->lastname;
-        $this->birthdate = $patient->birthdate;
+        $this->birthdate = $patient->birthdate ? \Carbon\Carbon::parse($patient->birthdate)->format('Y-m-d') : '';
         $this->gender = $patient->gender;
         $this->contact_number = $patient->contact_number;
         $this->address = $patient->address;
@@ -295,11 +295,17 @@ new class extends Component
                     </select>
                     @error('gender') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                 </div>
-                <div>
+                <div x-data="{ val: $wire.entangle('contact_number'), get missing() { return this.val ? 11 - this.val.length : 0 } }">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Contact Number</label>
-                    <input type="text" wire:model="contact_number" placeholder="09123456789" maxlength="11" oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 11)" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500">
+                    <input type="text" wire:model="contact_number" placeholder="09123456789" maxlength="11"
+                           @input="val = $event.target.value = $event.target.value.replace(/[^0-9]/g, '').slice(0, 11)"
+                           :class="val && val.length > 0 && val.length < 11 ? 'border-red-400 focus:ring-red-500' : 'border-gray-300 focus:ring-pink-500'"
+                           class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2">
+                    <template x-if="val && val.length > 0 && val.length < 11">
+                        <span class="text-red-500 text-xs mt-1 block" x-text="'You\'re missing ' + missing + (missing === 1 ? ' number' : ' numbers')"></span>
+                    </template>
                     @error('contact_number') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
-                    <span class="text-xs text-gray-500 mt-1 block">11 digits only</span>
+                    <span class="text-xs text-gray-400 mt-1 block">11 digits only</span>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Address</label>
@@ -490,11 +496,17 @@ new class extends Component
                         </select>
                         @error('gender') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                     </div>
-                    <div>
+                    <div x-data="{ val: $wire.entangle('contact_number'), get missing() { return this.val ? 11 - this.val.length : 0 } }">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Contact Number</label>
-                        <input type="text" wire:model="contact_number" placeholder="09123456789" maxlength="11" oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 11)" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500">
+                        <input type="text" wire:model="contact_number" placeholder="09123456789" maxlength="11"
+                               @input="val = $event.target.value = $event.target.value.replace(/[^0-9]/g, '').slice(0, 11)"
+                               :class="val && val.length > 0 && val.length < 11 ? 'border-red-400 focus:ring-red-500' : 'border-gray-300 focus:ring-pink-500'"
+                               class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2">
+                        <template x-if="val && val.length > 0 && val.length < 11">
+                            <span class="text-red-500 text-xs mt-1 block" x-text="'You\'re missing ' + missing + (missing === 1 ? ' number' : ' numbers')"></span>
+                        </template>
                         @error('contact_number') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
-                        <span class="text-xs text-gray-500 mt-1 block">11 digits only</span>
+                        <span class="text-xs text-gray-400 mt-1 block">11 digits only</span>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Address</label>

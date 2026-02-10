@@ -61,6 +61,11 @@ class Equipment extends Model
             ->latest('calibration_date');
     }
 
+    public function usageRecords()
+    {
+        return $this->hasMany(EquipmentUsage::class, 'equipment_id', 'equipment_id');
+    }
+
     public function softDelete($employeeId = null)
     {
         $this->is_deleted = 1;
