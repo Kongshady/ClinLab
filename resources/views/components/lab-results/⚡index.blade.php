@@ -399,9 +399,11 @@ new class extends Component
                                     {{ ucfirst($result->status ?? 'draft') }}
                                 </span>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                <a href="{{ route('lab-results.show', $result->lab_result_id) }}" class="text-blue-600 hover:text-blue-900 mr-3">View</a>
-                                <button type="button" wire:click="openEditModal({{ $result->lab_result_id }})" class="text-green-600 hover:text-green-900">Edit</button>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                                <a href="{{ route('lab-results.show', $result->lab_result_id) }}" 
+                                   class="inline-block px-4 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors">View</a>
+                                <button type="button" wire:click="openEditModal({{ $result->lab_result_id }})" 
+                                        class="px-4 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg transition-colors">Edit</button>
                             </td>
                         </tr>
                     @empty

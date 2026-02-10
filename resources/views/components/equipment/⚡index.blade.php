@@ -301,10 +301,10 @@ new class extends Component
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                                     <button type="button" wire:click="edit({{ $item->equipment_id }})" 
-                                       class="text-orange-600 hover:text-orange-900">Edit</button>
+                                            class="px-4 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg transition-colors">Edit</button>
                                     <button type="button" wire:click="delete({{ $item->equipment_id }})" 
                                             wire:confirm="Are you sure you want to delete this equipment?"
-                                            class="text-red-600 hover:text-red-900">Delete</button>
+                                            class="px-4 py-1.5 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors">Delete</button>
                                 </td>
                             </tr>
                         @empty

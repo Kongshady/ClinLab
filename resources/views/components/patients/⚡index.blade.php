@@ -394,16 +394,16 @@ new class extends Component
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                 <div class="flex space-x-2">
                                     <button type="button" wire:click="viewPatient({{ $patient->patient_id }})" 
-                                            class="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors">
+                                            class="px-4 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors">
                                         View
                                     </button>
                                     <button type="button" wire:click="edit({{ $patient->patient_id }})" 
-                                            class="px-3 py-1 bg-orange-100 text-orange-700 rounded-lg hover:bg-orange-200 transition-colors">
+                                            class="px-4 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg transition-colors">
                                         Edit
                                     </button>
                                     <button type="button" wire:click="delete({{ $patient->patient_id }})" 
                                             wire:confirm="Are you sure you want to delete this patient?"
-                                            class="px-3 py-1 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors">
+                                            class="px-4 py-1.5 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors">
                                         Delete
                                     </button>
                                 </div>

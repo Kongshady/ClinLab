@@ -168,7 +168,7 @@ new class extends Component
             </div>
             <div class="flex justify-end mt-4">
                 <button type="submit" 
-                        class="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors">
+                        class="px-4 py-2 bg-pink-600 text-white rounded-md hover:bg-pink-700 transition-colors">
                     Add Transaction
                 </button>
             </div>
@@ -221,14 +221,10 @@ new class extends Component
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                     <div class="flex items-center space-x-2">
                                         <button wire:click="openEditModal({{ $transaction->transaction_id }})" 
-                                                class="px-3 py-1.5 bg-orange-100 text-orange-700 rounded-lg hover:bg-orange-200 transition-colors">
-                                            Edit
-                                        </button>
+                                           class="px-4 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg transition-colors">Edit</button>
                                         <button wire:click="delete({{ $transaction->transaction_id }})" 
                                                 wire:confirm="Are you sure you want to delete this transaction?"
-                                                class="px-3 py-1.5 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors">
-                                            Delete
-                                        </button>
+                                                class="px-4 py-1.5 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors">Delete</button>
                                     </div>
                                 </td>
                             </tr>

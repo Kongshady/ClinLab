@@ -430,11 +430,13 @@ new class extends Component
                                 @endif
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                                <a href="{{ route('certificates.show', $cert->certificate_id) }}" 
+                                   class="inline-block px-4 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors">View</a>
                                 <button type="button" wire:click="openEditModal({{ $cert->certificate_id }})" 
-                                        class="text-orange-600 hover:text-orange-900">Edit</button>
+                                        class="px-4 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg transition-colors">Edit</button>
                                 <button type="button" wire:click="delete({{ $cert->certificate_id }})" 
                                         wire:confirm="Are you sure you want to delete this certificate?"
-                                        class="text-red-600 hover:text-red-900">Delete</button>
+                                        class="px-4 py-1.5 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors">Delete</button>
                             </td>
                         </tr>
                     @empty
