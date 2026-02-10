@@ -11,6 +11,7 @@ class Patient extends Model
     public $timestamps = false;
 
     protected $fillable = [
+        'user_id',
         'patient_type',
         'firstname',
         'middlename',
@@ -19,6 +20,7 @@ class Patient extends Model
         'gender',
         'contact_number',
         'address',
+        'email',
         'status_code',
     ];
 
@@ -48,5 +50,21 @@ class Patient extends Model
     public function getFullNameAttribute()
     {
         return trim("{$this->firstname} {$this->middlename} {$this->lastname}");
+    }
+
+    /**
+     * Get the user account associated with this patient.
+     */
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'user_id', 'id');
+    }
+
+    /**
+     * Get the lab results for this patient.
+     */
+    public function labResults()
+    {
+        return $this->hasMany(LabResult::class, 'patient_id', 'patient_id');
     }
 }

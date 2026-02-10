@@ -23,6 +23,10 @@ new class extends Component
     public $flashMessage = '';
     public $perPage = 'all';
 
+    // Bulk delete
+    public $selectedItems = [];
+    public $selectAll = false;
+
     // Edit Modal Properties
     public $showEditModal = false;
     public $editItemId = '';
@@ -121,28 +125,70 @@ new class extends Component
         $this->closeEditModal();
     }
 
-    public function delete($id)
+    public function updatedSelectAll($value)
     {
-        $item = Item::find($id);
-        if ($item) {
-            $item->softDelete();
-            $this->flashMessage = 'Item deleted successfully!';
+        if ($value) {
+            $this->selectedItems = $this->getFilteredQuery()
+                ->pluck('item.item_id')
+                ->map(fn($id) => (string) $id)
+                ->toArray();
+        } else {
+            $this->selectedItems = [];
         }
     }
 
-    public function with(): array
+    public function updatedSelectedItems()
     {
-        $query = Item::active()
+        $this->selectAll = false;
+    }
+
+    public function updatedSearch()
+    {
+        $this->selectedItems = [];
+        $this->selectAll = false;
+        $this->resetPage();
+    }
+
+    public function deleteSelected()
+    {
+        if (empty($this->selectedItems)) return;
+
+        $count = 0;
+        foreach ($this->selectedItems as $id) {
+            $item = Item::find($id);
+            if ($item) {
+                $item->softDelete();
+                $count++;
+            }
+        }
+
+        $this->selectedItems = [];
+        $this->selectAll = false;
+        $this->flashMessage = $count . ' item(s) deleted successfully!';
+        $this->resetPage();
+    }
+
+    private function getFilteredQuery()
+    {
+        return Item::active()
             ->with('section')
             ->leftJoin('item_type', 'item.item_type_id', '=', 'item_type.item_type_id')
             ->select('item.*', 'item_type.label as item_type_label')
             ->when($this->search, function ($query) {
                 $query->where(function ($q) {
-                    $q->where('item.label', 'like', '%' . $this->search . '%');
+                    $q->where('item.label', 'like', '%' . $this->search . '%')
+                      ->orWhere('item_type.label', 'like', '%' . $this->search . '%')
+                      ->orWhereHas('section', function ($sq) {
+                          $sq->where('label', 'like', '%' . $this->search . '%');
+                      });
                 });
             })
             ->orderBy('item.item_id', 'desc');
+    }
 
+    public function with(): array
+    {
+        $query = $this->getFilteredQuery();
         $items = $this->perPage === 'all' ? $query->get() : $query->paginate((int)$this->perPage);
 
         return [
@@ -217,7 +263,7 @@ new class extends Component
 
     <!-- Search -->
     <div class="bg-white rounded-lg shadow-sm p-6">
-        <input type="text" wire:model.live="search" placeholder="Search by item name..." 
+        <input type="text" wire:model.live.debounce.300ms="search" placeholder="Search by item name, type, or section..." 
                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent">
     </div>
 
@@ -237,33 +283,45 @@ new class extends Component
     <!-- Items List -->
     <div class="bg-white rounded-lg shadow-sm">
         <div class="p-6">
-            <h2 class="text-lg font-semibold text-gray-900 mb-4">Items List</h2>
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-semibold text-gray-900">Items List</h2>
+                @if(count($selectedItems) > 0)
+                <button wire:click="deleteSelected" 
+                        wire:confirm="Are you sure you want to delete {{ count($selectedItems) }} selected item(s)?"
+                        class="inline-flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors">
+                    <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                    </svg>
+                    Delete Selected ({{ count($selectedItems) }})
+                </button>
+                @endif
+            </div>
             
             <div class="overflow-x-auto">
                 <table class="w-full">
                     <thead>
                         <tr class="bg-gray-50">
+                            <th class="px-4 py-3 w-10"> 
+                                <input type="checkbox" wire:model.live="selectAll"
+                                       class="rounded border-gray-300 text-pink-600 focus:ring-pink-500 p-3">
+                            </th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Item Name</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Item Type</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Section</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-200">
                         @forelse($items as $item)
-                            <tr class="hover:bg-gray-50">
+                            <tr wire:key="item-{{ $item->item_id }}" 
+                                wire:click="openEditModal({{ $item->item_id }})" 
+                                class="hover:bg-gray-100 cursor-pointer transition-colors {{ in_array((string) $item->item_id, $selectedItems) ? 'bg-pink-50' : '' }}">
+                                <td class="px-4 py-3" wire:click.stop>
+                                    <input type="checkbox" wire:model.live="selectedItems" value="{{ $item->item_id }}"
+                                           class="rounded border-gray-300 text-pink-600 focus:ring-pink-500">
+                                </td>
                                 <td class="px-4 py-3 text-sm text-gray-900 font-medium">{{ $item->label }}</td>
                                 <td class="px-4 py-3 text-sm text-gray-700">{{ $item->item_type_label ?? 'N/A' }}</td>
                                 <td class="px-4 py-3 text-sm text-gray-700">{{ $item->section->label ?? 'N/A' }}</td>
-                                <td class="px-4 py-3">
-                                    <div class="flex items-center space-x-2">
-                                        <button wire:click="openEditModal({{ $item->item_id }})" 
-                                           class="px-4 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg transition-colors">Edit</button>
-                                        <button wire:click="delete({{ $item->item_id }})" 
-                                                wire:confirm="Are you sure you want to delete this item?"
-                                                class="px-4 py-1.5 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors">Delete</button>
-                                    </div>
-                                </td>
                             </tr>
                         @empty
                             <tr>
@@ -274,7 +332,7 @@ new class extends Component
                 </table>
             </div>
 
-            @if($perPage !== 'all')
+            @if($perPage !== 'all' && method_exists($items, 'hasPages') && $items->hasPages())
             <div class="mt-6">
                 {{ $items->links() }}
             </div>
@@ -360,17 +418,3 @@ new class extends Component
     @endif
 </div>
 
-<script>
-    document.addEventListener('livewire:initialized', () => {
-        Livewire.on('close-edit-modal', () => {
-            @this.closeEditModal();
-        });
-    });
-
-    // Close modal on Escape key
-    document.addEventListener('keydown', function(event) {
-        if (event.key === 'Escape' && @this.showEditModal) {
-            @this.closeEditModal();
-        }
-    });
-</script>

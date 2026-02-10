@@ -22,6 +22,8 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'google_id',
+        'avatar',
     ];
 
     /**
@@ -53,5 +55,29 @@ class User extends Authenticatable
     public function employee()
     {
         return $this->hasOne(Employee::class, 'user_id', 'id');
+    }
+
+    /**
+     * Get the patient profile associated with the user.
+     */
+    public function patientProfile()
+    {
+        return $this->hasOne(Patient::class, 'user_id', 'id');
+    }
+
+    /**
+     * Check if this user is a patient.
+     */
+    public function isPatient(): bool
+    {
+        return $this->hasRole('Patient');
+    }
+
+    /**
+     * Check if this user is a staff member (has any staff role).
+     */
+    public function isStaff(): bool
+    {
+        return $this->hasAnyRole(['Laboratory Manager', 'Staff-in-Charge', 'MIT Staff', 'Secretary']);
     }
 }

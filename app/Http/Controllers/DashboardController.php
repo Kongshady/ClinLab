@@ -13,12 +13,17 @@ class DashboardController extends Controller
     {
         $user = auth()->user();
 
+        // Patient role -> patient dashboard
+        if ($user->hasRole('Patient')) {
+            return redirect()->route('patient.dashboard');
+        }
+
         // Redirect based on role priority (in case user has multiple roles)
         if ($user->hasRole('Laboratory Manager')) {
             return redirect()->route('dashboard.manager');
         }
         
-        if ($user->hasRole('MIT')) {
+        if ($user->hasRole('MIT Staff')) {
             return redirect()->route('dashboard.mit');
         }
         

@@ -39,12 +39,19 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('dashboard.staff');
     
     Route::get('/dashboard/mit', [DashboardController::class, 'mit'])
-        ->middleware('role:MIT')
+        ->middleware('role:MIT Staff')
         ->name('dashboard.mit');
     
     Route::get('/dashboard/secretary', [DashboardController::class, 'secretary'])
         ->middleware('role:Secretary')
         ->name('dashboard.secretary');
+});
+
+// Patient Dashboard (role: Patient)
+Route::middleware(['auth', 'role:Patient'])->prefix('patient')->group(function () {
+    Route::get('/dashboard', function () {
+        return view('patient.dashboard');
+    })->name('patient.dashboard');
 });
 
 Route::middleware('auth')->group(function () {
