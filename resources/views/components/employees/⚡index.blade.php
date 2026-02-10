@@ -184,10 +184,8 @@ new class extends Component
     {
         $employee = Employee::find($id);
         if ($employee) {
-            if ($employee->user_id && $employee->user) {
-                $employee->user->delete();
-            }
-            
+            // Only soft delete the employee to maintain data integrity
+            // The associated user account remains for audit trail purposes
             $employee->softDelete();
             $this->flashMessage = 'Employee account deleted successfully!';
         }
