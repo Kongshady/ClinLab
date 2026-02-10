@@ -4,6 +4,7 @@ use Livewire\Component;
 use Livewire\WithPagination;
 use Livewire\Attributes\Validate;
 use App\Models\Patient;
+use App\Models\LabResult;
 
 new class extends Component
 {
@@ -159,9 +160,15 @@ new class extends Component
         $this->patient_type = 'External';
     }
 
+    public $patientLabResults = [];
+
     public function viewPatient($id)
     {
         $this->viewingPatient = Patient::findOrFail($id);
+        $this->patientLabResults = LabResult::with(['test', 'performedBy', 'verifiedBy'])
+            ->where('patient_id', $id)
+            ->orderBy('result_date', 'desc')
+            ->get();
         $this->viewMode = true;
     }
 
@@ -169,6 +176,7 @@ new class extends Component
     {
         $this->viewMode = false;
         $this->viewingPatient = null;
+        $this->patientLabResults = [];
     }
 
     public function delete($id)
@@ -512,7 +520,7 @@ new class extends Component
     <!-- View Patient Modal -->
     @if($viewMode && $viewingPatient)
     <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 p-4">
-        <div class="relative top-20 mx-auto p-6 border w-full max-w-2xl shadow-lg rounded-xl bg-white">
+        <div class="relative top-10 mx-auto p-6 border w-full max-w-5xl shadow-lg rounded-xl bg-white">
             <div class="flex items-center justify-between mb-6">
                 <h3 class="text-2xl font-bold text-gray-900">Patient Details</h3>
                 <button wire:click="closeView" class="text-gray-400 hover:text-gray-600">
@@ -570,6 +578,73 @@ new class extends Component
                         <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Status</p>
                         <p class="text-sm font-medium text-green-600">Active</p>
                     </div>
+                </div>
+
+                <!-- Lab Results Section -->
+                <div class="mt-6">
+                    <h4 class="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+                        <svg class="w-5 h-5 mr-2 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
+                        </svg>
+                        Lab Results
+                    </h4>
+                    @if(count($patientLabResults) > 0)
+                    <div class="overflow-x-auto border border-gray-200 rounded-lg">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Test</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Result</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Normal Range</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Findings</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Performed By</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                @foreach($patientLabResults as $result)
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-4 py-3 text-sm font-medium text-gray-900">{{ $result->test->label ?? 'N/A' }}</td>
+                                    <td class="px-4 py-3 text-sm text-gray-700">{{ $result->result_value ?? 'N/A' }}</td>
+                                    <td class="px-4 py-3 text-sm text-gray-500">{{ $result->normal_range ?? 'N/A' }}</td>
+                                    <td class="px-4 py-3 text-sm text-gray-500">{{ $result->findings ?? '-' }}</td>
+                                    <td class="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">{{ $result->result_date ? $result->result_date->format('M d, Y') : 'N/A' }}</td>
+                                    <td class="px-4 py-3 whitespace-nowrap">
+                                        <span class="px-2 py-1 text-xs rounded-full {{ $result->status_badge_class }}">
+                                            {{ ucfirst($result->status) }}
+                                        </span>
+                                    </td>
+                                    <td class="px-4 py-3 text-sm text-gray-500">
+                                        {{ $result->performedBy->firstname ?? '' }} {{ $result->performedBy->lastname ?? 'N/A' }}
+                                    </td>
+                                    <td class="px-4 py-3 whitespace-nowrap">
+                                        @if($result->status === 'final')
+                                        <a href="{{ route('lab-results.show', $result->lab_result_id) }}" target="_blank"
+                                           class="inline-flex items-center px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded-lg transition-colors">
+                                            <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+                                            </svg>
+                                            Print
+                                        </a>
+                                        @else
+                                        <span class="text-xs text-gray-400 italic">Pending</span>
+                                        @endif
+                                    </td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                    @else
+                    <div class="bg-gray-50 border border-gray-200 rounded-lg p-6 text-center">
+                        <svg class="w-10 h-10 text-gray-300 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                        </svg>
+                        <p class="text-sm text-gray-500">No lab results found for this patient.</p>
+                    </div>
+                    @endif
                 </div>
 
                 <div class="flex justify-end pt-4 border-t mt-6">

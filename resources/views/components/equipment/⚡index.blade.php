@@ -93,7 +93,7 @@ new class extends Component
         $this->serial_no = $equipment->serial_no ?? '';
         $this->section_id = $equipment->section_id;
         $this->status = $equipment->status ?? 'Operational';
-        $this->purchase_date = $equipment->purchase_date ?? '';
+        $this->purchase_date = $equipment->purchase_date ? $equipment->purchase_date->format('Y-m-d') : '';
         $this->supplier = $equipment->supplier ?? '';
         $this->remarks = $equipment->remarks ?? '';
         $this->editMode = true;
@@ -321,8 +321,6 @@ new class extends Component
                     {{ $equipment->links() }}
                 </div>
             @endif
-        </div>
-    </div>
 
     <!-- Edit Equipment Modal -->
     @if($editMode)
