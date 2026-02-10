@@ -42,10 +42,21 @@ new class extends Component
     public $editMode = false;
     public $editingEquipmentId = null;
 
+    public bool $showForm = false;
+
     public function mount()
     {
         if (session()->has('success')) {
             $this->flashMessage = session('success');
+        }
+    }
+
+    public function toggleForm()
+    {
+        $this->showForm = !$this->showForm;
+        if (!$this->showForm) {
+            $this->reset(['name', 'model', 'serial_no', 'section_id', 'purchase_date', 'supplier', 'remarks']);
+            $this->status = 'Operational';
         }
     }
 
@@ -69,6 +80,7 @@ new class extends Component
         $this->reset(['name', 'model', 'serial_no', 'section_id', 'purchase_date', 'supplier', 'remarks']);
         $this->status = 'Operational';
         $this->flashMessage = 'Equipment added successfully!';
+        $this->showForm = false;
         $this->resetPage();
     }
 
@@ -119,6 +131,7 @@ new class extends Component
         if ($equipment) {
             $equipment->softDelete();
             $this->flashMessage = 'Equipment deleted successfully!';
+            $this->resetPage();
         }
     }
 
@@ -160,9 +173,14 @@ new class extends Component
     @endif
 
     <div class="bg-white rounded-lg shadow-sm mb-6">
-        <div class="px-6 py-4 border-b border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
             <h2 class="text-lg font-semibold text-gray-900">Add New Equipment</h2>
+            <button type="button" wire:click="toggleForm" 
+                    class="px-4 py-2 rounded-md text-sm font-medium transition-colors {{ $showForm ? 'bg-gray-200 text-gray-700 hover:bg-gray-300' : 'bg-pink-600 text-white hover:bg-pink-700' }}">
+                {{ $showForm ? 'Close Form' : 'Add New Equipment' }}
+            </button>
         </div>
+        @if($showForm)
         <form wire:submit.prevent="save" class="p-6">
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                     <div>
@@ -229,32 +247,29 @@ new class extends Component
                     </button>
                 </div>
             </form>
-        </div>
-
-    <div class="bg-white rounded-lg shadow-sm">
-        <div class="px-6 py-4 border-b border-gray-200">
-            <h2 class="text-lg font-semibold text-gray-900">Equipment List</h2>
-        </div>
-        <div class="p-6">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Search Equipment</label>
-                    <input type="text" wire:model.live="search" placeholder="Search equipment..." 
-                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Rows per page</label>
-                    <select wire:model.live="perPage" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                        <option value="10">10</option>
-                        <option value="25">25</option>
-                        <option value="50">50</option>
-                        <option value="100">100</option>
-                        <option value="all">All</option>
-                    </select>
-                </div>
+        @endif
+    </div>
+    <div class="p-3">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Search Equipment</label>
+                <input type="text" wire:model.live="search" placeholder="Search equipment..." 
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Rows per page</label>
+                <select wire:model.live="perPage" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <option value="10">10</option>
+                    <option value="25">25</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                    <option value="all">All</option>
+                </select>
             </div>
         </div>
-        <div class="overflow-x-auto">
+    </div>
+    <div class="overflow-x-auto">
+            <h2 class="text-lg font-semibold text-gray-900 p-4">Equipment List</h2>
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
@@ -269,7 +284,7 @@ new class extends Component
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
                         @forelse($equipment as $item)
-                            <tr class="hover:bg-gray-50">
+                            <tr wire:key="equipment-{{ $item->equipment_id }}" class="hover:bg-gray-50">
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $item->equipment_id }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $item->name }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $item->model ?? 'N/A' }}</td>
@@ -285,9 +300,9 @@ new class extends Component
                                     </span>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                                    <button wire:click="edit({{ $item->equipment_id }})" 
+                                    <button type="button" wire:click="edit({{ $item->equipment_id }})" 
                                        class="text-orange-600 hover:text-orange-900">Edit</button>
-                                    <button wire:click="delete({{ $item->equipment_id }})" 
+                                    <button type="button" wire:click="delete({{ $item->equipment_id }})" 
                                             wire:confirm="Are you sure you want to delete this equipment?"
                                             class="text-red-600 hover:text-red-900">Delete</button>
                                 </td>

@@ -53,12 +53,25 @@ new class extends Component
     public $editVerifiedBy = '';
     public $editStatus = 'draft';
 
+    public bool $showForm = false;
+
     public function mount()
     {
         if (session()->has('success')) {
             $this->flashMessage = session('success');
         }
         $this->issue_date = date('Y-m-d');
+    }
+
+    public function toggleForm()
+    {
+        $this->showForm = !$this->showForm;
+        if (!$this->showForm) {
+            $this->reset(['certificate_number', 'patient_id', 'equipment_id', 'issued_by', 'verified_by']);
+            $this->certificate_type = 'lab_result';
+            $this->issue_date = date('Y-m-d');
+            $this->status = 'draft';
+        }
     }
 
     public function openEditModal($certificateId)
@@ -136,6 +149,7 @@ new class extends Component
         $this->issue_date = date('Y-m-d');
         $this->status = 'draft';
         $this->flashMessage = 'Certificate added successfully!';
+        $this->showForm = false;
         $this->resetPage();
     }
 
@@ -145,6 +159,7 @@ new class extends Component
         if ($certificate) {
             $certificate->delete();
             $this->flashMessage = 'Certificate deleted successfully!';
+            $this->resetPage();
         }
     }
 
@@ -193,9 +208,14 @@ new class extends Component
     @endif
 
     <div class="bg-white rounded-lg shadow-sm mb-6">
-        <div class="px-6 py-4 border-b border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
             <h2 class="text-lg font-semibold text-gray-900">Issue New Certificate</h2>
+            <button type="button" wire:click="toggleForm" 
+                    class="px-4 py-2 rounded-md text-sm font-medium transition-colors {{ $showForm ? 'bg-gray-200 text-gray-700 hover:bg-gray-300' : 'bg-pink-600 text-white hover:bg-pink-700' }}">
+                {{ $showForm ? 'Close Form' : 'Issue New Certificate' }}
+            </button>
         </div>
+        @if($showForm)
         <form wire:submit.prevent="save" class="p-6">
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                 <div>
@@ -291,6 +311,7 @@ new class extends Component
                 </button>
             </div>
         </form>
+        @endif
     </div>
 
     <div class="bg-white rounded-lg shadow-sm mb-6">
@@ -349,7 +370,7 @@ new class extends Component
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
                     @forelse($certificates as $cert)
-                        <tr class="hover:bg-gray-50">
+                        <tr wire:key="certificate-{{ $cert->certificate_id }}" class="hover:bg-gray-50">
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                 <div class="font-medium">{{ $cert->certificate_number }}</div>
                                 <div class="text-xs text-gray-500">ID: {{ $cert->certificate_id }}</div>
@@ -411,7 +432,7 @@ new class extends Component
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                                 <button type="button" wire:click="openEditModal({{ $cert->certificate_id }})" 
                                         class="text-orange-600 hover:text-orange-900">Edit</button>
-                                <button wire:click="delete({{ $cert->certificate_id }})" 
+                                <button type="button" wire:click="delete({{ $cert->certificate_id }})" 
                                         wire:confirm="Are you sure you want to delete this certificate?"
                                         class="text-red-600 hover:text-red-900">Delete</button>
                             </td>

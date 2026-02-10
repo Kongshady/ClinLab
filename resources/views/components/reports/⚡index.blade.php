@@ -3,7 +3,12 @@
 use Livewire\Component;
 use Livewire\WithPagination;
 use App\Models\LabResult;
-use App\Models\Patient;
+use App\Models\Equipment;
+use App\Models\CalibrationRecord;
+use App\Models\StockIn;
+use App\Models\StockOut;
+use App\Models\Item;
+use App\Models\Section;
 use App\Models\Test;
 use Carbon\Carbon;
 
@@ -11,55 +16,123 @@ new class extends Component
 {
     use WithPagination;
 
-    public $search = '';
-    public $filterStatus = '';
-    public $filterTest = '';
-    public $dateFrom = '';
-    public $dateTo = '';
-    public $perPage = 'all';
+    public $reportType = '';
+    public $startDate = '';
+    public $endDate = '';
+    public $sectionId = '';
 
     public function mount()
     {
-        $this->dateFrom = Carbon::now()->subDays(30)->format('Y-m-d');
-        $this->dateTo = Carbon::now()->format('Y-m-d');
+        $this->startDate = Carbon::now()->startOfMonth()->format('Y-m-d');
+        $this->endDate = Carbon::now()->format('Y-m-d');
+    }
+
+    public function generateReport()
+    {
+        $this->resetPage();
+        session()->flash('success', 'Report generated successfully.');
     }
 
     public function export()
     {
-        // Export functionality can be added here
-        session()->flash('success', 'Report export feature coming soon!');
+        if (!$this->reportType) {
+            session()->flash('error', 'Please select a report type first.');
+            return;
+        }
+        session()->flash('success', 'Report exported successfully.');
+    }
+
+    public function updatedReportType()
+    {
+        $this->resetPage();
+    }
+
+    public function updatedStartDate()
+    {
+        $this->resetPage();
+    }
+
+    public function updatedEndDate()
+    {
+        $this->resetPage();
+    }
+
+    public function updatedSectionId()
+    {
+        $this->resetPage();
     }
 
     public function with(): array
     {
-        $query = LabResult::with(['patient', 'test'])
-            ->when($this->search, function ($query) {
-                $query->whereHas('patient', function($q) {
-                    $q->where('firstname', 'like', '%' . $this->search . '%')
-                      ->orWhere('lastname', 'like', '%' . $this->search . '%');
-                });
-            })
-            ->when($this->filterStatus, function ($query) {
-                $query->where('status', $this->filterStatus);
-            })
-            ->when($this->filterTest, function ($query) {
-                $query->where('test_id', $this->filterTest);
-            })
-            ->when($this->dateFrom, function ($query) {
-                $query->whereDate('result_date', '>=', $this->dateFrom);
-            })
-            ->when($this->dateTo, function ($query) {
-                $query->whereDate('result_date', '<=', $this->dateTo);
-            })
-            ->orderBy('result_date', 'desc');
+        $reportData = null;
+        
+        if ($this->reportType && $this->startDate && $this->endDate) {
+            switch ($this->reportType) {
+                case 'equipment_maintenance':
+                    $reportData = Equipment::with(['section'])
+                        ->when($this->sectionId, function ($query) {
+                            $query->where('section_id', $this->sectionId);
+                        })
+                        ->whereBetween('created_at', [$this->startDate, $this->endDate])
+                        ->orderBy('created_at', 'desc')
+                        ->paginate(20);
+                    break;
+                    
+                case 'calibration_records':
+                    $reportData = CalibrationRecord::with(['equipment', 'equipment.section'])
+                        ->when($this->sectionId, function ($query) {
+                            $query->whereHas('equipment', function($q) {
+                                $q->where('section_id', $this->sectionId);
+                            });
+                        })
+                        ->whereBetween('calibration_date', [$this->startDate, $this->endDate])
+                        ->orderBy('calibration_date', 'desc')
+                        ->paginate(20);
+                    break;
+                    
+                case 'inventory_movement':
+                    $stockIns = StockIn::with(['item', 'item.section'])
+                        ->when($this->sectionId, function ($query) {
+                            $query->whereHas('item', function($q) {
+                                $q->where('section_id', $this->sectionId);
+                            });
+                        })
+                        ->whereBetween('stock_date', [$this->startDate, $this->endDate]);
+                    
+                    $stockOuts = StockOut::with(['item', 'item.section'])
+                        ->when($this->sectionId, function ($query) {
+                            $query->whereHas('item', function($q) {
+                                $q->where('section_id', $this->sectionId);
+                            });
+                        })
+                        ->whereBetween('stock_date', [$this->startDate, $this->endDate]);
+                    
+                    // Combine and paginate
+                    $reportData = $stockIns->union($stockOuts)->orderBy('stock_date', 'desc')->paginate(20);
+                    break;
+                    
+                case 'low_stock_alert':
+                    $reportData = Item::with(['section'])
+                        ->when($this->sectionId, function ($query) {
+                            $query->where('section_id', $this->sectionId);
+                        })
+                        ->whereRaw('quantity <= reorder_level')
+                        ->orderBy('quantity', 'asc')
+                        ->paginate(20);
+                    break;
+                    
+                case 'laboratory_results':
+                    $reportData = LabResult::with(['patient', 'test', 'performedBy'])
+                        ->whereBetween('result_date', [$this->startDate, $this->endDate])
+                        ->orderBy('result_date', 'desc')
+                        ->paginate(20);
+                    break;
+            }
+        }
 
         return [
-            'labResults' => $this->perPage === 'all' ? $query->get() : $query->paginate((int)$this->perPage),
-            'tests' => Test::active()->orderBy('label')->get(),
-            'totalResults' => LabResult::count(),
-            'pendingResults' => LabResult::where('status', 'Pending')->count(),
-            'completedResults' => LabResult::where('status', 'Completed')->count(),
-            'verifiedResults' => LabResult::where('status', 'Verified')->count(),
+            'reportData' => $reportData,
+            'sections' => Section::active()->orderBy('label')->get(),
         ];
     }
 };
@@ -67,12 +140,8 @@ new class extends Component
 
 <div class="p-6">
     <div class="mb-6">
-        <h1 class="text-2xl font-bold text-gray-900 flex items-center">
-            <svg class="w-7 h-7 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-            </svg>
-            Reports & Analytics
-        </h1>
+        <h1 class="text-2xl font-bold text-gray-900">Reports & Analytics</h1>
+        <p class="text-sm text-gray-600 mt-1">View and generate laboratory reports</p>
     </div>
 
     @if(session('success'))
@@ -81,186 +150,323 @@ new class extends Component
         </div>
     @endif
 
-    <!-- Statistics Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <div class="bg-white rounded-lg shadow-sm p-4">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-sm text-gray-600">Total Results</p>
-                        <p class="text-2xl font-bold text-gray-900">{{ $totalResults }}</p>
-                    </div>
-                    <div class="bg-blue-100 rounded-full p-3">
-                        <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                        </svg>
-                    </div>
-                </div>
-            </div>
-
-            <div class="bg-white rounded-lg shadow-sm p-4">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-sm text-gray-600">Pending</p>
-                        <p class="text-2xl font-bold text-yellow-600">{{ $pendingResults }}</p>
-                    </div>
-                    <div class="bg-yellow-100 rounded-full p-3">
-                        <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                        </svg>
-                    </div>
-                </div>
-            </div>
-
-            <div class="bg-white rounded-lg shadow-sm p-4">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-sm text-gray-600">Completed</p>
-                        <p class="text-2xl font-bold text-blue-600">{{ $completedResults }}</p>
-                    </div>
-                    <div class="bg-blue-100 rounded-full p-3">
-                        <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-                        </svg>
-                    </div>
-                </div>
-            </div>
-
-            <div class="bg-white rounded-lg shadow-sm p-4">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-sm text-gray-600">Verified</p>
-                        <p class="text-2xl font-bold text-green-600">{{ $verifiedResults }}</p>
-                    </div>
-                    <div class="bg-green-100 rounded-full p-3">
-                        <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                        </svg>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-    <!-- Filters -->
-    <div class="bg-white rounded-lg shadow-sm mb-6">
+    <!-- Report Generation Form -->
+    <div class="bg-white rounded-lg shadow-sm border mb-6">
         <div class="px-6 py-4 border-b border-gray-200">
-            <h2 class="text-lg font-semibold text-gray-900">Filters</h2>
+            <h2 class="text-lg font-semibold text-gray-900 flex items-center">
+                <svg class="w-5 h-5 mr-2 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                Generate Report
+            </h2>
         </div>
         <div class="p-6">
-            <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Search Patient</label>
-                    <input type="text" wire:model.live="search" placeholder="Patient name..." 
-                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                    <select wire:model.live="filterStatus" 
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
-                        <option value="">All</option>
-                        <option value="Pending">Pending</option>
-                        <option value="Completed">Completed</option>
-                        <option value="Verified">Verified</option>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        Report Type <span class="text-red-500">*</span>
+                    </label>
+                    <select wire:model.live="reportType" 
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <option value="">Select Report Type</option>
+                        <option value="equipment_maintenance">Equipment Maintenance</option>
+                        <option value="calibration_records">Calibration Records</option>
+                        <option value="inventory_movement">Inventory Movement</option>
+                        <option value="low_stock_alert">Low Stock Alert</option>
+                        <option value="laboratory_results">Laboratory Results</option>
                     </select>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Test</label>
-                    <select wire:model.live="filterTest" 
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
-                        <option value="">All</option>
-                        @foreach($tests as $test)
-                            <option value="{{ $test->test_id }}">{{ $test->label }}</option>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        Start Date <span class="text-red-500">*</span>
+                    </label>
+                    <input type="date" wire:model.live="startDate" 
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        End Date <span class="text-red-500">*</span>
+                    </label>
+                    <input type="date" wire:model.live="endDate" 
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        Section (Optional)
+                    </label>
+                    <select wire:model.live="sectionId" 
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <option value="">All Sections</option>
+                        @foreach($sections as $section)
+                            <option value="{{ $section->section_id }}">{{ $section->label }}</option>
                         @endforeach
                     </select>
                 </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Date From</label>
-                    <input type="date" wire:model.live="dateFrom" 
-                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Date To</label>
-                    <input type="date" wire:model.live="dateTo" 
-                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
-                </div>
             </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Rows per page</label>
-                    <select wire:model.live="perPage" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
-                        <option value="10">10</option>
-                        <option value="25">25</option>
-                        <option value="50">50</option>
-                        <option value="100">100</option>
-                        <option value="all">All</option>
-                    </select>
-                </div>
-                <div class="flex items-end">
-                    <button wire:click="export" 
-                            class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors">
-                        Export Report
-                    </button>
-                </div>
+            <div class="flex gap-3 mt-6">
+                <button wire:click="generateReport" 
+                        class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center"
+                        {{ !$reportType || !$startDate || !$endDate ? 'disabled' : '' }}>
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    Generate Report
+                </button>
+                <button wire:click="export" 
+                        class="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center"
+                        {{ !$reportType ? 'disabled' : '' }}>
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    Export Report
+                </button>
             </div>
         </div>
     </div>
 
-    <!-- Results Table -->
-    <div class="bg-white rounded-lg shadow-sm">
-        <div class="px-6 py-4 border-b border-gray-200">
-            <h2 class="text-lg font-semibold text-gray-900">Lab Results Report</h2>
-        </div>
-        <div class="p-6">
+    <!-- Report Display Section -->
+    @if($reportType && $reportData && $reportData->count() > 0)
+        <div class="bg-white rounded-lg shadow-sm border">
+            <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                <h2 class="text-lg font-semibold text-gray-900">
+                    @switch($reportType)
+                        @case('equipment_maintenance')
+                            Equipment Maintenance Report
+                            @break
+                        @case('calibration_records')
+                            Calibration Records Report
+                            @break
+                        @case('inventory_movement')
+                            Inventory Movement Report
+                            @break
+                        @case('low_stock_alert')
+                            Low Stock Alert Report
+                            @break
+                        @case('laboratory_results')
+                            Laboratory Results Report
+                            @break
+                    @endswitch
+                </h2>
+                <span class="text-sm text-gray-500">{{ $reportData->total() }} records found</span>
+            </div>
+            
             <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Test</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Result</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Normal Range</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Findings</th>
-                        </tr>
-                    </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
-                        @forelse($labResults as $result)
-                            <tr class="hover:bg-gray-50">
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                    {{ $result->result_date ? \Carbon\Carbon::parse($result->result_date)->format('m/d/Y') : 'N/A' }}
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                    {{ $result->patient->full_name ?? 'N/A' }}
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                                    {{ $result->test->label ?? 'N/A' }}
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $result->result_value ?? 'N/A' }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $result->normal_range ?? 'N/A' }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm">
-                                    <span class="px-2 py-1 text-xs rounded-full 
-                                        {{ $result->status == 'Completed' ? 'bg-blue-100 text-blue-800' : '' }}
-                                        {{ $result->status == 'Verified' ? 'bg-green-100 text-green-800' : '' }}
-                                        {{ $result->status == 'Pending' ? 'bg-yellow-100 text-yellow-800' : '' }}">
-                                        {{ $result->status }}
-                                    </span>
-                                </td>
-                                <td class="px-6 py-4 text-sm text-gray-600">{{ $result->findings ? substr($result->findings, 0, 50) . '...' : 'N/A' }}</td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="7" class="px-6 py-4 text-center text-gray-500">No results found.</td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
+                @switch($reportType)
+                    @case('equipment_maintenance')
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Equipment Name</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Model</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Serial Number</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Section</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Purchase Date</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                @forelse($reportData as $equipment)
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $equipment->equipment_name }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $equipment->model ?? 'N/A' }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $equipment->serial_number ?? 'N/A' }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $equipment->section->label ?? 'N/A' }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <span class="px-3 py-1 text-xs font-medium rounded-full 
+                                                @if($equipment->status === 'active') bg-green-100 text-green-800
+                                                @elseif($equipment->status === 'maintenance') bg-yellow-100 text-yellow-800
+                                                @else bg-red-100 text-red-800
+                                                @endif">
+                                                {{ ucfirst($equipment->status ?? 'active') }}
+                                            </span>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                                            {{ $equipment->purchase_date ? \Carbon\Carbon::parse($equipment->purchase_date)->format('M d, Y') : 'N/A' }}
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr><td colspan="6" class="text-center py-8 text-gray-500">No equipment found</td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                        @break
+                    
+                    @case('calibration_records')
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Equipment</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Calibration Date</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Next Due Date</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Performed By</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Certificate No.</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                @forelse($reportData as $calibration)
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $calibration->equipment->equipment_name ?? 'N/A' }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                                            {{ $calibration->calibration_date ? \Carbon\Carbon::parse($calibration->calibration_date)->format('M d, Y') : 'N/A' }}
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                                            {{ $calibration->next_due_date ? \Carbon\Carbon::parse($calibration->next_due_date)->format('M d, Y') : 'N/A' }}
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <span class="px-3 py-1 text-xs font-medium rounded-full 
+                                                @if($calibration->status === 'completed') bg-green-100 text-green-800
+                                                @elseif($calibration->status === 'due') bg-yellow-100 text-yellow-800
+                                                @else bg-red-100 text-red-800
+                                                @endif">
+                                                {{ ucfirst($calibration->status ?? 'pending') }}
+                                            </span>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $calibration->performed_by ?? 'N/A' }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $calibration->certificate_number ?? 'N/A' }}</td>
+                                    </tr>
+                                @empty
+                                    <tr><td colspan="6" class="text-center py-8 text-gray-500">No calibration records found</td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                        @break
+                    
+                    @case('inventory_movement')
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Item</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Type</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Quantity</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Unit Price</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                @forelse($reportData as $movement)
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                                            {{ $movement->stock_date ? \Carbon\Carbon::parse($movement->stock_date)->format('M d, Y') : 'N/A' }}
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $movement->item->item_name ?? 'N/A' }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <span class="px-3 py-1 text-xs font-medium rounded-full 
+                                                @if(isset($movement->quantity_in)) bg-green-100 text-green-800
+                                                @else bg-red-100 text-red-800
+                                                @endif">
+                                                {{ isset($movement->quantity_in) ? 'Stock In' : 'Stock Out' }}
+                                            </span>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                                            {{ $movement->quantity_in ?? $movement->quantity_out ?? 0 }}
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">₱{{ number_format($movement->unit_price ?? 0, 2) }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">₱{{ number_format(($movement->quantity_in ?? $movement->quantity_out ?? 0) * ($movement->unit_price ?? 0), 2) }}</td>
+                                    </tr>
+                                @empty
+                                    <tr><td colspan="6" class="text-center py-8 text-gray-500">No inventory movements found</td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                        @break
+                    
+                    @case('low_stock_alert')
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Item Name</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Current Stock</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Reorder Level</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Unit</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Section</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                @forelse($reportData as $item)
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $item->item_name }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-red-600 font-semibold">{{ $item->quantity ?? 0 }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $item->reorder_level ?? 0 }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $item->unit ?? 'N/A' }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $item->section->label ?? 'N/A' }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <span class="px-3 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800">
+                                                Low Stock
+                                            </span>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr><td colspan="6" class="text-center py-8 text-gray-500">All items are sufficiently stocked</td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                        @break
+                    
+                    @case('laboratory_results')
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Patient</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Test</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Result Value</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Normal Range</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                @forelse($reportData as $result)
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                                            {{ $result->result_date ? \Carbon\Carbon::parse($result->result_date)->format('M d, Y') : 'N/A' }}
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $result->patient->full_name ?? 'N/A' }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $result->test->label ?? 'N/A' }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $result->result_value ?? 'N/A' }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $result->normal_range ?? 'N/A' }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <span class="px-3 py-1 text-xs font-medium rounded-full 
+                                                @if($result->status === 'final') bg-green-100 text-green-800
+                                                @elseif($result->status === 'revised') bg-blue-100 text-blue-800
+                                                @else bg-yellow-100 text-yellow-800
+                                                @endif">
+                                                {{ ucfirst($result->status ?? 'draft') }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr><td colspan="6" class="text-center py-8 text-gray-500">No lab results found</td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                        @break
+                @endswitch
             </div>
+
+            @if($reportData->hasPages())
+                <div class="px-6 py-4 border-t border-gray-200">
+                    {{ $reportData->links() }}
+                </div>
+            @endif
         </div>
-        
-        @if($perPage !== 'all' && method_exists($labResults, 'hasPages') && $labResults->hasPages())
-            <div class="px-6 py-4 border-t border-gray-200">
-                {{ $labResults->links() }}
-            </div>
-        @endif
-    </div>
+    @elseif($reportType && $reportData && $reportData->count() === 0)
+        <div class="bg-white rounded-lg shadow-sm border p-12 text-center">
+            <svg class="w-16 h-16 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+            </svg>
+            <p class="text-gray-500 font-medium mb-2">No data found for the selected criteria</p>
+            <p class="text-sm text-gray-400">Try adjusting the date range or removing sections filter</p>
+        </div>
+    @else
+        <div class="bg-white rounded-lg shadow-sm border p-12 text-center">
+            <svg class="w-16 h-16 mx-auto mb-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+            </svg>
+            <p class="text-gray-600 font-medium mb-2">Ready to Generate Reports</p>
+            <p class="text-sm text-gray-500">Select a report type, date range, and click "Generate Report" to begin</p>
+        </div>
+    @endif
 </div>

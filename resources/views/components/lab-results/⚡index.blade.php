@@ -61,12 +61,28 @@ new class extends Component
     public $editVerifiedBy = '';
     public $editStatus = 'draft';
 
+    public bool $showForm = false;
+
     public function mount()
     {
         if (session()->has('success')) {
             $this->flashMessage = session('success');
         }
         $this->result_date = date('Y-m-d');
+        $this->status = 'draft';
+    }
+
+    public function toggleForm()
+    {
+        $this->showForm = !$this->showForm;
+        if (!$this->showForm) {
+            $this->reset([
+                'patient_id', 'test_id', 'result_value', 'normal_range',
+                'performed_by', 'verified_by', 'findings', 'remarks'
+            ]);
+            $this->result_date = date('Y-m-d');
+            $this->status = 'draft';
+        }
     }
 
     public function openEditModal($resultId)
@@ -150,6 +166,7 @@ new class extends Component
         $this->result_date = date('Y-m-d');
         $this->status = 'draft';
         $this->flashMessage = 'Lab result added successfully!';
+        $this->showForm = false;
         $this->resetPage();
     }
 
@@ -197,9 +214,14 @@ new class extends Component
     @endif
 
     <div class="bg-white rounded-lg shadow-sm mb-6">
-        <div class="px-6 py-4 border-b border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
             <h2 class="text-lg font-semibold text-gray-900">Add New Lab Result</h2>
+            <button type="button" wire:click="toggleForm" 
+                    class="px-4 py-2 rounded-md text-sm font-medium transition-colors {{ $showForm ? 'bg-gray-200 text-gray-700 hover:bg-gray-300' : 'bg-pink-600 text-white hover:bg-pink-700' }}">
+                {{ $showForm ? 'Close Form' : 'Add New Lab Result' }}
+            </button>
         </div>
+        @if($showForm)
         <form wire:submit.prevent="save" class="p-6">
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                 <div>
@@ -298,6 +320,7 @@ new class extends Component
                 </button>
             </div>
         </form>
+        @endif
     </div>
 
     <div class="bg-white rounded-lg shadow-sm">
@@ -347,7 +370,7 @@ new class extends Component
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
                     @forelse($results as $result)
-                        <tr class="hover:bg-gray-50">
+                        <tr wire:key="lab-result-{{ $result->lab_result_id }}" class="hover:bg-gray-50">
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="text-sm font-medium text-gray-900">
                                     {{ $result->patient->full_name ?? 'N/A' }}

@@ -51,10 +51,28 @@ new class extends Component
     public $viewMode = false;
     public $viewingPatient = null;
 
+    // Form visibility toggle
+    public $showForm = false;
+
     public function mount()
     {
         if (session('success')) {
             $this->flashMessage = session('success');
+        }
+    }
+
+    public function toggleForm()
+    {
+        $this->showForm = !$this->showForm;
+        
+        // Reset form when hiding
+        if (!$this->showForm) {
+            $this->reset([
+                'patient_type', 'firstname', 'middlename', 'lastname', 
+                'birthdate', 'gender', 'contact_number', 'address'
+            ]);
+            $this->patient_type = 'External';
+            $this->resetErrorBag();
         }
     }
 
@@ -92,6 +110,8 @@ new class extends Component
         
         $this->patient_type = 'External';
         $this->flashMessage = 'Patient added successfully.';
+        $this->showForm = false; // Close form after successful save
+        $this->resetPage(); // Reset pagination to show new patient
     }
 
     public function edit($id)
@@ -156,6 +176,7 @@ new class extends Component
         $patient = Patient::findOrFail($id);
         $patient->softDelete();
         $this->flashMessage = 'Patient deleted successfully.';
+        $this->resetPage(); // Reset pagination after delete
     }
 
     public function with(): array
@@ -207,9 +228,23 @@ new class extends Component
 
     <!-- Add New Patient Card -->
     <div class="bg-white rounded-lg shadow-sm mb-6">
-        <div class="px-6 py-4 border-b border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
             <h2 class="text-lg font-semibold text-gray-900">Add New Patient</h2>
+            <button wire:click="toggleForm" type="button" class="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-colors {{ $showForm ? 'bg-gray-100 text-gray-700 hover:bg-gray-200' : 'bg-pink-600 text-white hover:bg-pink-700' }}">
+                @if($showForm)
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                    <span>Close Form</span>
+                @else
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    <span>Add New Patient</span>
+                @endif
+            </button>
         </div>
+        @if($showForm)
         <form wire:submit.prevent="save" class="p-6">
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-4">
                 <div>
@@ -270,6 +305,7 @@ new class extends Component
                 </button>
             </div>
         </form>
+        @endif
     </div>
 
     <!-- Search and Filters Card -->
@@ -329,7 +365,7 @@ new class extends Component
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
                     @forelse($patients as $patient)
-                        <tr class="hover:bg-gray-50">
+                        <tr wire:key="patient-{{ $patient->patient_id }}" class="hover:bg-gray-50">
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {{ $patient->patient_type == 'Internal' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800' }}">
                                     {{ $patient->patient_type }}
@@ -357,15 +393,15 @@ new class extends Component
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                 <div class="flex space-x-2">
-                                    <button wire:click="viewPatient({{ $patient->patient_id }})" 
+                                    <button type="button" wire:click="viewPatient({{ $patient->patient_id }})" 
                                             class="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors">
                                         View
                                     </button>
-                                    <button wire:click="edit({{ $patient->patient_id }})" 
+                                    <button type="button" wire:click="edit({{ $patient->patient_id }})" 
                                             class="px-3 py-1 bg-orange-100 text-orange-700 rounded-lg hover:bg-orange-200 transition-colors">
                                         Edit
                                     </button>
-                                    <button wire:click="delete({{ $patient->patient_id }})" 
+                                    <button type="button" wire:click="delete({{ $patient->patient_id }})" 
                                             wire:confirm="Are you sure you want to delete this patient?"
                                             class="px-3 py-1 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors">
                                         Delete

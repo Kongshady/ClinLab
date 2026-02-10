@@ -29,11 +29,22 @@ new class extends Component
     public $editMode = false;
     public $editId = null;
     public $showEditModal = false;
+    public $showForm = false;
 
     public function mount()
     {
         if (session()->has('success')) {
             $this->flashMessage = session('success');
+        }
+    }
+
+    public function toggleForm()
+    {
+        $this->showForm = !$this->showForm;
+        
+        if (!$this->showForm) {
+            $this->reset(['physician_name', 'specialization', 'contact_number', 'email']);
+            $this->resetErrorBag();
         }
     }
 
@@ -64,6 +75,7 @@ new class extends Component
                 'datetime_added' => now(),
             ]);
             $this->flashMessage = 'Physician added successfully!';
+            $this->showForm = false;
         }
 
         $this->reset(['physician_name', 'specialization', 'contact_number', 'email']);
@@ -96,6 +108,7 @@ new class extends Component
         if ($physician) {
             $physician->softDelete();
             $this->flashMessage = 'Physician deleted successfully!';
+            $this->resetPage();
         }
     }
 
@@ -146,9 +159,25 @@ new class extends Component
     </div>
 
     <!-- Add New Physician Form -->
-    <div class="bg-white rounded-lg shadow-sm p-6">
-        <h2 class="text-lg font-semibold text-gray-900 mb-6">Add New Physician</h2>
-            <form wire:submit.prevent="save">
+    <div class="bg-white rounded-lg shadow-sm">
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+            <h2 class="text-lg font-semibold text-gray-900">Add New Physician</h2>
+            <button wire:click="toggleForm" type="button" class="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-colors {{ $showForm ? 'bg-gray-100 text-gray-700 hover:bg-gray-200' : 'bg-pink-600 text-white hover:bg-pink-700' }}">
+                @if($showForm)
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                    <span>Close Form</span>
+                @else
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    <span>Add New Physician</span>
+                @endif
+            </button>
+        </div>
+        @if($showForm)
+        <form wire:submit.prevent="save" class="p-6">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Physician Name *</label>
@@ -184,6 +213,7 @@ new class extends Component
                     </button>
                 </div>
             </form>
+        @endif
     </div>
 
     <!-- Search and Filters -->
@@ -238,16 +268,16 @@ new class extends Component
                     </thead>
                     <tbody class="divide-y divide-gray-200">
                         @forelse($physicians as $physician)
-                            <tr class="hover:bg-gray-50">
+                            <tr wire:key="physician-{{ $physician->physician_id }}" class="hover:bg-gray-50">
                                 <td class="px-4 py-3 text-sm text-gray-900 font-medium">{{ $physician->physician_name }}</td>
                                 <td class="px-4 py-3 text-sm text-gray-700">{{ $physician->specialization ?? 'N/A' }}</td>
                                 <td class="px-4 py-3 text-sm text-gray-700">{{ $physician->contact_number ?? 'N/A' }}</td>
                                 <td class="px-4 py-3 text-sm text-gray-700">{{ $physician->email ?? 'N/A' }}</td>
                                 <td class="px-4 py-3">
                                     <div class="flex items-center space-x-2">
-                                        <button wire:click="edit({{ $physician->physician_id }})" 
+                                        <button type="button" wire:click="edit({{ $physician->physician_id }})" 
                                                 class="px-4 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg transition-colors">Edit</button>
-                                        <button wire:click="delete({{ $physician->physician_id }})" 
+                                        <button type="button" wire:click="delete({{ $physician->physician_id }})" 
                                                 wire:confirm="Are you sure you want to delete this physician?"
                                                 class="px-4 py-1.5 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors">Delete</button>
                                     </div>
@@ -279,7 +309,7 @@ new class extends Component
                 <div class="px-6 py-4 border-b border-gray-200">
                     <div class="flex items-center justify-between">
                         <h3 class="text-xl font-semibold text-gray-900">Edit Physician</h3>
-                        <button wire:click="cancelEdit" class="text-gray-400 hover:text-gray-600">
+                        <button type="button" wire:click="cancelEdit" class="text-gray-400 hover:text-gray-600">
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                             </svg>
