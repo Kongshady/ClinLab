@@ -1,0 +1,1 @@
+lab-result-<?php echo e($result->lab_result_id); ?><?php /**PATH C:\Users\My PC\Desktop\LMS\Laravel LMS\offixial\ClinLab\storage\framework\views/37cba4c88de80f5557e7a14d377f4423.blade.php ENDPATH**/ ?>
