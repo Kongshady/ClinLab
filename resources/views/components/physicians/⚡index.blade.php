@@ -65,10 +65,10 @@ new class extends Component
                 'email' => $this->email,
             ]);
             $this->flashMessage = 'Physician updated successfully!';
-            $this->viewingPhysician = $physician->fresh();
             $this->editMode = false;
             $this->editId = null;
             $this->showEditModal = false;
+            $this->showViewModal = false;
         } else {
             Physician::create([
                 'physician_name' => $this->physician_name,
@@ -347,8 +347,8 @@ new class extends Component
                         @forelse($physicians as $physician)
                             <tr wire:key="physician-{{ $physician->physician_id }}" 
                                 class="hover:bg-gray-50 cursor-pointer transition-colors"
-                                @click="$wire.showDetails({{ $physician->physician_id }})">
-                                <td class="px-4 py-3" @click.stop>
+                                wire:click="showDetails({{ $physician->physician_id }})">
+                                <td class="px-4 py-3" wire:click.stop>
                                     <input type="checkbox" value="{{ $physician->physician_id }}" 
                                            @change="toggleOne({{ $physician->physician_id }})"
                                            :checked="selectedIds.includes({{ $physician->physician_id }})"
@@ -368,7 +368,7 @@ new class extends Component
                 </table>
             </div>
 
-            @if($perPage !== 'all' && method_exists($physicians, 'hasPages') && $physicians->hasPages())
+            @if($perPage !== 'all')
             <div class="mt-6">
                 {{ $physicians->links() }}
             </div>

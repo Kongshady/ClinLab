@@ -284,8 +284,8 @@ new class extends Component
                     @forelse($transactions as $transaction)
                         <tr wire:key="transaction-{{ $transaction->transaction_id }}" 
                             class="hover:bg-gray-50 cursor-pointer transition-colors"
-                            @click="$wire.showDetails({{ $transaction->transaction_id }})">
-                            <td class="px-6 py-4" @click.stop>
+                            wire:click="showDetails({{ $transaction->transaction_id }})">
+                            <td class="px-6 py-4" wire:click.stop>
                                 <input type="checkbox" value="{{ $transaction->transaction_id }}" 
                                        @change="toggleOne({{ $transaction->transaction_id }})"
                                        :checked="selectedIds.includes({{ $transaction->transaction_id }})"

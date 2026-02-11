@@ -1,1 +1,0 @@
-item-<?php echo e($item->item_id); ?><?php /**PATH C:\Users\My PC\Desktop\LMS\Laravel LMS\offixial\ClinLab\storage\framework\views/b5f30db271dd0273bff88d92eb9b67a8.blade.php ENDPATH**/ ?>

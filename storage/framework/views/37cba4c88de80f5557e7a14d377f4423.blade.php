@@ -1,1 +1,0 @@
-lab-result-{{ $result->lab_result_id }}
