@@ -302,7 +302,7 @@ new class extends Component
                                     {{ $alert->days_until_due }}
                                 </span>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm">
+                            <td class="px-8 py-4 whitespace-nowrap text-sm">
                                 <button 
                                     wire:click="openModal({{ $alert->equipment_id }}, {{ $alert->procedure_id }})"
                                     class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors">
@@ -469,7 +469,7 @@ new class extends Component
 
     <!-- Modal -->
     @if($showModal)
-        <div class="fixed inset-0 z-50 flex items-center justify-center p-4" wire:click="closeModal" style="background-color: rgba(0, 0, 0, 0.8); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);">
+        <div class="fixed inset-1 z-20 flex items-center justify-center p-4" wire:click="closeModal" style="background-color: rgba(0, 0, 0, 0.2); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px);">
             <div class="bg-white rounded-lg shadow-2xl w-full max-w-md" wire:click.stop>
                 <div class="px-6 py-4 border-b border-gray-200">
                     <h3 class="text-xl font-semibold text-gray-900">Record Calibration</h3>
@@ -576,7 +576,7 @@ new class extends Component
 
     <!-- Add New Procedure Modal -->
     @if($showProcedureModal)
-        <div class="fixed inset-0 z-50 flex items-center justify-center p-4" wire:click="closeProcedureModal" style="background-color: rgba(0, 0, 0, 0.8); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);">
+        <div class="fixed inset-0 z-20 flex items-center justify-center p-4" wire:click="closeProcedureModal" style="background-color: rgba(0, 0, 0, 0.2); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px);">
             <div class="bg-white rounded-lg shadow-2xl w-full max-w-md" wire:click.stop>
                 <div class="px-6 py-4 border-b border-gray-200">
                     <h3 class="text-xl font-semibold text-gray-900">Add New Calibration Procedure</h3>

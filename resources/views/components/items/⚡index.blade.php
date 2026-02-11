@@ -303,7 +303,7 @@ new class extends Component
                         <tr class="bg-gray-50">
                             <th class="px-4 py-3 w-10"> 
                                 <input type="checkbox" wire:model.live="selectAll"
-                                       class="rounded border-gray-300 text-pink-600 focus:ring-pink-500 p-3">
+                                       class="rounded border-gray-300 text-pink-600 focus:ring-pink-500 w-4 h-4">
                             </th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Item Name</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Item Type</th>
@@ -317,7 +317,7 @@ new class extends Component
                                 class="hover:bg-gray-100 cursor-pointer transition-colors {{ in_array((string) $item->item_id, $selectedItems) ? 'bg-pink-50' : '' }}">
                                 <td class="px-4 py-3" wire:click.stop>
                                     <input type="checkbox" wire:model.live="selectedItems" value="{{ $item->item_id }}"
-                                           class="rounded border-gray-300 text-pink-600 focus:ring-pink-500">
+                                           class="rounded border-gray-300 text-pink-600 focus:ring-pink-500 w-4 h-4">
                                 </td>
                                 <td class="px-4 py-3 text-sm text-gray-900 font-medium">{{ $item->label }}</td>
                                 <td class="px-4 py-3 text-sm text-gray-700">{{ $item->item_type_label ?? 'N/A' }}</td>

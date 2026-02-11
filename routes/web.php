@@ -17,6 +17,7 @@ use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\AccountSettingsController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\ReportsController;
+use App\Http\Controllers\PatientCertificateController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -52,7 +53,14 @@ Route::middleware(['auth', 'role:Patient'])->prefix('patient')->group(function (
     Route::get('/dashboard', function () {
         return view('patient.dashboard');
     })->name('patient.dashboard');
+
+    Route::get('/certificate/download', [PatientCertificateController::class, 'download'])
+        ->name('patient.certificate.download');
 });
+
+// Public certificate verification (no auth required)
+Route::get('/certificates/verify', [PatientCertificateController::class, 'verify'])
+    ->name('certificates.public.verify');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
