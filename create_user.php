@@ -17,20 +17,20 @@ return new class
             'email_verified_at' => now(),
         ]);
 
-        // Create or get the MIT role
+        // Create or get the MIT Staff role
         $role = Role::firstOrCreate([
-            'name' => 'MIT',
+            'name' => 'MIT Staff',
             'guard_name' => 'web'
         ]);
 
         // Assign the role to the user
-        $user->assignRole('MIT');
+        $user->assignRole('MIT Staff');
 
         echo "User created successfully!\n";
         echo "Name: Jerson Agapy\n";
         echo "Email: jerson.agapy@clinlab.com\n";
         echo "Password: password123\n";
-        echo "Role: MIT\n";
+        echo "Role: MIT Staff\n";
         echo "User ID: {$user->id}\n";
     }
 };

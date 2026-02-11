@@ -199,7 +199,7 @@ $stats = Cache::remember('mit_dashboard_stats', 300, function() {
                         @forelse(Employee::where('is_deleted', 0)->orderBy('employee_id', 'desc')->limit(5)->get() as $employee)
                         <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                             <span class="text-sm font-medium text-gray-900">{{ $employee->firstname }} {{ $employee->lastname }}</span>
-                            <span class="text-xs text-gray-500">{{ $employee->role->role ?? 'N/A' }}</span>
+                            <span class="text-xs text-gray-500">{{ $employee->role->role_name ?? 'N/A' }}</span>
                         </div>
                         @empty
                         <p class="text-gray-500 text-center py-4">No employees found</p>

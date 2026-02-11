@@ -53,7 +53,7 @@ class MITRolePermissionsSeeder extends Seeder
         }
 
         // Get MIT role
-        $mitRole = Role::where('name', 'MIT')->first();
+        $mitRole = Role::where('name', 'MIT Staff')->first();
 
         if ($mitRole) {
             // Assign all permissions to MIT role

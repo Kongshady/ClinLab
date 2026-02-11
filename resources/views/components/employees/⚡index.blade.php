@@ -6,7 +6,8 @@ use Livewire\Attributes\Validate;
 use App\Models\Employee;
 use App\Models\Section;
 use App\Models\User;
-use Spatie\Permission\Models\Role;
+use App\Models\Role;
+use Spatie\Permission\Models\Role as SpatieRole;
 use Illuminate\Support\Facades\Hash;
 
 new class extends Component
@@ -31,7 +32,7 @@ new class extends Component
     #[Validate('nullable|string|max:100')]
     public $position = '';
 
-    #[Validate('required|exists:user_roles,id')]
+    #[Validate('required|exists:roles,role_id')]
     public $role_id = '';
 
     // Edit mode password fields for MIT Staff
@@ -65,10 +66,13 @@ new class extends Component
             'password' => bcrypt($this->password),
         ]);
 
-        // Assign role
+        // Assign Spatie role for permissions
         $role = Role::find($this->role_id);
         if ($role) {
-            $user->assignRole($role->name);
+            $spatieRole = SpatieRole::where('name', $role->role_name)->first();
+            if ($spatieRole) {
+                $user->assignRole($spatieRole->name);
+            }
         }
 
         // Create Employee record linked to User
@@ -80,7 +84,7 @@ new class extends Component
             'username' => $this->email,
             'password' => bcrypt($this->password),
             'position' => $this->position,
-            'role_id' => null,
+            'role_id' => $this->role_id,
             'status_code' => 1,
             'is_deleted' => 0,
         ]);
@@ -92,14 +96,14 @@ new class extends Component
 
     public function edit($id)
     {
-        $employee = Employee::with('user.roles')->findOrFail($id);
+        $employee = Employee::with('user.roles', 'role')->findOrFail($id);
         $this->editingEmployeeId = $id;
         $this->firstname = $employee->firstname;
         $this->middlename = $employee->middlename ?? '';
         $this->lastname = $employee->lastname;
         $this->email = $employee->username;
         $this->position = $employee->position ?? '';
-        $this->role_id = $employee->user && $employee->user->roles->isNotEmpty() ? $employee->user->roles->first()->id : '';
+        $this->role_id = $employee->role_id ?? '';
         
         // Reset password fields
         $this->new_password = '';
@@ -116,11 +120,11 @@ new class extends Component
             'middlename' => 'nullable|string|max:50',
             'lastname' => 'required|string|max:50',
             'position' => 'nullable|string|max:100',
-            'role_id' => 'required|exists:user_roles,id',
+            'role_id' => 'required|exists:roles,role_id',
         ];
 
         // Add password validation if current logged-in user can edit passwords (MIT or Admin)
-        $currentUserIsMitStaff = auth()->user() && auth()->user()->hasRole('MIT');
+        $currentUserIsMitStaff = auth()->user() && auth()->user()->hasRole('MIT Staff');
         $currentUserIsAdmin = auth()->user() && (
             auth()->user()->hasRole('admin') || 
             auth()->user()->hasRole('super admin') ||
@@ -142,6 +146,7 @@ new class extends Component
             'middlename' => $this->middlename,
             'lastname' => $this->lastname,
             'position' => $this->position,
+            'role_id' => $this->role_id,
         ]);
 
         // Update user name and role
@@ -162,7 +167,10 @@ new class extends Component
             // Update role
             $role = Role::find($this->role_id);
             if ($role) {
-                $employee->user->syncRoles([$role->name]);
+                $spatieRole = SpatieRole::where('name', $role->role_name)->first();
+                if ($spatieRole) {
+                    $employee->user->syncRoles([$spatieRole->name]);
+                }
             }
         }
 
@@ -201,7 +209,7 @@ new class extends Component
     public function with(): array
     {
         $query = Employee::active()
-            ->with(['user.roles'])
+            ->with(['user.roles', 'role'])
             ->when($this->search, function ($query) {
                 $query->where(function ($q) {
                     $q->where('firstname', 'like', '%' . $this->search . '%')
@@ -216,7 +224,7 @@ new class extends Component
 
         return [
             'employees' => $employees,
-            'roles' => Role::all()
+            'roles' => Role::where('status_code', 1)->get()
         ];
     }
 };
@@ -385,9 +393,9 @@ new class extends Component
                                 <td class="px-4 py-3 text-sm text-gray-700">{{ $employee->position ?? 'N/A' }}</td>
                                 <td class="px-4 py-3 text-sm text-gray-700">{{ $employee->username }}</td>
                                 <td class="px-4 py-3 text-sm text-gray-700">
-                                    @if($employee->user && $employee->user->roles->isNotEmpty())
+                                    @if($employee->role)
                                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                            {{ $employee->user->roles->first()->name }}
+                                            {{ $employee->role->role_name }}
                                         </span>
                                     @endif
                                 </td>
@@ -468,7 +476,7 @@ new class extends Component
                         <select wire:model="role_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent" required>
                             <option value="">Select Role</option>
                             @foreach($roles as $role)
-                                <option value="{{ $role->id }}">{{ $role->name }}</option>
+                                <option value="{{ $role->role_id }}">{{ $role->role_name }}</option>
                             @endforeach
                         </select>
                         @error('role_id') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
@@ -476,7 +484,7 @@ new class extends Component
 
                     @php
                         // Check if the CURRENT logged-in user has MIT role (not the employee being edited)
-                        $currentUserIsMitStaff = auth()->user() && auth()->user()->hasRole('MIT');
+                        $currentUserIsMitStaff = auth()->user() && auth()->user()->hasRole('MIT Staff');
                         
                         // Fallback: Also allow admin/super admin users to edit passwords
                         $currentUserIsAdmin = auth()->user() && (

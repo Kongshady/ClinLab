@@ -129,17 +129,19 @@
                     </div>
 
                     <div>
-                        <label for="role" class="block text-sm font-semibold text-gray-700 mb-2">Role <span class="text-red-500">*</span></label>
-                        <input 
-                            type="text" 
-                            name="role" 
-                            id="role" 
-                            value="{{ old('role') }}"
+                        <label for="role_id" class="block text-sm font-semibold text-gray-700 mb-2">Role <span class="text-red-500">*</span></label>
+                        <select 
+                            name="role_id" 
+                            id="role_id" 
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             required
-                            maxlength="20"
                         >
-                        @error('role')
+                            <option value="">Select Role</option>
+                            @foreach(\App\Models\Role::where('status_code', 1)->get() as $role)
+                                <option value="{{ $role->role_id }}" {{ old('role_id') == $role->role_id ? 'selected' : '' }}>{{ $role->role_name }}</option>
+                            @endforeach
+                        </select>
+                        @error('role_id')
                             <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
                         @enderror
                     </div>

@@ -33,7 +33,7 @@ new class extends Component
     public $standard_reference = '';
 
     #[Validate('required|in:daily,weekly,monthly,quarterly,annual')]
-    public $frequency = 'annual';
+    public $frequency = 'monthly';
 
     #[Validate('required|date')]
     public $procedure_next_due_date = '';
@@ -81,7 +81,7 @@ new class extends Component
     {
         $this->showProcedureModal = true;
         $this->reset(['procedure_equipment_id', 'procedure_name', 'standard_reference', 'frequency', 'procedure_next_due_date']);
-        $this->frequency = 'annual';
+        $this->frequency = 'monthly';
     }
 
     public function closeProcedureModal()
@@ -96,7 +96,7 @@ new class extends Component
                 'procedure_equipment_id' => 'required|exists:equipment,equipment_id',
                 'procedure_name' => 'required|string|max:255',
                 'standard_reference' => 'nullable|string|max:255',
-                'frequency' => 'required|in:daily,weekly,monthly,quarterly,annual',
+                'frequency' => 'required|in:monthly,quarterly,semi-annual,annual',
                 'procedure_next_due_date' => 'required|date',
             ]);
 
@@ -469,13 +469,14 @@ new class extends Component
 
     <!-- Modal -->
     @if($showModal)
-        <div class="fixed inset-1 z-20 flex items-center justify-center p-4" wire:click="closeModal" style="background-color: rgba(0, 0, 0, 0.2); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px);">
-            <div class="bg-white rounded-lg shadow-2xl w-full max-w-md" wire:click.stop>
-                <div class="px-6 py-4 border-b border-gray-200">
+        <div class="fixed inset-0 z-50 overflow-y-auto" wire:click="closeModal" style="background-color: rgba(0, 0, 0, 0.8); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);">
+            <div class="flex min-h-full items-center justify-center p-4">
+            <div class="bg-white rounded-lg shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col" wire:click.stop>
+                <div class="px-6 py-4 border-b border-gray-200 shrink-0">
                     <h3 class="text-xl font-semibold text-gray-900">Record Calibration</h3>
                 </div>
                 
-                <form wire:submit.prevent="save" class="p-6 space-y-4">
+                <form wire:submit.prevent="save" class="p-6 space-y-4 overflow-y-auto flex-1">
                     @if (session()->has('error'))
                         <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg">
                             {{ session('error') }}
@@ -571,18 +572,20 @@ new class extends Component
                     </div>
                 </form>
             </div>
+            </div>
         </div>
     @endif
 
     <!-- Add New Procedure Modal -->
     @if($showProcedureModal)
-        <div class="fixed inset-0 z-20 flex items-center justify-center p-4" wire:click="closeProcedureModal" style="background-color: rgba(0, 0, 0, 0.2); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px);">
-            <div class="bg-white rounded-lg shadow-2xl w-full max-w-md" wire:click.stop>
-                <div class="px-6 py-4 border-b border-gray-200">
+        <div class="fixed inset-0 z-50 overflow-y-auto" wire:click="closeProcedureModal" style="background-color: rgba(0, 0, 0, 0.8); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);">
+            <div class="flex min-h-full items-center justify-center p-4">
+            <div class="bg-white rounded-lg shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col" wire:click.stop>
+                <div class="px-6 py-4 border-b border-gray-200 shrink-0">
                     <h3 class="text-xl font-semibold text-gray-900">Add New Calibration Procedure</h3>
                 </div>
                 
-                <form wire:submit.prevent="saveProcedure" class="p-6 space-y-4">
+                <form wire:submit.prevent="saveProcedure" class="p-6 space-y-4 overflow-y-auto flex-1">
                     @if (session()->has('error'))
                         <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg">
                             {{ session('error') }}
@@ -631,10 +634,9 @@ new class extends Component
                         <select 
                             wire:model="frequency"
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                            <option value="daily">Daily</option>
-                            <option value="weekly">Weekly</option>
                             <option value="monthly">Monthly</option>
                             <option value="quarterly">Quarterly</option>
+                            <option value="semi-annual">Semi-Annual</option>
                             <option value="annual">Annual</option>
                         </select>
                         @error('frequency') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
@@ -670,18 +672,20 @@ new class extends Component
                     </div>
                 </form>
             </div>
+            </div>
         </div>
     @endif
 
     <!-- View Details Modal -->
     @if($showDetailsModal && $selectedProcedureDetails)
-        <div class="fixed inset-0 z-50 flex items-center justify-center p-4" wire:click="closeDetailsModal" style="background-color: rgba(0, 0, 0, 0.8); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);">
-            <div class="bg-white rounded-lg shadow-2xl w-full max-w-2xl" wire:click.stop>
-                <div class="px-6 py-4 border-b border-gray-200">
+        <div class="fixed inset-0 z-50 overflow-y-auto" wire:click="closeDetailsModal" style="background-color: rgba(0, 0, 0, 0.8); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);">
+            <div class="flex min-h-full items-center justify-center p-4">
+            <div class="bg-white rounded-lg shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col" wire:click.stop>
+                <div class="px-6 py-4 border-b border-gray-200 shrink-0">
                     <h3 class="text-xl font-semibold text-gray-900">Calibration Procedure Details</h3>
                 </div>
                 
-                <div class="p-6">
+                <div class="p-6 overflow-y-auto flex-1">
                     <!-- Equipment Information -->
                     <div class="bg-blue-50 rounded-lg p-4 mb-6">
                         <h4 class="font-semibold text-blue-900 mb-3">Equipment Information</h4>
@@ -754,6 +758,7 @@ new class extends Component
                         </button>
                     </div>
                 </div>
+            </div>
             </div>
         </div>
     @endif

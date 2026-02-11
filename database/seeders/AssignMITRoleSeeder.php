@@ -22,18 +22,18 @@ class AssignMITRoleSeeder extends Seeder
         }
 
         // Check if user already has MIT role
-        if ($user->hasRole('MIT')) {
-            $this->command->info('User already has MIT role.');
+        if ($user->hasRole('MIT Staff')) {
+            $this->command->info('User already has MIT Staff role.');
         } else {
-            // Create or get the MIT role
+            // Create or get the MIT Staff role
             $role = Role::firstOrCreate([
-                'name' => 'MIT',
+                'name' => 'MIT Staff',
                 'guard_name' => 'web'
             ]);
 
             // Assign the role to the user
-            $user->assignRole('MIT');
-            $this->command->info('MIT role assigned to user!');
+            $user->assignRole('MIT Staff');
+            $this->command->info('MIT Staff role assigned to user!');
         }
 
         $this->command->info('User: ' . $user->name);

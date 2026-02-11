@@ -11,9 +11,6 @@ new class extends Component
     use WithPagination;
 
     // Form properties with validation
-    #[Validate('required|in:Internal,External')]
-    public $patient_type = 'External';
-    
     #[Validate('required|string|max:20')]
     public $firstname = '';
     
@@ -37,7 +34,6 @@ new class extends Component
 
     // Search and filter properties
     public $search = '';
-    public $filterType = '';
     public $filterGender = '';
     public $perPage = 'all';
 
@@ -69,10 +65,9 @@ new class extends Component
         // Reset form when hiding
         if (!$this->showForm) {
             $this->reset([
-                'patient_type', 'firstname', 'middlename', 'lastname', 
+                'firstname', 'middlename', 'lastname', 
                 'birthdate', 'gender', 'contact_number', 'address'
             ]);
-            $this->patient_type = 'External';
             $this->resetErrorBag();
         }
     }
@@ -94,7 +89,7 @@ new class extends Component
         }
 
         Patient::create([
-            'patient_type' => $this->patient_type,
+            'patient_type' => 'External',
             'firstname' => $this->firstname,
             'middlename' => $this->middlename,
             'lastname' => $this->lastname,
@@ -105,11 +100,10 @@ new class extends Component
         ]);
 
         $this->reset([
-            'patient_type', 'firstname', 'middlename', 'lastname', 
+            'firstname', 'middlename', 'lastname', 
             'birthdate', 'gender', 'contact_number', 'address'
         ]);
         
-        $this->patient_type = 'External';
         $this->flashMessage = 'Patient added successfully.';
         $this->showForm = false; // Close form after successful save
         $this->resetPage(); // Reset pagination to show new patient
@@ -119,7 +113,6 @@ new class extends Component
     {
         $patient = Patient::findOrFail($id);
         $this->editingPatientId = $id;
-        $this->patient_type = $patient->patient_type;
         $this->firstname = $patient->firstname;
         $this->middlename = $patient->middlename;
         $this->lastname = $patient->lastname;
@@ -136,7 +129,6 @@ new class extends Component
 
         $patient = Patient::findOrFail($this->editingPatientId);
         $patient->update([
-            'patient_type' => $this->patient_type,
             'firstname' => $this->firstname,
             'middlename' => $this->middlename,
             'lastname' => $this->lastname,
@@ -153,11 +145,10 @@ new class extends Component
     public function cancelEdit()
     {
         $this->reset([
-            'patient_type', 'firstname', 'middlename', 'lastname', 
+            'firstname', 'middlename', 'lastname', 
             'birthdate', 'gender', 'contact_number', 'address',
             'editMode', 'editingPatientId'
         ]);
-        $this->patient_type = 'External';
     }
 
     public $patientLabResults = [];
@@ -196,9 +187,6 @@ new class extends Component
                       ->orWhere('lastname', 'like', '%' . $this->search . '%')
                       ->orWhere('patient_id', 'like', '%' . $this->search . '%');
                 });
-            })
-            ->when($this->filterType, function($query) {
-                $query->where('patient_type', $this->filterType);
             })
             ->when($this->filterGender, function($query) {
                 $query->where('gender', $this->filterGender);
@@ -254,16 +242,7 @@ new class extends Component
         </div>
         @if($showForm)
         <form wire:submit.prevent="save" class="p-6">
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Patient Type *</label>
-                    <select wire:model="patient_type" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500" required>
-                        <option value="">Select Type</option>
-                        <option value="Internal">Internal</option>
-                        <option value="External">External</option>
-                    </select>
-                    @error('patient_type') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
-                </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">First Name *</label>
                     <input type="text" wire:model="firstname" placeholder="Juan" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500" required>
@@ -326,17 +305,9 @@ new class extends Component
     <div class="bg-white rounded-lg shadow-sm mb-6">
         <div class="p-6">
             <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
-                <div class="md:col-span-6">
+                <div class="md:col-span-8">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Search Patients</label>
                     <input type="text" wire:model.live="search" placeholder="Search by name or patient ID..." class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500">
-                </div>
-                <div class="md:col-span-2">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Type</label>
-                    <select wire:model.live="filterType" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500">
-                        <option value="">All Types</option>
-                        <option value="Internal">Internal</option>
-                        <option value="External">External</option>
-                    </select>
                 </div>
                 <div class="md:col-span-2">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Gender</label>
@@ -369,7 +340,6 @@ new class extends Component
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Full Name</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Birthdate</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gender</th>
@@ -380,11 +350,6 @@ new class extends Component
                 <tbody class="bg-white divide-y divide-gray-200">
                     @forelse($patients as $patient)
                         <tr wire:key="patient-{{ $patient->patient_id }}" class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {{ $patient->patient_type == 'Internal' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800' }}">
-                                    {{ $patient->patient_type }}
-                                </span>
-                            </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="flex items-center">
                                     <div class="w-8 h-8 bg-pink-500 rounded-full flex items-center justify-center text-white text-xs font-bold mr-3">
@@ -425,7 +390,7 @@ new class extends Component
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="px-6 py-12 text-center text-gray-500">
+                            <td colspan="5" class="px-6 py-12 text-center text-gray-500">
                                 No patients found
                             </td>
                         </tr>
@@ -455,16 +420,7 @@ new class extends Component
             </div>
             
             <form wire:submit.prevent="update">
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Patient Type *</label>
-                        <select wire:model="patient_type" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500" required>
-                            <option value="">Select Type</option>
-                            <option value="Internal">Internal</option>
-                            <option value="External">External</option>
-                        </select>
-                        @error('patient_type') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
-                    </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">First Name *</label>
                         <input type="text" wire:model="firstname" placeholder="Juan" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500" required>
@@ -554,14 +510,6 @@ new class extends Component
                 </div>
 
                 <div class="grid grid-cols-2 gap-4">
-                    <div class="bg-gray-50 p-4 rounded-lg">
-                        <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Patient Type</p>
-                        <p class="text-sm font-medium text-gray-900">
-                            <span class="px-2 py-1 rounded-full text-xs {{ $viewingPatient->patient_type == 'Internal' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800' }}">
-                                {{ $viewingPatient->patient_type }}
-                            </span>
-                        </p>
-                    </div>
                     <div class="bg-gray-50 p-4 rounded-lg">
                         <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Gender</p>
                         <p class="text-sm font-medium text-gray-900">{{ $viewingPatient->gender }}</p>

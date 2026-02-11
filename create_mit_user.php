@@ -29,18 +29,18 @@ try {
         'email_verified_at' => now(),
     ]);
 
-    // Get or create the MIT role
-    $mitRole = Role::where('name', 'MIT')->where('guard_name', 'web')->first();
+    // Get or create the MIT Staff role
+    $mitRole = Role::where('name', 'MIT Staff')->where('guard_name', 'web')->first();
     
     if (!$mitRole) {
-        echo "❌ MIT role not found! Please run the seeder first:\n";
+        echo "❌ MIT Staff role not found! Please run the seeder first:\n";
         echo "   php artisan db:seed --class=RolesAndPermissionsSeeder\n";
         $user->delete();
         exit(1);
     }
 
-    // Assign the MIT role to the user
-    $user->assignRole('MIT');
+    // Assign the MIT Staff role to the user
+    $user->assignRole('MIT Staff');
 
     echo "✅ MIT User created successfully!\n";
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";

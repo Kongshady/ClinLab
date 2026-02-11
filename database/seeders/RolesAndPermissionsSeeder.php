@@ -120,7 +120,7 @@ class RolesAndPermissionsSeeder extends Seeder
         ]);
 
         // 3. MIT Staff - Access to 3 modules (sections, employees, activity logs)
-        $mitStaff = Role::firstOrCreate(['name' => 'MIT', 'guard_name' => 'web']);
+        $mitStaff = Role::firstOrCreate(['name' => 'MIT Staff', 'guard_name' => 'web']);
         $mitStaff->syncPermissions([
             'sections.access', 'sections.create', 'sections.edit', 'sections.delete',
             'employees.access', 'employees.create', 'employees.edit', 'employees.delete',

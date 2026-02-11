@@ -27,6 +27,10 @@ new class extends Component
     // Form visibility toggle
     public bool $showForm = false;
 
+    // View modal
+    public $showViewModal = false;
+    public $viewingTransaction = null;
+
     public function mount()
     {
         if (session()->has('success')) {
@@ -60,13 +64,21 @@ new class extends Component
         $this->resetPage();
     }
 
-    public function edit($id)
+    public function showDetails($id)
     {
-        $transaction = Transaction::findOrFail($id);
-        $this->editingTransactionId = $id;
+        $this->viewingTransaction = Transaction::with('patient')->findOrFail($id);
+        $this->showViewModal = true;
+        $this->editMode = false;
+        $this->resetErrorBag();
+    }
+
+    public function enableEdit()
+    {
+        $transaction = $this->viewingTransaction;
+        $this->editMode = true;
+        $this->editingTransactionId = $transaction->transaction_id;
         $this->client_id = $transaction->client_id;
         $this->or_number = $transaction->or_number;
-        $this->editMode = true;
     }
 
     public function update()
@@ -80,12 +92,29 @@ new class extends Component
         ]);
 
         $this->flashMessage = 'Transaction updated successfully!';
-        $this->cancelEdit();
+        $this->viewingTransaction = $transaction->fresh()->load('patient');
+        $this->editMode = false;
+        $this->editingTransactionId = null;
+        $this->reset(['client_id', 'or_number']);
+        $this->resetErrorBag();
     }
 
     public function cancelEdit()
     {
-        $this->reset(['client_id', 'or_number', 'editMode', 'editingTransactionId']);
+        $this->editMode = false;
+        $this->editingTransactionId = null;
+        $this->reset(['client_id', 'or_number']);
+        $this->resetErrorBag();
+    }
+
+    public function closeViewModal()
+    {
+        $this->showViewModal = false;
+        $this->viewingTransaction = null;
+        $this->editMode = false;
+        $this->editingTransactionId = null;
+        $this->reset(['client_id', 'or_number']);
+        $this->resetErrorBag();
     }
 
     public function delete($id)
@@ -96,6 +125,16 @@ new class extends Component
             $this->flashMessage = 'Transaction deleted successfully!';
             $this->resetPage();
         }
+    }
+
+    public function deleteSelected($ids)
+    {
+        if (empty($ids)) return;
+        
+        $count = Transaction::whereIn('transaction_id', $ids)->delete();
+        $this->flashMessage = $count . ' transaction(s) deleted successfully!';
+        $this->resetPage();
+        $this->dispatch('selection-cleared');
     }
 
     public function with(): array
@@ -118,7 +157,25 @@ new class extends Component
 };
 ?>
 
-<div class="p-6">
+<div class="p-6" x-data="{ 
+    selectedIds: [],
+    selectAll: false,
+    toggleAll(ids) {
+        if (this.selectAll) {
+            this.selectedIds = ids;
+        } else {
+            this.selectedIds = [];
+        }
+    },
+    toggleOne(id) {
+        const idx = this.selectedIds.indexOf(id);
+        if (idx > -1) {
+            this.selectedIds.splice(idx, 1);
+        } else {
+            this.selectedIds.push(id);
+        }
+    }
+}" @selection-cleared.window="selectedIds = []; selectAll = false">
     <div class="mb-6">
         <h1 class="text-2xl font-bold text-gray-900 flex items-center">
             <svg class="w-7 h-7 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -175,7 +232,20 @@ new class extends Component
 
     <div class="bg-white rounded-lg shadow-sm">
         <div class="px-6 py-4 border-b border-gray-200">
-            <h2 class="text-lg font-semibold text-gray-900">Transactions List</h2>
+            <div class="flex items-center justify-between">
+                <h2 class="text-lg font-semibold text-gray-900">Transactions List</h2>
+                <!-- Delete Selected Button -->
+                <div x-show="selectedIds.length > 0" x-cloak x-transition>
+                    <button type="button" 
+                            @click="if(confirm('Are you sure you want to delete ' + selectedIds.length + ' selected transaction(s)?')) { $wire.deleteSelected(selectedIds) }"
+                            class="inline-flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                        </svg>
+                        Delete Selected (<span x-text="selectedIds.length"></span>)
+                    </button>
+                </div>
+            </div>
         </div>
         <div class="p-6">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
@@ -200,30 +270,33 @@ new class extends Component
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
+                        <th class="px-6 py-3 text-left w-10">
+                            <input type="checkbox" x-model="selectAll" 
+                                   @change="toggleAll([{{ $transactions instanceof \Illuminate\Pagination\LengthAwarePaginator ? $transactions->pluck('transaction_id')->implode(',') : $transactions->pluck('transaction_id')->implode(',') }}])"
+                                   class="rounded border-gray-300 text-purple-600 focus:ring-purple-500">
+                        </th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">OR Number</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date Added</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
                     @forelse($transactions as $transaction)
-                        <tr wire:key="transaction-{{ $transaction->transaction_id }}" class="hover:bg-gray-50">
+                        <tr wire:key="transaction-{{ $transaction->transaction_id }}" 
+                            class="hover:bg-gray-50 cursor-pointer transition-colors"
+                            @click="$wire.showDetails({{ $transaction->transaction_id }})">
+                            <td class="px-6 py-4" @click.stop>
+                                <input type="checkbox" value="{{ $transaction->transaction_id }}" 
+                                       @change="toggleOne({{ $transaction->transaction_id }})"
+                                       :checked="selectedIds.includes({{ $transaction->transaction_id }})"
+                                       class="rounded border-gray-300 text-purple-600 focus:ring-purple-500">
+                            </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $transaction->or_number }}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                                 {{ $transaction->patient->full_name ?? 'N/A' }}
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                                 {{ $transaction->datetime_added ? \Carbon\Carbon::parse($transaction->datetime_added)->format('M d, Y') : 'N/A' }}
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                <div class="flex items-center space-x-2">
-                                    <button type="button" wire:click="edit({{ $transaction->transaction_id }})" 
-                                            class="px-4 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg transition-colors">Edit</button>
-                                    <button type="button" wire:click="delete({{ $transaction->transaction_id }})" 
-                                            wire:confirm="Are you sure you want to delete this transaction?"
-                                            class="px-4 py-1.5 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors">Delete</button>
-                                </div>
                             </td>
                         </tr>
                     @empty
@@ -242,59 +315,97 @@ new class extends Component
         @endif
     </div>
 
-    <!-- Edit Transaction Modal -->
-    @if($editMode)
-    <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 p-4">
-        <div class="relative top-20 mx-auto p-6 border w-full max-w-lg shadow-lg rounded-xl bg-white">
-            <div class="flex items-center justify-between mb-6">
-                <h3 class="text-2xl font-bold text-gray-900">Edit Transaction</h3>
-                <button type="button" wire:click="cancelEdit" class="text-gray-400 hover:text-gray-600">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                    </svg>
-                </button>
+    <!-- View / Edit Transaction Modal -->
+    @if($showViewModal && $viewingTransaction)
+    <div class="fixed inset-0 z-50 overflow-y-auto" style="background-color: rgba(0, 0, 0, 0.5);">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-lg shadow-xl max-w-lg w-full">
+                <!-- Modal Header -->
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-xl font-semibold text-gray-900">
+                            {{ $editMode ? 'Edit Transaction' : 'Transaction Details' }}
+                        </h3>
+                        <button type="button" wire:click="closeViewModal" class="text-gray-400 hover:text-gray-600">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                @if($editMode)
+                <!-- Edit Mode -->
+                <form wire:submit.prevent="update">
+                    <div class="p-6">
+                        <div class="grid grid-cols-1 gap-5">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    Patient <span class="text-red-500">*</span>
+                                </label>
+                                <select wire:model="client_id" 
+                                        class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                                    <option value="">Select Patient</option>
+                                    @foreach($patients as $patient)
+                                        <option value="{{ $patient->patient_id }}">{{ $patient->full_name }}</option>
+                                    @endforeach
+                                </select>
+                                @error('client_id') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    OR Number <span class="text-red-500">*</span>
+                                </label>
+                                <input type="text" wire:model="or_number" 
+                                       class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                       placeholder="Enter OR number">
+                                @error('or_number') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                            </div>
+                        </div>
+                    </div>
+                    <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end space-x-3 rounded-b-lg">
+                        <button type="button" wire:click="cancelEdit" 
+                                class="px-5 py-2.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                            Cancel
+                        </button>
+                        <button type="submit" 
+                                class="px-5 py-2.5 bg-purple-600 text-white text-sm rounded-md font-medium hover:bg-purple-700">
+                            Update Transaction
+                        </button>
+                    </div>
+                </form>
+                @else
+                <!-- View Mode (Read-only) -->
+                <div class="p-6">
+                    <div class="grid grid-cols-1 gap-5">
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <p class="text-xs font-semibold text-gray-500 uppercase mb-1">OR Number</p>
+                            <p class="text-sm font-medium text-gray-900">{{ $viewingTransaction->or_number }}</p>
+                        </div>
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Patient</p>
+                            <p class="text-sm font-medium text-gray-900">{{ $viewingTransaction->patient->full_name ?? 'N/A' }}</p>
+                        </div>
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Date Added</p>
+                            <p class="text-sm font-medium text-gray-900">
+                                {{ $viewingTransaction->datetime_added ? \Carbon\Carbon::parse($viewingTransaction->datetime_added)->format('M d, Y h:i A') : 'N/A' }}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end space-x-3 rounded-b-lg">
+                    <button type="button" wire:click="closeViewModal" 
+                            class="px-5 py-2.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                        Close
+                    </button>
+                    <button type="button" wire:click="enableEdit" 
+                            class="px-5 py-2.5 bg-orange-500 text-white text-sm rounded-md font-medium hover:bg-orange-600">
+                        Edit
+                    </button>
+                </div>
+                @endif
             </div>
-
-            <form wire:submit.prevent="update">
-                <div class="grid grid-cols-1 gap-5">
-                    <!-- Patient -->
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">
-                            Patient <span class="text-red-500">*</span>
-                        </label>
-                        <select wire:model="client_id" 
-                                class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
-                            <option value="">Select Patient</option>
-                            @foreach($patients as $patient)
-                                <option value="{{ $patient->patient_id }}">{{ $patient->full_name }}</option>
-                            @endforeach
-                        </select>
-                        @error('client_id') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
-                    </div>
-
-                    <!-- OR Number -->
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">
-                            OR Number <span class="text-red-500">*</span>
-                        </label>
-                        <input type="text" wire:model="or_number" 
-                               class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                               placeholder="Enter OR number">
-                        @error('or_number') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
-                    </div>
-                </div>
-
-                <div class="flex justify-end space-x-3 pt-4 border-t mt-6">
-                    <button type="button" wire:click="cancelEdit" 
-                            class="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
-                        Cancel
-                    </button>
-                    <button type="submit" 
-                            class="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
-                        Update Transaction
-                    </button>
-                </div>
-            </form>
         </div>
     </div>
     @endif

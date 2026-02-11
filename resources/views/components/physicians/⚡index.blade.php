@@ -31,6 +31,10 @@ new class extends Component
     public $showEditModal = false;
     public $showForm = false;
 
+    // View modal
+    public $showViewModal = false;
+    public $viewingPhysician = null;
+
     public function mount()
     {
         if (session()->has('success')) {
@@ -64,6 +68,7 @@ new class extends Component
             $this->editMode = false;
             $this->editId = null;
             $this->showEditModal = false;
+            $this->showViewModal = false;
         } else {
             Physician::create([
                 'physician_name' => $this->physician_name,
@@ -82,24 +87,41 @@ new class extends Component
         $this->resetPage();
     }
 
-    public function edit($id)
+    public function showDetails($id)
     {
-        $physician = Physician::find($id);
+        $this->viewingPhysician = Physician::find($id);
+        $this->showViewModal = true;
+        $this->editMode = false;
+        $this->resetErrorBag();
+    }
+
+    public function enableEdit()
+    {
+        $physician = $this->viewingPhysician;
         $this->editMode = true;
-        $this->editId = $id;
+        $this->editId = $physician->physician_id;
         $this->physician_name = $physician->physician_name;
         $this->specialization = $physician->specialization;
         $this->contact_number = $physician->contact_number;
         $this->email = $physician->email;
-        $this->showEditModal = true;
     }
 
     public function cancelEdit()
     {
         $this->editMode = false;
         $this->editId = null;
-        $this->showEditModal = false;
         $this->reset(['physician_name', 'specialization', 'contact_number', 'email']);
+        $this->resetErrorBag();
+    }
+
+    public function closeViewModal()
+    {
+        $this->showViewModal = false;
+        $this->viewingPhysician = null;
+        $this->editMode = false;
+        $this->editId = null;
+        $this->reset(['physician_name', 'specialization', 'contact_number', 'email']);
+        $this->resetErrorBag();
     }
 
     public function delete($id)
@@ -110,6 +132,23 @@ new class extends Component
             $this->flashMessage = 'Physician deleted successfully!';
             $this->resetPage();
         }
+    }
+
+    public function deleteSelected($ids)
+    {
+        if (empty($ids)) return;
+        
+        $count = 0;
+        foreach ($ids as $id) {
+            $physician = Physician::find($id);
+            if ($physician) {
+                $physician->softDelete();
+                $count++;
+            }
+        }
+        $this->flashMessage = $count . ' physician(s) deleted successfully!';
+        $this->resetPage();
+        $this->dispatch('selection-cleared');
     }
 
     public function with(): array
@@ -143,7 +182,25 @@ new class extends Component
 };
 ?>
 
-<div class="p-6 space-y-6">
+<div class="p-6 space-y-6" x-data="{ 
+    selectedIds: [],
+    selectAll: false,
+    toggleAll(ids) {
+        if (this.selectAll) {
+            this.selectedIds = ids;
+        } else {
+            this.selectedIds = [];
+        }
+    },
+    toggleOne(id) {
+        const idx = this.selectedIds.indexOf(id);
+        if (idx > -1) {
+            this.selectedIds.splice(idx, 1);
+        } else {
+            this.selectedIds.push(id);
+        }
+    }
+}" @selection-cleared.window="selectedIds = []; selectAll = false">
     @if($flashMessage)
         <div class="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg" role="alert">
             <span class="block sm:inline">{{ $flashMessage }}</span>
@@ -256,35 +313,51 @@ new class extends Component
     <!-- Physicians List -->
     <div class="bg-white rounded-lg shadow-sm">
         <div class="p-6">
-            <h2 class="text-lg font-semibold text-gray-900 mb-4">Physicians List</h2>
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-semibold text-gray-900">Physicians List</h2>
+                <!-- Delete Selected Button -->
+                <div x-show="selectedIds.length > 0" x-cloak x-transition>
+                    <button type="button" 
+                            @click="if(confirm('Are you sure you want to delete ' + selectedIds.length + ' selected physician(s)?')) { $wire.deleteSelected(selectedIds) }"
+                            class="inline-flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                        </svg>
+                        Delete Selected (<span x-text="selectedIds.length"></span>)
+                    </button>
+                </div>
+            </div>
             
             <div class="overflow-x-auto">
                 <table class="w-full">
                     <thead>
                         <tr class="bg-gray-50">
+                            <th class="px-4 py-3 text-left w-10">
+                                <input type="checkbox" x-model="selectAll" 
+                                       @change="toggleAll([{{ $physicians instanceof \Illuminate\Pagination\LengthAwarePaginator ? $physicians->pluck('physician_id')->implode(',') : $physicians->pluck('physician_id')->implode(',') }}])"
+                                       class="rounded border-gray-300 text-pink-600 focus:ring-pink-500">
+                            </th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Name</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Specialization</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Contact</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Email</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-200">
                         @forelse($physicians as $physician)
-                            <tr wire:key="physician-{{ $physician->physician_id }}" class="hover:bg-gray-50">
+                            <tr wire:key="physician-{{ $physician->physician_id }}" 
+                                class="hover:bg-gray-50 cursor-pointer transition-colors"
+                                @click="$wire.showDetails({{ $physician->physician_id }})">
+                                <td class="px-4 py-3" @click.stop>
+                                    <input type="checkbox" value="{{ $physician->physician_id }}" 
+                                           @change="toggleOne({{ $physician->physician_id }})"
+                                           :checked="selectedIds.includes({{ $physician->physician_id }})"
+                                           class="rounded border-gray-300 text-pink-600 focus:ring-pink-500">
+                                </td>
                                 <td class="px-4 py-3 text-sm text-gray-900 font-medium">{{ $physician->physician_name }}</td>
                                 <td class="px-4 py-3 text-sm text-gray-700">{{ $physician->specialization ?? 'N/A' }}</td>
                                 <td class="px-4 py-3 text-sm text-gray-700">{{ $physician->contact_number ?? 'N/A' }}</td>
                                 <td class="px-4 py-3 text-sm text-gray-700">{{ $physician->email ?? 'N/A' }}</td>
-                                <td class="px-4 py-3">
-                                    <div class="flex items-center space-x-2">
-                                        <button type="button" wire:click="edit({{ $physician->physician_id }})" 
-                                                class="px-4 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg transition-colors">Edit</button>
-                                        <button type="button" wire:click="delete({{ $physician->physician_id }})" 
-                                                wire:confirm="Are you sure you want to delete this physician?"
-                                                class="px-4 py-1.5 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors">Delete</button>
-                                    </div>
-                                </td>
                             </tr>
                         @empty
                             <tr>
@@ -303,16 +376,18 @@ new class extends Component
         </div>
     </div>
 
-    <!-- Edit Modal -->
-    @if($showEditModal)
+    <!-- View / Edit Physician Modal -->
+    @if($showViewModal && $viewingPhysician)
     <div class="fixed inset-0 z-50 overflow-y-auto" style="background-color: rgba(0, 0, 0, 0.5);">
         <div class="flex items-center justify-center min-h-screen p-4">
             <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full">
                 <!-- Modal Header -->
                 <div class="px-6 py-4 border-b border-gray-200">
                     <div class="flex items-center justify-between">
-                        <h3 class="text-xl font-semibold text-gray-900">Edit Physician</h3>
-                        <button type="button" wire:click="cancelEdit" class="text-gray-400 hover:text-gray-600">
+                        <h3 class="text-xl font-semibold text-gray-900">
+                            {{ $editMode ? 'Edit Physician' : 'Physician Details' }}
+                        </h3>
+                        <button type="button" wire:click="closeViewModal" class="text-gray-400 hover:text-gray-600">
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                             </svg>
@@ -320,7 +395,8 @@ new class extends Component
                     </div>
                 </div>
 
-                <!-- Modal Body -->
+                @if($editMode)
+                <!-- Edit Mode -->
                 <form wire:submit.prevent="save">
                     <div class="p-6">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -329,24 +405,20 @@ new class extends Component
                                     Physician Name <span class="text-red-500">*</span>
                                 </label>
                                 <input type="text" wire:model="physician_name" 
-                                       class="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                                       class="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-pink-500 focus:border-pink-500">
                                 @error('physician_name') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">
-                                    Specialization
-                                </label>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Specialization</label>
                                 <input type="text" wire:model="specialization" 
-                                       class="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                                       class="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-pink-500 focus:border-pink-500">
                                 @error('specialization') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
                             </div>
                             <div x-data="{ val: $wire.entangle('contact_number'), get missing() { return this.val ? 11 - this.val.length : 0 } }">
-                                <label class="block text-sm font-medium text-gray-700 mb-2">
-                                    Contact Number
-                                </label>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Contact Number</label>
                                 <input type="text" wire:model="contact_number" placeholder="09123456789" maxlength="11"
                                        @input="val = $event.target.value = $event.target.value.replace(/[^0-9]/g, '').slice(0, 11)"
-                                       :class="val && val.length > 0 && val.length < 11 ? 'border-red-400 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'"
+                                       :class="val && val.length > 0 && val.length < 11 ? 'border-red-400 focus:ring-red-500' : 'border-gray-300 focus:ring-pink-500'"
                                        class="w-full px-3 py-2.5 border rounded-md focus:outline-none focus:ring-1">
                                 <template x-if="val && val.length > 0 && val.length < 11">
                                     <span class="text-red-500 text-xs mt-1 block" x-text="'You\'re missing ' + missing + (missing === 1 ? ' number' : ' numbers')"></span>
@@ -355,28 +427,57 @@ new class extends Component
                                 @error('contact_number') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">
-                                    Email
-                                </label>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
                                 <input type="email" wire:model="email" 
-                                       class="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                                       class="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-pink-500 focus:border-pink-500">
                                 @error('email') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
                             </div>
                         </div>
                     </div>
-
-                    <!-- Modal Footer -->
                     <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end space-x-3 rounded-b-lg">
                         <button type="button" wire:click="cancelEdit" 
-                                class="px-5 py-2.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none">
+                                class="px-5 py-2.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
                             Cancel
                         </button>
                         <button type="submit" 
-                                class="px-5 py-2.5 bg-orange-500 text-white text-sm rounded-md font-medium hover:bg-orange-600 focus:outline-none">
+                                class="px-5 py-2.5 bg-pink-600 text-white text-sm rounded-md font-medium hover:bg-pink-700">
                             Update Physician
                         </button>
                     </div>
                 </form>
+                @else
+                <!-- View Mode (Read-only) -->
+                <div class="p-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Physician Name</p>
+                            <p class="text-sm font-medium text-gray-900">{{ $viewingPhysician->physician_name }}</p>
+                        </div>
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Specialization</p>
+                            <p class="text-sm font-medium text-gray-900">{{ $viewingPhysician->specialization ?? 'N/A' }}</p>
+                        </div>
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Contact Number</p>
+                            <p class="text-sm font-medium text-gray-900">{{ $viewingPhysician->contact_number ?? 'N/A' }}</p>
+                        </div>
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Email</p>
+                            <p class="text-sm font-medium text-gray-900">{{ $viewingPhysician->email ?? 'N/A' }}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end space-x-3 rounded-b-lg">
+                    <button type="button" wire:click="closeViewModal" 
+                            class="px-5 py-2.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                        Close
+                    </button>
+                    <button type="button" wire:click="enableEdit" 
+                            class="px-5 py-2.5 bg-orange-500 text-white text-sm rounded-md font-medium hover:bg-orange-600">
+                        Edit
+                    </button>
+                </div>
+                @endif
             </div>
         </div>
     </div>

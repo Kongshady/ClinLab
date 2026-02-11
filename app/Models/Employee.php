@@ -20,7 +20,6 @@ class Employee extends Model
         'password',
         'position',
         'role_id',
-        'role',
         'status_code',
     ];
 
@@ -41,6 +40,11 @@ class Employee extends Model
     public function section()
     {
         return $this->belongsTo(Section::class, 'section_id', 'section_id');
+    }
+
+    public function role()
+    {
+        return $this->belongsTo(Role::class, 'role_id', 'role_id');
     }
 
     public function user()
