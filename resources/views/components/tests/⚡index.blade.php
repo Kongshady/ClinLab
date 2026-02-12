@@ -6,10 +6,11 @@ use Livewire\Attributes\Validate;
 use App\Models\Test;
 use App\Models\Section;
 use App\Models\TestPriceHistory;
+use App\Traits\LogsActivity;
 
 new class extends Component
 {
-    use WithPagination;
+    use WithPagination, LogsActivity;
 
     #[Validate('required|exists:section,section_id')]
     public $section_id = '';
@@ -60,6 +61,7 @@ new class extends Component
         ]);
 
         $this->reset(['section_id', 'label', 'current_price']);
+        $this->logActivity("Created test: {$this->label}");
         $this->flashMessage = 'Test added successfully!';
         $this->resetPage();
     }
@@ -88,6 +90,7 @@ new class extends Component
                 'label' => $this->edit_label,
             ]);
 
+            $this->logActivity("Updated test ID {$this->editingTestId}: {$this->edit_label}");
             $this->flashMessage = 'Test updated successfully!';
             $this->closeEditModal();
         }
@@ -135,6 +138,7 @@ new class extends Component
                 'current_price' => $this->new_price,
             ]);
 
+            $this->logActivity("Updated price for test ID {$this->setPriceTestId} ({$this->setPriceTestName}): {$previousPrice} to {$this->new_price}");
             $this->flashMessage = 'Price updated successfully!';
             $this->closeSetPriceModal();
         }
@@ -167,6 +171,7 @@ new class extends Component
         $test = Test::find($id);
         if ($test) {
             $test->softDelete();
+            $this->logActivity("Deleted test ID {$id}: {$test->label}");
             $this->flashMessage = 'Test deleted successfully!';
         }
     }

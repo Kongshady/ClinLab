@@ -4,10 +4,12 @@ use Livewire\Component;
 use Livewire\WithPagination;
 use Livewire\Attributes\Validate;
 use App\Models\Physician;
+use App\Models\Section;
+use App\Traits\LogsActivity;
 
 new class extends Component
 {
-    use WithPagination;
+    use WithPagination, LogsActivity;
 
     #[Validate('required|string|max:255')]
     public $physician_name = '';
@@ -20,6 +22,9 @@ new class extends Component
 
     #[Validate('nullable|email|max:255')]
     public $email = '';
+
+    #[Validate('nullable|exists:section,section_id')]
+    public $section_id = '';
 
     public $search = '';
     public $filterSpecialization = '';
@@ -47,7 +52,7 @@ new class extends Component
         $this->showForm = !$this->showForm;
         
         if (!$this->showForm) {
-            $this->reset(['physician_name', 'specialization', 'contact_number', 'email']);
+            $this->reset(['physician_name', 'specialization', 'contact_number', 'email', 'section_id']);
             $this->resetErrorBag();
         }
     }
@@ -56,6 +61,43 @@ new class extends Component
     {
         $this->validate();
 
+        // Duplicate check
+        $duplicateQuery = Physician::active()
+            ->where('physician_name', $this->physician_name);
+
+        if ($this->editMode) {
+            $duplicateQuery->where('physician_id', '!=', $this->editId);
+        }
+
+        if ($duplicateQuery->exists()) {
+            $this->addError('physician_name', 'A physician with this name already exists.');
+            return;
+        }
+
+        if ($this->contact_number) {
+            $contactQuery = Physician::active()
+                ->where('contact_number', $this->contact_number);
+            if ($this->editMode) {
+                $contactQuery->where('physician_id', '!=', $this->editId);
+            }
+            if ($contactQuery->exists()) {
+                $this->addError('contact_number', 'This contact number is already registered to another physician.');
+                return;
+            }
+        }
+
+        if ($this->email) {
+            $emailQuery = Physician::active()
+                ->where('email', $this->email);
+            if ($this->editMode) {
+                $emailQuery->where('physician_id', '!=', $this->editId);
+            }
+            if ($emailQuery->exists()) {
+                $this->addError('email', 'This email is already registered to another physician.');
+                return;
+            }
+        }
+
         if ($this->editMode) {
             $physician = Physician::find($this->editId);
             $physician->update([
@@ -63,7 +105,9 @@ new class extends Component
                 'specialization' => $this->specialization,
                 'contact_number' => $this->contact_number,
                 'email' => $this->email,
+                'section_id' => $this->section_id ?: null,
             ]);
+            $this->logActivity("Updated physician ID {$this->editId}: {$this->physician_name}");
             $this->flashMessage = 'Physician updated successfully!';
             $this->editMode = false;
             $this->editId = null;
@@ -75,21 +119,23 @@ new class extends Component
                 'specialization' => $this->specialization,
                 'contact_number' => $this->contact_number,
                 'email' => $this->email,
+                'section_id' => $this->section_id ?: null,
                 'status_code' => 1,
                 'is_deleted' => 0,
                 'datetime_added' => now(),
             ]);
+            $this->logActivity("Created physician: {$this->physician_name}");
             $this->flashMessage = 'Physician added successfully!';
             $this->showForm = false;
         }
 
-        $this->reset(['physician_name', 'specialization', 'contact_number', 'email']);
+        $this->reset(['physician_name', 'specialization', 'contact_number', 'email', 'section_id']);
         $this->resetPage();
     }
 
     public function showDetails($id)
     {
-        $this->viewingPhysician = Physician::find($id);
+        $this->viewingPhysician = Physician::with('section')->find($id);
         $this->showViewModal = true;
         $this->editMode = false;
         $this->resetErrorBag();
@@ -104,13 +150,14 @@ new class extends Component
         $this->specialization = $physician->specialization;
         $this->contact_number = $physician->contact_number;
         $this->email = $physician->email;
+        $this->section_id = $physician->section_id;
     }
 
     public function cancelEdit()
     {
         $this->editMode = false;
         $this->editId = null;
-        $this->reset(['physician_name', 'specialization', 'contact_number', 'email']);
+        $this->reset(['physician_name', 'specialization', 'contact_number', 'email', 'section_id']);
         $this->resetErrorBag();
     }
 
@@ -120,7 +167,7 @@ new class extends Component
         $this->viewingPhysician = null;
         $this->editMode = false;
         $this->editId = null;
-        $this->reset(['physician_name', 'specialization', 'contact_number', 'email']);
+        $this->reset(['physician_name', 'specialization', 'contact_number', 'email', 'section_id']);
         $this->resetErrorBag();
     }
 
@@ -129,6 +176,7 @@ new class extends Component
         $physician = Physician::find($id);
         if ($physician) {
             $physician->softDelete();
+            $this->logActivity("Deleted physician ID {$id}: {$physician->physician_name}");
             $this->flashMessage = 'Physician deleted successfully!';
             $this->resetPage();
         }
@@ -146,6 +194,7 @@ new class extends Component
                 $count++;
             }
         }
+        $this->logActivity("Bulk deleted {$count} physician(s)");
         $this->flashMessage = $count . ' physician(s) deleted successfully!';
         $this->resetPage();
         $this->dispatch('selection-cleared');
@@ -153,12 +202,15 @@ new class extends Component
 
     public function with(): array
     {
-        $query = Physician::active()
+        $query = Physician::active()->with('section')
             ->when($this->search, function ($query) {
                 $query->where(function ($q) {
                     $q->where('physician_name', 'like', '%' . $this->search . '%')
                       ->orWhere('specialization', 'like', '%' . $this->search . '%')
-                      ->orWhere('email', 'like', '%' . $this->search . '%');
+                      ->orWhere('email', 'like', '%' . $this->search . '%')
+                      ->orWhereHas('section', function($sq) {
+                          $sq->where('label', 'like', '%' . $this->search . '%');
+                      });
                 });
             })
             ->when($this->filterSpecialization, function ($query) {
@@ -174,9 +226,12 @@ new class extends Component
             ->distinct()
             ->pluck('specialization');
 
+        $sections = Section::active()->orderBy('label')->get();
+
         return [
             'physicians' => $physicians,
-            'specializations' => $specializations
+            'specializations' => $specializations,
+            'sections' => $sections
         ];
     }
 };
@@ -266,6 +321,17 @@ new class extends Component
                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent">
                         @error('email') <span class="text-red-600 text-sm">{{ $message }}</span> @enderror
                     </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Assigned Section</label>
+                        <select wire:model="section_id"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent">
+                            <option value="">Select Section (Optional)</option>
+                            @foreach($sections as $section)
+                                <option value="{{ $section->section_id }}">{{ $section->label }}</option>
+                            @endforeach
+                        </select>
+                        @error('section_id') <span class="text-red-600 text-sm">{{ $message }}</span> @enderror
+                    </div>
                 </div>
                 <div class="flex justify-end mt-6">
                     <button type="submit" class="px-6 py-2 bg-pink-500 hover:bg-pink-600 text-white font-medium rounded-lg transition-colors">
@@ -338,6 +404,7 @@ new class extends Component
                                        class="rounded border-gray-300 text-pink-600 focus:ring-pink-500">
                             </th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Name</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Section</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Specialization</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Contact</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Email</th>
@@ -355,13 +422,20 @@ new class extends Component
                                            class="rounded border-gray-300 text-pink-600 focus:ring-pink-500">
                                 </td>
                                 <td class="px-4 py-3 text-sm text-gray-900 font-medium">{{ $physician->physician_name }}</td>
+                                <td class="px-4 py-3 text-sm text-gray-700">
+                                    @if($physician->section)
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">{{ $physician->section->label }}</span>
+                                    @else
+                                        <span class="text-gray-400">Unassigned</span>
+                                    @endif
+                                </td>
                                 <td class="px-4 py-3 text-sm text-gray-700">{{ $physician->specialization ?? 'N/A' }}</td>
                                 <td class="px-4 py-3 text-sm text-gray-700">{{ $physician->contact_number ?? 'N/A' }}</td>
                                 <td class="px-4 py-3 text-sm text-gray-700">{{ $physician->email ?? 'N/A' }}</td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="5" class="px-4 py-8 text-center text-gray-500">No physicians found.</td>
+                                <td colspan="6" class="px-4 py-8 text-center text-gray-500">No physicians found.</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -432,6 +506,17 @@ new class extends Component
                                        class="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-pink-500 focus:border-pink-500">
                                 @error('email') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
                             </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Assigned Section</label>
+                                <select wire:model="section_id"
+                                        class="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-pink-500 focus:border-pink-500">
+                                    <option value="">Select Section (Optional)</option>
+                                    @foreach($sections as $section)
+                                        <option value="{{ $section->section_id }}">{{ $section->label }}</option>
+                                    @endforeach
+                                </select>
+                                @error('section_id') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
+                            </div>
                         </div>
                     </div>
                     <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end space-x-3 rounded-b-lg">
@@ -452,6 +537,16 @@ new class extends Component
                         <div class="bg-gray-50 p-4 rounded-lg">
                             <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Physician Name</p>
                             <p class="text-sm font-medium text-gray-900">{{ $viewingPhysician->physician_name }}</p>
+                        </div>
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Assigned Section</p>
+                            <p class="text-sm font-medium text-gray-900">
+                                @if($viewingPhysician->section)
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">{{ $viewingPhysician->section->label }}</span>
+                                @else
+                                    <span class="text-gray-400">Unassigned</span>
+                                @endif
+                            </p>
                         </div>
                         <div class="bg-gray-50 p-4 rounded-lg">
                             <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Specialization</p>

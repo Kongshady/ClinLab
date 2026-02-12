@@ -6,9 +6,12 @@ use App\Models\Equipment;
 use App\Models\Employee;
 use App\Models\Section;
 use App\Models\MaintenanceRecord;
+use App\Traits\LogsActivity;
 
 new class extends Component
 {
+    use LogsActivity;
+
     public $equipmentId;
     public $flashMessage = '';
 
@@ -88,6 +91,7 @@ new class extends Component
         ]);
 
         $this->closeScheduleModal();
+        $this->logActivity("Added maintenance schedule for equipment ID {$this->equipmentId}");
         $this->flashMessage = 'Maintenance schedule added successfully.';
     }
 
@@ -130,6 +134,7 @@ new class extends Component
         ]);
 
         $this->closeMaintenanceModal();
+        $this->logActivity("Recorded maintenance for equipment ID {$this->equipmentId}");
         $this->flashMessage = 'Maintenance record saved successfully.';
     }
 

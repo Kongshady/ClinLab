@@ -6,6 +6,7 @@ use App\Models\Certificate;
 use App\Models\Patient;
 use App\Models\Equipment;
 use App\Models\Employee;
+use App\Traits\LogsActivity;
 ?>
 
 <div class="p-6">

@@ -15,8 +15,14 @@ class Physician extends Model
         'specialization',
         'contact_number',
         'email',
+        'section_id',
         'status_code',
     ];
+
+    public function section()
+    {
+        return $this->belongsTo(Section::class, 'section_id', 'section_id');
+    }
 
     protected $casts = [
         'datetime_added' => 'datetime',

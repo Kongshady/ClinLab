@@ -4,10 +4,11 @@ use Livewire\Component;
 use Livewire\WithPagination;
 use Livewire\Attributes\Validate;
 use App\Models\Section;
+use App\Traits\LogsActivity;
 
 new class extends Component
 {
-    use WithPagination;
+    use WithPagination, LogsActivity;
 
     #[Validate('required|string|max:255|unique:section,label')]
     public $label = '';
@@ -37,6 +38,7 @@ new class extends Component
         ]);
 
         $this->reset(['label']);
+        $this->logActivity("Created section: {$this->label}");
         $this->flashMessage = 'Section added successfully!';
         $this->resetPage();
     }
@@ -62,6 +64,7 @@ new class extends Component
                 'label' => $this->edit_label,
             ]);
 
+            $this->logActivity("Updated section ID {$this->editingSectionId}: {$this->edit_label}");
             $this->flashMessage = 'Section updated successfully!';
             $this->closeEditModal();
         }
@@ -78,6 +81,7 @@ new class extends Component
         $section = Section::find($id);
         if ($section) {
             $section->softDelete();
+            $this->logActivity("Deleted section ID {$id}: {$section->label}");
             $this->flashMessage = 'Section deleted successfully!';
         }
     }

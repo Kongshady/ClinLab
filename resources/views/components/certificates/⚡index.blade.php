@@ -7,10 +7,11 @@ use App\Models\Certificate;
 use App\Models\Patient;
 use App\Models\Equipment;
 use App\Models\Employee;
+use App\Traits\LogsActivity;
 
 new class extends Component
 {
-    use WithPagination;
+    use WithPagination, LogsActivity;
 
     #[Validate('required|string|max:50|unique:certificate,certificate_number')]
     public $certificate_number = '';
@@ -123,6 +124,7 @@ new class extends Component
             'datetime_modified' => now(),
         ]);
 
+        $this->logActivity("Updated certificate ID {$this->editCertificateId}: {$this->editCertificateNumber}");
         $this->flashMessage = 'Certificate updated successfully!';
         $this->closeEditModal();
     }
@@ -148,6 +150,7 @@ new class extends Component
         $this->certificate_type = 'lab_result';
         $this->issue_date = date('Y-m-d');
         $this->status = 'draft';
+        $this->logActivity("Created certificate: {$this->certificate_number}");
         $this->flashMessage = 'Certificate added successfully!';
         $this->showForm = false;
         $this->resetPage();
@@ -158,6 +161,7 @@ new class extends Component
         $certificate = Certificate::find($id);
         if ($certificate) {
             $certificate->delete();
+            $this->logActivity("Deleted certificate ID {$id}");
             $this->flashMessage = 'Certificate deleted successfully!';
             $this->resetPage();
         }

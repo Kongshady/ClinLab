@@ -1,0 +1,1 @@
+equipment-<?php echo e($item->equipment_id); ?><?php /**PATH C:\xampp\htdocs\dashboard\clinlab_app\storage\framework\views/aa89e928b0855b3f411615c867e6eae8.blade.php ENDPATH**/ ?>

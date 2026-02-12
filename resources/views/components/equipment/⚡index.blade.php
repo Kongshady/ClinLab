@@ -6,10 +6,11 @@ use Livewire\Attributes\Validate;
 use App\Models\Equipment;
 use App\Models\Section;
 use App\Models\EquipmentUsage;
+use App\Traits\LogsActivity;
 
 new class extends Component
 {
-    use WithPagination;
+    use WithPagination, LogsActivity;
 
     public $activeTab = 'equipment';
 
@@ -147,6 +148,7 @@ new class extends Component
 
         $this->reset(['name', 'model', 'serial_no', 'section_id', 'purchase_date', 'supplier', 'remarks']);
         $this->status = 'Operational';
+        $this->logActivity("Created equipment: {$this->name}");
         $this->flashMessage = 'Equipment added successfully!';
         $this->showEquipmentModal = false;
         $this->resetPage();
@@ -183,6 +185,7 @@ new class extends Component
             'remarks' => $this->remarks,
         ]);
 
+        $this->logActivity("Updated equipment ID {$this->editingEquipmentId}: {$this->name}");
         $this->flashMessage = 'Equipment updated successfully!';
         $this->cancelEdit();
     }
@@ -198,6 +201,7 @@ new class extends Component
         $equipment = Equipment::find($id);
         if ($equipment) {
             $equipment->softDelete();
+            $this->logActivity("Deleted equipment ID {$id}: {$equipment->name}");
             $this->flashMessage = 'Equipment deleted successfully!';
             $this->resetPage();
         }
@@ -233,6 +237,7 @@ new class extends Component
         $this->reset(['usage_equipment_id', 'usage_user_name', 'usage_item_name', 'usage_quantity', 'usage_purpose', 'usage_or_number', 'usage_remarks']);
         $this->usage_status = 'functional';
         $this->usage_date_used = now()->format('Y-m-d');
+        $this->logActivity("Recorded equipment usage for equipment ID {$this->usage_equipment_id}");
         $this->flashMessage = 'Equipment usage recorded successfully!';
         $this->showUsageModal = false;
         $this->resetPage();

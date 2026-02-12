@@ -11,10 +11,11 @@ use App\Models\Section;
 use App\Models\Physician;
 use App\Models\Employee;
 use Carbon\Carbon;
+use App\Traits\LogsActivity;
 
 new class extends Component
 {
-    use WithPagination;
+    use WithPagination, LogsActivity;
 
     // Filters
     public $search = '';
@@ -110,6 +111,7 @@ new class extends Component
             ]);
         }
 
+        $this->logActivity("Created lab test order for patient ID {$this->orderPatientId}");
         $this->flashMessage = 'Test order created successfully!';
         $this->closeCreateModal();
         $this->resetPage();
@@ -140,6 +142,7 @@ new class extends Component
         $order = LabTestOrder::findOrFail($orderId);
         $order->update(['status' => 'cancelled']);
         $order->orderTests()->where('status', '!=', 'completed')->update(['status' => 'cancelled']);
+        $this->logActivity("Cancelled lab test order ID {$orderId}");
         $this->flashMessage = 'Order cancelled successfully.';
         
         if ($this->showOrderDetail && $this->viewingOrder && $this->viewingOrder->lab_test_order_id == $orderId) {
@@ -205,6 +208,7 @@ new class extends Component
         // Auto-update order status
         $orderTest->order->updateStatusFromTests();
 
+        $this->logActivity("Added lab result for order test ID {$this->resultOrderTestId}");
         $this->flashMessage = 'Result added successfully!';
         $this->closeResultModal();
 
@@ -262,6 +266,7 @@ new class extends Component
             'datetime_modified' => now(),
         ]);
 
+        $this->logActivity("Updated lab result ID {$this->editResultId}");
         $this->flashMessage = 'Result updated successfully!';
         $this->closeEditResultModal();
 

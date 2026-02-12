@@ -9,10 +9,11 @@ use App\Models\User;
 use App\Models\Role;
 use Spatie\Permission\Models\Role as SpatieRole;
 use Illuminate\Support\Facades\Hash;
+use App\Traits\LogsActivity;
 
 new class extends Component
 {
-    use WithPagination;
+    use WithPagination, LogsActivity;
 
     #[Validate('required|string|max:50')]
     public $firstname = '';
@@ -90,6 +91,7 @@ new class extends Component
         ]);
 
         $this->reset(['firstname', 'middlename', 'lastname', 'email', 'password', 'position', 'role_id']);
+        $this->logActivity("Created employee account: {$this->firstname} {$this->lastname}");
         $this->flashMessage = 'Employee account created successfully!';
         $this->resetPage();
     }
@@ -179,6 +181,7 @@ new class extends Component
             $message .= ' Password has been updated.';
         }
         
+        $this->logActivity("Updated employee ID {$this->editingEmployeeId}: {$this->firstname} {$this->lastname}");
         $this->flashMessage = $message;
         $this->cancelEdit();
     }
@@ -195,6 +198,7 @@ new class extends Component
             // Only soft delete the employee to maintain data integrity
             // The associated user account remains for audit trail purposes
             $employee->softDelete();
+            $this->logActivity("Deleted employee ID {$id}: {$employee->firstname} {$employee->lastname}");
             $this->flashMessage = 'Employee account deleted successfully!';
         }
     }

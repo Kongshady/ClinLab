@@ -5,10 +5,11 @@ use Livewire\WithPagination;
 use Livewire\Attributes\Validate;
 use App\Models\Item;
 use App\Models\Section;
+use App\Traits\LogsActivity;
 
 new class extends Component
 {
-    use WithPagination;
+    use WithPagination, LogsActivity;
 
     #[Validate('required|exists:section,section_id')]
     public $section_id = '';
@@ -45,6 +46,11 @@ new class extends Component
     {
         $this->validate();
 
+        if (Item::active()->where('label', $this->label)->where('section_id', $this->section_id)->exists()) {
+            $this->addError('label', 'An item with this name already exists in the selected section.');
+            return;
+        }
+
         // Find or create item_type
         $itemType = \DB::table('item_type')
             ->where('label', $this->item_type)
@@ -66,6 +72,7 @@ new class extends Component
             'is_deleted' => 0,
         ]);
         $this->reset(['section_id', 'label', 'item_type']);
+        $this->logActivity("Created item: {$this->label}");
         $this->flashMessage = 'Item added successfully!';
         
         $this->resetPage();
@@ -101,6 +108,14 @@ new class extends Component
             'editItemType' => 'required|string|max:50',
         ]);
 
+        if (Item::active()->where('label', $this->editLabel)
+            ->where('section_id', $this->editSectionId)
+            ->where('item_id', '!=', $this->editItemId)
+            ->exists()) {
+            $this->addError('editLabel', 'An item with this name already exists in the selected section.');
+            return;
+        }
+
         // Find or create item_type
         $itemType = \DB::table('item_type')
             ->where('label', $this->editItemType)
@@ -121,6 +136,7 @@ new class extends Component
             'item_type_id' => $itemTypeId,
         ]);
 
+        $this->logActivity("Updated item ID {$this->editItemId}: {$this->editLabel}");
         $this->flashMessage = 'Item updated successfully!';
         $this->closeEditModal();
     }
@@ -164,6 +180,7 @@ new class extends Component
 
         $this->selectedItems = [];
         $this->selectAll = false;
+        $this->logActivity("Bulk deleted {$count} item(s)");
         $this->flashMessage = $count . ' item(s) deleted successfully!';
         $this->resetPage();
     }
@@ -193,7 +210,8 @@ new class extends Component
 
         return [
             'items' => $items,
-            'sections' => Section::active()->orderBy('label')->get()
+            'sections' => Section::active()->orderBy('label')->get(),
+            'itemTypes' => \DB::table('item_type')->orderBy('label')->get(),
         ];
     }
 };
@@ -227,17 +245,13 @@ new class extends Component
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Item Type <span class="text-red-500">*</span></label>
-                    <input type="text" wire:model="item_type" list="itemTypeList" placeholder="Select or type new item type"
-                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent">
-                    <datalist id="itemTypeList">
-                        <option value="Chemical">
-                        <option value="Consumable">
-                        <option value="Equipment">
-                        <option value="Glassware">
-                        <option value="PPE">
-                        <option value="Reagent">
-                        <option value="Supply">
-                    </datalist>
+                    <select wire:model="item_type"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent">
+                        <option value="">Select Item Type</option>
+                        @foreach($itemTypes as $type)
+                            <option value="{{ $type->label }}">{{ $type->label }}</option>
+                        @endforeach
+                    </select>
                     @error('item_type') <span class="text-red-600 text-xs mt-1">{{ $message }}</span> @enderror
                 </div>
                 <div>
@@ -393,9 +407,13 @@ new class extends Component
                             <label class="block text-sm font-medium text-gray-700 mb-2">
                                 Item Type <span class="text-red-500">*</span>
                             </label>
-                            <input type="text" wire:model="editItemType" 
-                                   class="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                                   placeholder="Enter item type">
+                            <select wire:model="editItemType"
+                                    class="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="">Select Item Type</option>
+                                @foreach($itemTypes as $type)
+                                    <option value="{{ $type->label }}">{{ $type->label }}</option>
+                                @endforeach
+                            </select>
                             @error('editItemType') <span class="text-red-500 text-xs mt-1">{{ $message }}</span> @enderror
                         </div>
                     </div>

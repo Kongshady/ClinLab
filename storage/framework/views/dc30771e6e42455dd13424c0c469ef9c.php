@@ -10,6 +10,7 @@ use App\Models\Section;
 use App\Models\Physician;
 use App\Models\Employee;
 use Carbon\Carbon;
+use App\Traits\LogsActivity;
 ?>
 
 <div class="p-6" x-data="{ testSearch: '' }">

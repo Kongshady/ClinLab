@@ -1,177 +1,10 @@
 <?php
-
 use Livewire\Component;
 use Livewire\WithPagination;
 use Livewire\Attributes\Validate;
 use App\Models\Transaction;
 use App\Models\Patient;
 use App\Traits\LogsActivity;
-
-new class extends Component
-{
-    use WithPagination, LogsActivity;
-
-    #[Validate('required|exists:patient,patient_id')]
-    public $client_id = '';
-
-    #[Validate('required|string|max:50')]
-    public $or_number = '';
-
-    public $search = '';
-    public $perPage = 'all';
-    public $flashMessage = '';
-
-    // Edit mode
-    public $editMode = false;
-    public $editingTransactionId = null;
-
-    // Form visibility toggle
-    public bool $showForm = false;
-
-    // View modal
-    public $showViewModal = false;
-    public $viewingTransaction = null;
-
-    public function mount()
-    {
-        if (session()->has('success')) {
-            $this->flashMessage = session('success');
-        }
-    }
-
-    public function toggleForm()
-    {
-        $this->showForm = !$this->showForm;
-        if (!$this->showForm) {
-            $this->reset(['client_id', 'or_number']);
-            $this->resetErrorBag();
-        }
-    }
-
-    public function save()
-    {
-        $this->validate();
-
-        if (Transaction::where('or_number', $this->or_number)->exists()) {
-            $this->addError('or_number', 'A transaction with this OR number already exists.');
-            return;
-        }
-
-        Transaction::create([
-            'client_id' => $this->client_id,
-            'or_number' => $this->or_number,
-            'datetime_added' => now(),
-            'status_code' => 1,
-        ]);
-        $this->logActivity("Created transaction OR#{$this->or_number}");
-        $this->flashMessage = 'Transaction added successfully!';
-
-        $this->reset(['client_id', 'or_number']);
-        $this->showForm = false;
-        $this->resetPage();
-    }
-
-    public function showDetails($id)
-    {
-        $this->viewingTransaction = Transaction::with('patient')->findOrFail($id);
-        $this->showViewModal = true;
-        $this->editMode = false;
-        $this->resetErrorBag();
-    }
-
-    public function enableEdit()
-    {
-        $transaction = $this->viewingTransaction;
-        $this->editMode = true;
-        $this->editingTransactionId = $transaction->transaction_id;
-        $this->client_id = $transaction->client_id;
-        $this->or_number = $transaction->or_number;
-    }
-
-    public function update()
-    {
-        $this->validate();
-
-        if (Transaction::where('or_number', $this->or_number)
-            ->where('transaction_id', '!=', $this->editingTransactionId)
-            ->exists()) {
-            $this->addError('or_number', 'A transaction with this OR number already exists.');
-            return;
-        }
-
-        $transaction = Transaction::findOrFail($this->editingTransactionId);
-        $transaction->update([
-            'client_id' => $this->client_id,
-            'or_number' => $this->or_number,
-        ]);
-
-        $this->logActivity("Updated transaction ID {$this->editingTransactionId}: OR#{$this->or_number}");
-        $this->flashMessage = 'Transaction updated successfully!';
-        $this->viewingTransaction = $transaction->fresh()->load('patient');
-        $this->editMode = false;
-        $this->editingTransactionId = null;
-        $this->reset(['client_id', 'or_number']);
-        $this->resetErrorBag();
-    }
-
-    public function cancelEdit()
-    {
-        $this->editMode = false;
-        $this->editingTransactionId = null;
-        $this->reset(['client_id', 'or_number']);
-        $this->resetErrorBag();
-    }
-
-    public function closeViewModal()
-    {
-        $this->showViewModal = false;
-        $this->viewingTransaction = null;
-        $this->editMode = false;
-        $this->editingTransactionId = null;
-        $this->reset(['client_id', 'or_number']);
-        $this->resetErrorBag();
-    }
-
-    public function delete($id)
-    {
-        $transaction = Transaction::find($id);
-        if ($transaction) {
-            $transaction->delete();
-            $this->logActivity("Deleted transaction ID {$id}");
-            $this->flashMessage = 'Transaction deleted successfully!';
-            $this->resetPage();
-        }
-    }
-
-    public function deleteSelected($ids)
-    {
-        if (empty($ids)) return;
-        
-        $count = Transaction::whereIn('transaction_id', $ids)->delete();
-        $this->logActivity("Bulk deleted {$count} transaction(s)");
-        $this->flashMessage = $count . ' transaction(s) deleted successfully!';
-        $this->resetPage();
-        $this->dispatch('selection-cleared');
-    }
-
-    public function with(): array
-    {
-        $query = Transaction::with('patient')
-            ->when($this->search, function ($query) {
-                $query->where('or_number', 'like', '%' . $this->search . '%')
-                      ->orWhereHas('patient', function($q) {
-                          $q->where('firstname', 'like', '%' . $this->search . '%')
-                            ->orWhere('lastname', 'like', '%' . $this->search . '%');
-                      });
-            })
-            ->orderBy('transaction_id', 'desc');
-
-        return [
-            'transactions' => $this->perPage === 'all' ? $query->get() : $query->paginate((int)$this->perPage),
-            'patients' => Patient::active()->orderBy('lastname')->get()
-        ];
-    }
-};
 ?>
 
 <div class="p-6" x-data="{ 
@@ -202,21 +35,22 @@ new class extends Component
         </h1>
     </div>
 
-    @if($flashMessage)
+    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($flashMessage): ?>
         <div class="mb-6 p-4 bg-green-50 border-l-4 border-green-500 rounded">
-            <p class="text-green-800">{{ $flashMessage }}</p>
+            <p class="text-green-800"><?php echo e($flashMessage); ?></p>
         </div>
-    @endif
+    <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
 
     <div class="bg-white rounded-lg shadow-sm mb-6">
         <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
             <h2 class="text-lg font-semibold text-gray-900">Add New Transaction</h2>
             <button type="button" wire:click="toggleForm" 
-                    class="px-4 py-2 rounded-md text-sm font-medium transition-colors {{ $showForm ? 'bg-gray-200 text-gray-700 hover:bg-gray-300' : 'bg-purple-600 text-white hover:bg-purple-700' }}">
-                {{ $showForm ? 'Close Form' : 'Add New Transaction' }}
+                    class="px-4 py-2 rounded-md text-sm font-medium transition-colors <?php echo e($showForm ? 'bg-gray-200 text-gray-700 hover:bg-gray-300' : 'bg-purple-600 text-white hover:bg-purple-700'); ?>">
+                <?php echo e($showForm ? 'Close Form' : 'Add New Transaction'); ?>
+
             </button>
         </div>
-        @if($showForm)
+        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($showForm): ?>
         <form wire:submit.prevent="save" class="p-6">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -224,17 +58,31 @@ new class extends Component
                     <select wire:model="client_id" 
                             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
                         <option value="">Select Patient</option>
-                        @foreach($patients as $patient)
-                            <option value="{{ $patient->patient_id }}">{{ $patient->full_name }}</option>
-                        @endforeach
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__currentLoopData = $patients; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $patient): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
+                            <option value="<?php echo e($patient->patient_id); ?>"><?php echo e($patient->full_name); ?></option>
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
                     </select>
-                    @error('client_id') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
+                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__errorArgs = ['client_id'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> <span class="text-red-500 text-sm"><?php echo e($message); ?></span> <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">OR Number *</label>
                     <input type="text" wire:model="or_number" 
                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
-                    @error('or_number') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
+                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__errorArgs = ['or_number'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> <span class="text-red-500 text-sm"><?php echo e($message); ?></span> <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                 </div>
             </div>
             <div class="flex justify-end mt-4">
@@ -244,7 +92,7 @@ new class extends Component
                 </button>
             </div>
         </form>
-        @endif
+        <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
     </div>
 
     <div class="bg-white rounded-lg shadow-sm">
@@ -289,7 +137,7 @@ new class extends Component
                     <tr>
                         <th class="px-6 py-3 text-left w-10">
                             <input type="checkbox" x-model="selectAll" 
-                                   @change="toggleAll([{{ $transactions instanceof \Illuminate\Pagination\LengthAwarePaginator ? $transactions->pluck('transaction_id')->implode(',') : $transactions->pluck('transaction_id')->implode(',') }}])"
+                                   @change="toggleAll([<?php echo e($transactions instanceof \Illuminate\Pagination\LengthAwarePaginator ? $transactions->pluck('transaction_id')->implode(',') : $transactions->pluck('transaction_id')->implode(',')); ?>])"
                                    class="rounded border-gray-300 text-purple-600 focus:ring-purple-500 h-4 w-4">
                         </th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">OR Number</th>
@@ -298,42 +146,45 @@ new class extends Component
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
-                    @forelse($transactions as $transaction)
-                        <tr wire:key="transaction-{{ $transaction->transaction_id }}" 
+                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__empty_1 = true; $__currentLoopData = $transactions; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $transaction): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
+                        <tr <?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processElementKey('transaction-{{ $transaction->transaction_id }}', get_defined_vars()); ?>wire:key="transaction-<?php echo e($transaction->transaction_id); ?>" 
                             class="hover:bg-gray-50 cursor-pointer transition-colors"
-                            wire:click="showDetails({{ $transaction->transaction_id }})">
+                            wire:click="showDetails(<?php echo e($transaction->transaction_id); ?>)">
                             <td class="px-6 py-4" wire:click.stop>
-                                <input type="checkbox" value="{{ $transaction->transaction_id }}" 
-                                       @change="toggleOne({{ $transaction->transaction_id }})"
-                                       :checked="selectedIds.includes({{ $transaction->transaction_id }})"
+                                <input type="checkbox" value="<?php echo e($transaction->transaction_id); ?>" 
+                                       @change="toggleOne(<?php echo e($transaction->transaction_id); ?>)"
+                                       :checked="selectedIds.includes(<?php echo e($transaction->transaction_id); ?>)"
                                        class="rounded border-gray-300 text-purple-600 focus:ring-purple-500 h-4 w-4">
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $transaction->or_number }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"><?php echo e($transaction->or_number); ?></td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                                {{ $transaction->patient->full_name ?? 'N/A' }}
+                                <?php echo e($transaction->patient->full_name ?? 'N/A'); ?>
+
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                                {{ $transaction->datetime_added ? \Carbon\Carbon::parse($transaction->datetime_added)->format('M d, Y') : 'N/A' }}
+                                <?php echo e($transaction->datetime_added ? \Carbon\Carbon::parse($transaction->datetime_added)->format('M d, Y') : 'N/A'); ?>
+
                             </td>
                         </tr>
-                    @empty
+                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
                         <tr>
                             <td colspan="4" class="px-6 py-4 text-center text-gray-500">No transactions found.</td>
                         </tr>
-                    @endforelse
+                    <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                 </tbody>
             </table>
         </div>
             
-        @if($perPage !== 'all' && method_exists($transactions, 'hasPages') && $transactions->hasPages())
+        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($perPage !== 'all' && method_exists($transactions, 'hasPages') && $transactions->hasPages()): ?>
             <div class="px-6 py-4 border-t border-gray-200">
-                {{ $transactions->links() }}
+                <?php echo e($transactions->links()); ?>
+
             </div>
-        @endif
+        <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
     </div>
 
     <!-- View / Edit Transaction Modal -->
-    @if($showViewModal && $viewingTransaction)
+    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($showViewModal && $viewingTransaction): ?>
     <div class="fixed inset-0 z-50 overflow-y-auto" style="background-color: rgba(0, 0, 0, 0.5);">
         <div class="flex items-center justify-center min-h-screen p-4">
             <div class="bg-white rounded-lg shadow-xl max-w-lg w-full">
@@ -341,7 +192,8 @@ new class extends Component
                 <div class="px-6 py-4 border-b border-gray-200">
                     <div class="flex items-center justify-between">
                         <h3 class="text-xl font-semibold text-gray-900">
-                            {{ $editMode ? 'Edit Transaction' : 'Transaction Details' }}
+                            <?php echo e($editMode ? 'Edit Transaction' : 'Transaction Details'); ?>
+
                         </h3>
                         <button type="button" wire:click="closeViewModal" class="text-gray-400 hover:text-gray-600">
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -351,7 +203,7 @@ new class extends Component
                     </div>
                 </div>
 
-                @if($editMode)
+                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($editMode): ?>
                 <!-- Edit Mode -->
                 <form wire:submit.prevent="update">
                     <div class="p-6">
@@ -363,11 +215,18 @@ new class extends Component
                                 <select wire:model="client_id" 
                                         class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
                                     <option value="">Select Patient</option>
-                                    @foreach($patients as $patient)
-                                        <option value="{{ $patient->patient_id }}">{{ $patient->full_name }}</option>
-                                    @endforeach
+                                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__currentLoopData = $patients; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $patient): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
+                                        <option value="<?php echo e($patient->patient_id); ?>"><?php echo e($patient->full_name); ?></option>
+                                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
                                 </select>
-                                @error('client_id') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__errorArgs = ['client_id'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> <span class="text-red-500 text-xs"><?php echo e($message); ?></span> <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">
@@ -376,7 +235,14 @@ new class extends Component
                                 <input type="text" wire:model="or_number" 
                                        class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                                        placeholder="Enter OR number">
-                                @error('or_number') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__errorArgs = ['or_number'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> <span class="text-red-500 text-xs"><?php echo e($message); ?></span> <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                             </div>
                         </div>
                     </div>
@@ -391,22 +257,23 @@ new class extends Component
                         </button>
                     </div>
                 </form>
-                @else
+                <?php else: ?>
                 <!-- View Mode (Read-only) -->
                 <div class="p-6">
                     <div class="grid grid-cols-1 gap-5">
                         <div class="bg-gray-50 p-4 rounded-lg">
                             <p class="text-xs font-semibold text-gray-500 uppercase mb-1">OR Number</p>
-                            <p class="text-sm font-medium text-gray-900">{{ $viewingTransaction->or_number }}</p>
+                            <p class="text-sm font-medium text-gray-900"><?php echo e($viewingTransaction->or_number); ?></p>
                         </div>
                         <div class="bg-gray-50 p-4 rounded-lg">
                             <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Patient</p>
-                            <p class="text-sm font-medium text-gray-900">{{ $viewingTransaction->patient->full_name ?? 'N/A' }}</p>
+                            <p class="text-sm font-medium text-gray-900"><?php echo e($viewingTransaction->patient->full_name ?? 'N/A'); ?></p>
                         </div>
                         <div class="bg-gray-50 p-4 rounded-lg">
                             <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Date Added</p>
                             <p class="text-sm font-medium text-gray-900">
-                                {{ $viewingTransaction->datetime_added ? \Carbon\Carbon::parse($viewingTransaction->datetime_added)->format('M d, Y h:i A') : 'N/A' }}
+                                <?php echo e($viewingTransaction->datetime_added ? \Carbon\Carbon::parse($viewingTransaction->datetime_added)->format('M d, Y h:i A') : 'N/A'); ?>
+
                             </p>
                         </div>
                     </div>
@@ -421,9 +288,9 @@ new class extends Component
                         Edit
                     </button>
                 </div>
-                @endif
+                <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
             </div>
         </div>
     </div>
-    @endif
-</div>
+    <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+</div><?php /**PATH C:\xampp\htdocs\dashboard\clinlab_app\storage\framework/views/livewire/views/26ba3d7a.blade.php ENDPATH**/ ?>

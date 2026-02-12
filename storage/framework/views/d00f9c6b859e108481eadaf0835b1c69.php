@@ -1,5 +1,4 @@
 <?php
-
 use Livewire\Component;
 use Livewire\WithPagination;
 use Livewire\Attributes\Validate;
@@ -8,249 +7,6 @@ use App\Models\Equipment;
 use App\Models\Employee;
 use App\Services\CertificateService;
 use App\Traits\LogsActivity;
-
-new class extends Component
-{
-    use WithPagination, LogsActivity;
-
-    public $showModal = false;
-    public $showProcedureModal = false;
-    public $showDetailsModal = false;
-    public $selectedEquipment = null;
-    public $selectedProcedure = null;
-    public $selectedProcedureDetails = null;
-
-    #[Validate('required|date')]
-    public $calibration_date = '';
-
-    // New Procedure Form Fields
-    #[Validate('required|exists:equipment,equipment_id')]
-    public $procedure_equipment_id = '';
-
-    #[Validate('required|string|max:255')]
-    public $procedure_name = '';
-
-    #[Validate('nullable|string|max:255')]
-    public $standard_reference = '';
-
-    #[Validate('required|in:daily,weekly,monthly,quarterly,annual')]
-    public $frequency = 'monthly';
-
-    #[Validate('required|date')]
-    public $procedure_next_due_date = '';
-
-    #[Validate('required|exists:employee,employee_id')]
-    public $performed_by = '';
-
-    #[Validate('required|in:pass,fail,conditional')]
-    public $result_status = 'pass';
-
-    #[Validate('nullable|string')]
-    public $notes = '';
-
-    #[Validate('nullable|date')]
-    public $next_calibration_date = '';
-
-    public $flashMessage = '';
-
-    public function mount()
-    {
-        if (session()->has('success')) {
-            $this->flashMessage = session('success');
-        }
-        $this->calibration_date = date('Y-m-d');
-    }
-
-    public function openModal($equipmentId, $procedureId)
-    {
-        $this->showModal = true;
-        $this->selectedEquipment = Equipment::find($equipmentId);
-        $this->selectedProcedure = DB::table('calibration_procedure')->where('procedure_id', $procedureId)->first();
-        $this->calibration_date = date('Y-m-d');
-        $this->reset(['performed_by', 'notes', 'next_calibration_date']);
-        $this->result_status = 'pass';
-    }
-
-    public function closeModal()
-    {
-        $this->showModal = false;
-        $this->selectedEquipment = null;
-        $this->selectedProcedure = null;
-    }
-
-    public function openProcedureModal()
-    {
-        $this->showProcedureModal = true;
-        $this->reset(['procedure_equipment_id', 'procedure_name', 'standard_reference', 'frequency', 'procedure_next_due_date']);
-        $this->frequency = 'monthly';
-    }
-
-    public function closeProcedureModal()
-    {
-        $this->showProcedureModal = false;
-    }
-
-    public function saveProcedure()
-    {
-        try {
-            $this->validate([
-                'procedure_equipment_id' => 'required|exists:equipment,equipment_id',
-                'procedure_name' => 'required|string|max:255',
-                'standard_reference' => 'nullable|string|max:255',
-                'frequency' => 'required|in:monthly,quarterly,semi-annual,annual',
-                'procedure_next_due_date' => 'required|date',
-            ]);
-
-            DB::table('calibration_procedure')->insert([
-                'equipment_id' => $this->procedure_equipment_id,
-                'procedure_name' => $this->procedure_name,
-                'standard_reference' => $this->standard_reference,
-                'frequency' => $this->frequency,
-                'next_due_date' => $this->procedure_next_due_date,
-                'is_active' => 1,
-                'datetime_added' => now(),
-            ]);
-
-            $this->logActivity("Created calibration procedure: {$this->procedure_name} for equipment ID {$this->procedure_equipment_id}");
-            $this->flashMessage = 'Calibration procedure added successfully!';
-            $this->closeProcedureModal();
-            $this->resetPage();
-        } catch (\Exception $e) {
-            session()->flash('error', 'Failed to add procedure: ' . $e->getMessage());
-        }
-    }
-
-    public function openDetailsModal($procedureId)
-    {
-        $this->showDetailsModal = true;
-        $this->selectedProcedureDetails = DB::table('calibration_procedure as cp')
-            ->join('equipment as e', 'cp.equipment_id', '=', 'e.equipment_id')
-            ->where('cp.procedure_id', $procedureId)
-            ->select(
-                'cp.*',
-                'e.name as equipment_name',
-                'e.model as equipment_model'
-            )
-            ->first();
-    }
-
-    public function closeDetailsModal()
-    {
-        $this->showDetailsModal = false;
-        $this->selectedProcedureDetails = null;
-    }
-
-    public function save()
-    {
-        try {
-            $this->validate([
-                'calibration_date' => 'required|date',
-                'performed_by' => 'required|exists:employee,employee_id',
-                'result_status' => 'required|in:pass,fail,conditional',
-                'notes' => 'nullable|string',
-                'next_calibration_date' => 'nullable|date',
-            ]);
-
-            CalibrationRecord::create([
-                'procedure_id' => $this->selectedProcedure->procedure_id,
-                'equipment_id' => $this->selectedEquipment->equipment_id,
-                'calibration_date' => $this->calibration_date,
-                'performed_by' => $this->performed_by,
-                'result_status' => $this->result_status,
-                'notes' => $this->notes,
-                'next_calibration_date' => $this->next_calibration_date,
-                'datetime_added' => now(),
-            ]);
-
-            $this->logActivity("Recorded calibration for equipment: {$this->selectedEquipment->name}");
-            $this->flashMessage = 'Calibration recorded successfully!';
-            $this->closeModal();
-            $this->resetPage();
-        } catch (\Exception $e) {
-            session()->flash('error', 'Failed to record calibration: ' . $e->getMessage());
-        }
-    }
-
-    public function generateCertificate($calibrationId, $equipmentId)
-    {
-        try {
-            $certificateService = new CertificateService();
-            $result = $certificateService->generateFromCalibration($calibrationId, $equipmentId);
-
-            // Download PDF
-            return response()->streamDownload(function() use ($result) {
-                echo $result['pdf']->output();
-            }, $result['certificate']->certificate_no . '.pdf');
-
-        } catch (\Exception $e) {
-            $this->flashMessage = 'Error: ' . $e->getMessage();
-        }
-    }
-
-    public function with(): array
-    {
-        // Get calibration procedures that are due or near due (within 90 days)
-        $alerts = DB::table('calibration_procedure as cp')
-            ->join('equipment as e', 'cp.equipment_id', '=', 'e.equipment_id')
-            ->where('cp.is_active', 1)
-            ->whereRaw('DATEDIFF(day, GETDATE(), cp.next_due_date) <= 90')
-            ->select(
-                'cp.procedure_id',
-                'cp.equipment_id',
-                'e.name as equipment_name',
-                'cp.procedure_name',
-                'cp.standard_reference',
-                'cp.next_due_date',
-                DB::raw('DATEDIFF(day, GETDATE(), cp.next_due_date) as days_until_due')
-            )
-            ->orderBy('cp.next_due_date')
-            ->get();
-
-        // Get all active calibration procedures
-        $procedures = DB::table('calibration_procedure as cp')
-            ->join('equipment as e', 'cp.equipment_id', '=', 'e.equipment_id')
-            ->where('cp.is_active', 1)
-            ->select(
-                'cp.procedure_id',
-                'cp.equipment_id',
-                'e.name as equipment_name',
-                'e.model as equipment_model',
-                'cp.procedure_name',
-                'cp.standard_reference',
-                'cp.frequency',
-                'cp.next_due_date'
-            )
-            ->orderBy('e.name')
-            ->get();
-
-        // Get recent calibration records
-        $records = DB::table('calibration_record as cr')
-            ->join('equipment as e', 'cr.equipment_id', '=', 'e.equipment_id')
-            ->join('employee as emp', 'cr.performed_by', '=', 'emp.employee_id')
-            ->leftJoin('calibration_procedure as cp', 'cr.procedure_id', '=', 'cp.procedure_id')
-            ->select(
-                'cr.record_id',
-                'cr.calibration_date',
-                'e.name as equipment_name',
-                'cp.procedure_name',
-                DB::raw("CONCAT(emp.firstname, ' ', emp.lastname) as performed_by_name"),
-                'cr.result_status',
-                'cr.notes',
-                'cr.next_calibration_date'
-            )
-            ->orderBy('cr.calibration_date', 'desc')
-            ->limit(50)
-            ->get();
-
-        return [
-            'alerts' => $alerts,
-            'procedures' => $procedures,
-            'records' => $records,
-            'employees' => Employee::active()->orderBy('lastname')->get(),
-            'equipment' => Equipment::active()->orderBy('name')->get()
-        ];
-    }
-};
 ?>
 
 <div class="p-8 space-y-6 bg-gray-50 min-h-screen">
@@ -259,11 +15,11 @@ new class extends Component
         <p class="text-gray-600 mt-1">Monitor and manage equipment calibration schedules</p>
     </div>
 
-    @if($flashMessage)
+    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($flashMessage): ?>
         <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg" role="alert">
-            <span class="block sm:inline">{{ $flashMessage }}</span>
+            <span class="block sm:inline"><?php echo e($flashMessage); ?></span>
         </div>
-    @endif
+    <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
 
     <!-- Calibration Alerts Table -->
     <div class="bg-white rounded-lg shadow border border-gray-200">
@@ -286,34 +42,39 @@ new class extends Component
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-200">
-                    @forelse($alerts as $alert)
+                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__empty_1 = true; $__currentLoopData = $alerts; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $alert): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
                         <tr class="hover:bg-gray-50">
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                {{ $alert->equipment_name }}
+                                <?php echo e($alert->equipment_name); ?>
+
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                                {{ $alert->procedure_name }}
+                                <?php echo e($alert->procedure_name); ?>
+
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                                {{ $alert->standard_reference ?? 'N/A' }}
+                                <?php echo e($alert->standard_reference ?? 'N/A'); ?>
+
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                                {{ \Carbon\Carbon::parse($alert->next_due_date)->format('M d, Y') }}
+                                <?php echo e(\Carbon\Carbon::parse($alert->next_due_date)->format('M d, Y')); ?>
+
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm">
-                                <span class="font-semibold {{ $alert->days_until_due < 0 ? 'text-red-600' : ($alert->days_until_due <= 30 ? 'text-yellow-600' : 'text-gray-900') }}">
-                                    {{ $alert->days_until_due }}
+                                <span class="font-semibold <?php echo e($alert->days_until_due < 0 ? 'text-red-600' : ($alert->days_until_due <= 30 ? 'text-yellow-600' : 'text-gray-900')); ?>">
+                                    <?php echo e($alert->days_until_due); ?>
+
                                 </span>
                             </td>
                             <td class="px-8 py-4 whitespace-nowrap text-sm">
                                 <button 
-                                    wire:click="openModal({{ $alert->equipment_id }}, {{ $alert->procedure_id }})"
+                                    wire:click="openModal(<?php echo e($alert->equipment_id); ?>, <?php echo e($alert->procedure_id); ?>)"
                                     class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors">
                                     Record Calibration
                                 </button>
                             </td>
                         </tr>
-                    @empty
+                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
                         <tr>
                             <td colspan="6" class="px-6 py-12 text-center">
                                 <svg class="w-16 h-16 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -323,7 +84,7 @@ new class extends Component
                                 <p class="text-gray-400 text-sm mt-1">All equipment is up to date</p>
                             </td>
                         </tr>
-                    @endforelse
+                    <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                 </tbody>
             </table>
         </div>
@@ -358,33 +119,38 @@ new class extends Component
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-200">
-                    @forelse($procedures as $procedure)
+                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__empty_1 = true; $__currentLoopData = $procedures; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $procedure): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
                         <tr class="hover:bg-gray-50">
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                {{ $procedure->equipment_name }}
-                                @if($procedure->equipment_model)
-                                    <span class="text-gray-500">({{ $procedure->equipment_model }})</span>
-                                @endif
+                                <?php echo e($procedure->equipment_name); ?>
+
+                                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($procedure->equipment_model): ?>
+                                    <span class="text-gray-500">(<?php echo e($procedure->equipment_model); ?>)</span>
+                                <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                {{ $procedure->procedure_name }}
+                                <?php echo e($procedure->procedure_name); ?>
+
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                                {{ $procedure->standard_reference ?? 'N/A' }}
+                                <?php echo e($procedure->standard_reference ?? 'N/A'); ?>
+
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                                {{ strtoupper($procedure->frequency) }}
+                                <?php echo e(strtoupper($procedure->frequency)); ?>
+
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                                {{ \Carbon\Carbon::parse($procedure->next_due_date)->format('M d, Y') }}
+                                <?php echo e(\Carbon\Carbon::parse($procedure->next_due_date)->format('M d, Y')); ?>
+
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm">
-                                <button wire:click="openDetailsModal({{ $procedure->procedure_id }})" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors">
+                                <button wire:click="openDetailsModal(<?php echo e($procedure->procedure_id); ?>)" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors">
                                     View Details
                                 </button>
                             </td>
                         </tr>
-                    @empty
+                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
                         <tr>
                             <td colspan="6" class="px-6 py-12 text-center">
                                 <svg class="w-16 h-16 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -394,7 +160,7 @@ new class extends Component
                                 <p class="text-gray-400 text-sm mt-1">Add procedures to track equipment calibration schedules</p>
                             </td>
                         </tr>
-                    @endforelse
+                    <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                 </tbody>
             </table>
         </div>
@@ -422,39 +188,45 @@ new class extends Component
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-200">
-                    @forelse($records as $record)
+                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__empty_1 = true; $__currentLoopData = $records; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $record): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
                         <tr class="hover:bg-gray-50">
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                {{ \Carbon\Carbon::parse($record->calibration_date)->format('M d, Y') }}
+                                <?php echo e(\Carbon\Carbon::parse($record->calibration_date)->format('M d, Y')); ?>
+
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-blue-600 font-medium">
-                                {{ $record->equipment_name }}
+                                <?php echo e($record->equipment_name); ?>
+
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                                {{ $record->procedure_name ?? 'N/A' }}
+                                <?php echo e($record->procedure_name ?? 'N/A'); ?>
+
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                {{ $record->performed_by_name }}
+                                <?php echo e($record->performed_by_name); ?>
+
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm">
-                                @if($record->result_status === 'pass')
+                                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($record->result_status === 'pass'): ?>
                                     <span class="font-semibold text-green-600">PASS</span>
-                                @elseif($record->result_status === 'fail')
+                                <?php elseif($record->result_status === 'fail'): ?>
                                     <span class="font-semibold text-red-600">FAIL</span>
-                                @else
+                                <?php else: ?>
                                     <span class="font-semibold text-gray-900">CONDITIONAL</span>
-                                @endif
+                                <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                             </td>
                             <td class="px-6 py-4 text-sm text-gray-600">
-                                {{ $record->notes ?? '' }}
+                                <?php echo e($record->notes ?? ''); ?>
+
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                @if($record->next_calibration_date)
-                                    {{ \Carbon\Carbon::parse($record->next_calibration_date)->format('M d, Y') }}
-                                @endif
+                                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($record->next_calibration_date): ?>
+                                    <?php echo e(\Carbon\Carbon::parse($record->next_calibration_date)->format('M d, Y')); ?>
+
+                                <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                             </td>
                         </tr>
-                    @empty
+                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
                         <tr>
                             <td colspan="7" class="px-6 py-12 text-center">
                                 <svg class="w-16 h-16 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -464,14 +236,14 @@ new class extends Component
                                 <p class="text-gray-400 text-sm mt-1">Calibration records will appear here once equipment is calibrated</p>
                             </td>
                         </tr>
-                    @endforelse
+                    <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                 </tbody>
             </table>
         </div>
     </div>
 
     <!-- Modal -->
-    @if($showModal)
+    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($showModal): ?>
         <div class="fixed inset-0 z-50 overflow-y-auto" wire:click="closeModal" style="background-color: rgba(0, 0, 0, 0.8); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);">
             <div class="flex min-h-full items-center justify-center p-4">
             <div class="bg-white rounded-lg shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col" wire:click.stop>
@@ -480,21 +252,22 @@ new class extends Component
                 </div>
                 
                 <form wire:submit.prevent="save" class="p-6 space-y-4 overflow-y-auto flex-1">
-                    @if (session()->has('error'))
+                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(session()->has('error')): ?>
                         <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg">
-                            {{ session('error') }}
+                            <?php echo e(session('error')); ?>
+
                         </div>
-                    @endif
+                    <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                     
                     <!-- Equipment and Procedure Info -->
                     <div class="bg-gray-50 rounded-lg p-4 space-y-2">
                         <div>
                             <span class="font-semibold text-gray-700">Equipment:</span>
-                            <span class="text-gray-900 ml-2">{{ $selectedEquipment->name ?? '' }}</span>
+                            <span class="text-gray-900 ml-2"><?php echo e($selectedEquipment->name ?? ''); ?></span>
                         </div>
                         <div>
                             <span class="font-semibold text-gray-700">Procedure:</span>
-                            <span class="text-gray-900 ml-2">{{ $selectedProcedure->procedure_name ?? '' }}</span>
+                            <span class="text-gray-900 ml-2"><?php echo e($selectedProcedure->procedure_name ?? ''); ?></span>
                         </div>
                     </div>
 
@@ -505,7 +278,14 @@ new class extends Component
                             type="date" 
                             wire:model="calibration_date"
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                        @error('calibration_date') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__errorArgs = ['calibration_date'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> <span class="text-red-500 text-sm"><?php echo e($message); ?></span> <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                     </div>
 
                     <!-- Performed By -->
@@ -515,11 +295,18 @@ new class extends Component
                             wire:model="performed_by"
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                             <option value="">Select Employee</option>
-                            @foreach($employees as $employee)
-                                <option value="{{ $employee->employee_id }}">{{ $employee->full_name }}</option>
-                            @endforeach
+                            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__currentLoopData = $employees; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $employee): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
+                                <option value="<?php echo e($employee->employee_id); ?>"><?php echo e($employee->full_name); ?></option>
+                            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
                         </select>
-                        @error('performed_by') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__errorArgs = ['performed_by'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> <span class="text-red-500 text-sm"><?php echo e($message); ?></span> <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                     </div>
 
                     <!-- Result Status -->
@@ -532,7 +319,14 @@ new class extends Component
                             <option value="fail">Fail</option>
                             <option value="conditional">Conditional</option>
                         </select>
-                        @error('result_status') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__errorArgs = ['result_status'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> <span class="text-red-500 text-sm"><?php echo e($message); ?></span> <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                     </div>
 
                     <!-- Notes -->
@@ -542,7 +336,14 @@ new class extends Component
                             wire:model="notes" 
                             rows="3"
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"></textarea>
-                        @error('notes') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__errorArgs = ['notes'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> <span class="text-red-500 text-sm"><?php echo e($message); ?></span> <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                     </div>
 
                     <!-- Next Calibration Date -->
@@ -552,7 +353,14 @@ new class extends Component
                             type="date" 
                             wire:model="next_calibration_date"
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                        @error('next_calibration_date') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__errorArgs = ['next_calibration_date'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> <span class="text-red-500 text-sm"><?php echo e($message); ?></span> <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                     </div>
 
                     <!-- Buttons -->
@@ -577,10 +385,10 @@ new class extends Component
             </div>
             </div>
         </div>
-    @endif
+    <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
 
     <!-- Add New Procedure Modal -->
-    @if($showProcedureModal)
+    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($showProcedureModal): ?>
         <div class="fixed inset-0 z-50 overflow-y-auto" wire:click="closeProcedureModal" style="background-color: rgba(0, 0, 0, 0.8); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);">
             <div class="flex min-h-full items-center justify-center p-4">
             <div class="bg-white rounded-lg shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col" wire:click.stop>
@@ -589,11 +397,12 @@ new class extends Component
                 </div>
                 
                 <form wire:submit.prevent="saveProcedure" class="p-6 space-y-4 overflow-y-auto flex-1">
-                    @if (session()->has('error'))
+                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(session()->has('error')): ?>
                         <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg">
-                            {{ session('error') }}
+                            <?php echo e(session('error')); ?>
+
                         </div>
-                    @endif
+                    <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                     
                     <!-- Equipment Selection -->
                     <div>
@@ -602,11 +411,18 @@ new class extends Component
                             wire:model="procedure_equipment_id"
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                             <option value="">Select Equipment</option>
-                            @foreach($equipment as $equip)
-                                <option value="{{ $equip->equipment_id }}">{{ $equip->name }} @if($equip->model) ({{ $equip->model }}) @endif</option>
-                            @endforeach
+                            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__currentLoopData = $equipment; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $equip): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
+                                <option value="<?php echo e($equip->equipment_id); ?>"><?php echo e($equip->name); ?> <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($equip->model): ?> (<?php echo e($equip->model); ?>) <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?></option>
+                            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
                         </select>
-                        @error('procedure_equipment_id') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__errorArgs = ['procedure_equipment_id'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> <span class="text-red-500 text-sm"><?php echo e($message); ?></span> <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                     </div>
 
                     <!-- Procedure Name -->
@@ -617,7 +433,14 @@ new class extends Component
                             wire:model="procedure_name"
                             placeholder="e.g., General Calibration"
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                        @error('procedure_name') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__errorArgs = ['procedure_name'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> <span class="text-red-500 text-sm"><?php echo e($message); ?></span> <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                     </div>
 
                     <!-- Standard Reference -->
@@ -628,7 +451,14 @@ new class extends Component
                             wire:model="standard_reference"
                             placeholder="e.g., ISO 17025"
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                        @error('standard_reference') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__errorArgs = ['standard_reference'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> <span class="text-red-500 text-sm"><?php echo e($message); ?></span> <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                     </div>
 
                     <!-- Frequency -->
@@ -642,7 +472,14 @@ new class extends Component
                             <option value="semi-annual">Semi-Annual</option>
                             <option value="annual">Annual</option>
                         </select>
-                        @error('frequency') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__errorArgs = ['frequency'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> <span class="text-red-500 text-sm"><?php echo e($message); ?></span> <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                     </div>
 
                     <!-- Next Due Date -->
@@ -652,7 +489,14 @@ new class extends Component
                             type="date" 
                             wire:model="procedure_next_due_date"
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                        @error('procedure_next_due_date') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__errorArgs = ['procedure_next_due_date'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> <span class="text-red-500 text-sm"><?php echo e($message); ?></span> <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                     </div>
 
                     <!-- Buttons -->
@@ -677,10 +521,10 @@ new class extends Component
             </div>
             </div>
         </div>
-    @endif
+    <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
 
     <!-- View Details Modal -->
-    @if($showDetailsModal && $selectedProcedureDetails)
+    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($showDetailsModal && $selectedProcedureDetails): ?>
         <div class="fixed inset-0 z-50 overflow-y-auto" wire:click="closeDetailsModal" style="background-color: rgba(0, 0, 0, 0.8); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);">
             <div class="flex min-h-full items-center justify-center p-4">
             <div class="bg-white rounded-lg shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col" wire:click.stop>
@@ -695,11 +539,11 @@ new class extends Component
                         <div class="grid grid-cols-2 gap-4">
                             <div>
                                 <span class="text-sm font-medium text-blue-700">Name:</span>
-                                <p class="text-blue-900 mt-1">{{ $selectedProcedureDetails->equipment_name }}</p>
+                                <p class="text-blue-900 mt-1"><?php echo e($selectedProcedureDetails->equipment_name); ?></p>
                             </div>
                             <div>
                                 <span class="text-sm font-medium text-blue-700">Model:</span>
-                                <p class="text-blue-900 mt-1">{{ $selectedProcedureDetails->equipment_model ?? 'N/A' }}</p>
+                                <p class="text-blue-900 mt-1"><?php echo e($selectedProcedureDetails->equipment_model ?? 'N/A'); ?></p>
                             </div>
                         </div>
                     </div>
@@ -710,44 +554,44 @@ new class extends Component
                         
                         <div>
                             <span class="text-sm font-medium text-gray-600">Procedure Name:</span>
-                            <p class="text-gray-900 mt-1 text-lg">{{ $selectedProcedureDetails->procedure_name }}</p>
+                            <p class="text-gray-900 mt-1 text-lg"><?php echo e($selectedProcedureDetails->procedure_name); ?></p>
                         </div>
 
                         <div class="grid grid-cols-2 gap-4">
                             <div>
                                 <span class="text-sm font-medium text-gray-600">Standard Reference:</span>
-                                <p class="text-gray-900 mt-1">{{ $selectedProcedureDetails->standard_reference ?? 'N/A' }}</p>
+                                <p class="text-gray-900 mt-1"><?php echo e($selectedProcedureDetails->standard_reference ?? 'N/A'); ?></p>
                             </div>
                             <div>
                                 <span class="text-sm font-medium text-gray-600">Frequency:</span>
-                                <p class="text-gray-900 mt-1">{{ strtoupper($selectedProcedureDetails->frequency) }}</p>
+                                <p class="text-gray-900 mt-1"><?php echo e(strtoupper($selectedProcedureDetails->frequency)); ?></p>
                             </div>
                         </div>
 
                         <div class="grid grid-cols-2 gap-4">
                             <div>
                                 <span class="text-sm font-medium text-gray-600">Next Due Date:</span>
-                                <p class="text-gray-900 mt-1">{{ \Carbon\Carbon::parse($selectedProcedureDetails->next_due_date)->format('M d, Y') }}</p>
+                                <p class="text-gray-900 mt-1"><?php echo e(\Carbon\Carbon::parse($selectedProcedureDetails->next_due_date)->format('M d, Y')); ?></p>
                             </div>
                             <div>
                                 <span class="text-sm font-medium text-gray-600">Status:</span>
                                 <p class="mt-1">
-                                    @if($selectedProcedureDetails->is_active)
+                                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($selectedProcedureDetails->is_active): ?>
                                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                                             Active
                                         </span>
-                                    @else
+                                    <?php else: ?>
                                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
                                             Inactive
                                         </span>
-                                    @endif
+                                    <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                                 </p>
                             </div>
                         </div>
 
                         <div>
                             <span class="text-sm font-medium text-gray-600">Date Added:</span>
-                            <p class="text-gray-900 mt-1">{{ \Carbon\Carbon::parse($selectedProcedureDetails->datetime_added)->format('M d, Y h:i A') }}</p>
+                            <p class="text-gray-900 mt-1"><?php echo e(\Carbon\Carbon::parse($selectedProcedureDetails->datetime_added)->format('M d, Y h:i A')); ?></p>
                         </div>
                     </div>
 
@@ -764,5 +608,5 @@ new class extends Component
             </div>
             </div>
         </div>
-    @endif
-</div>
+    <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+</div><?php /**PATH C:\xampp\htdocs\dashboard\clinlab_app\storage\framework/views/livewire/views/de830e98.blade.php ENDPATH**/ ?>

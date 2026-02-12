@@ -1,207 +1,11 @@
 <?php
-
 use Livewire\Component;
 use Livewire\WithPagination;
 use Livewire\Attributes\Validate;
 use App\Models\Patient;
 use App\Models\LabResult;
 use App\Traits\LogsActivity;
-
-new class extends Component
-{
-    use WithPagination, LogsActivity;
-
-    // Form properties with validation
-    #[Validate('required|string|max:20')]
-    public $firstname = '';
-    
-    #[Validate('nullable|string|max:20')]
-    public $middlename = '';
-    
-    #[Validate('required|string|max:50')]
-    public $lastname = '';
-    
-    #[Validate('required|date')]
-    public $birthdate = '';
-    
-    #[Validate('required|string|max:10')]
-    public $gender = '';
-    
-    #[Validate('nullable|numeric|digits:11')]
-    public $contact_number = '';
-    
-    #[Validate('nullable|string|max:200')]
-    public $address = '';
-
-    // Search and filter properties
-    public $search = '';
-    public $filterGender = '';
-    public $perPage = 'all';
-
-    // Flash message
-    public $flashMessage = '';
-
-    // Edit mode
-    public $editMode = false;
-    public $editingPatientId = null;
-
-    // View mode
-    public $viewMode = false;
-    public $viewingPatient = null;
-
-    // Form visibility toggle
-    public $showForm = false;
-
-    public function mount()
-    {
-        if (session('success')) {
-            $this->flashMessage = session('success');
-        }
-    }
-
-    public function toggleForm()
-    {
-        $this->showForm = !$this->showForm;
-        
-        // Reset form when hiding
-        if (!$this->showForm) {
-            $this->reset([
-                'firstname', 'middlename', 'lastname', 
-                'birthdate', 'gender', 'contact_number', 'address'
-            ]);
-            $this->resetErrorBag();
-        }
-    }
-
-    public function save()
-    {
-        $this->validate();
-
-        // Check for duplicate patient
-        $duplicate = Patient::where('firstname', $this->firstname)
-            ->where('lastname', $this->lastname)
-            ->where('birthdate', $this->birthdate)
-            ->where('is_deleted', 0)
-            ->first();
-
-        if ($duplicate) {
-            $this->addError('duplicate', 'A patient with the same name and birthdate already exists.');
-            return;
-        }
-
-        Patient::create([
-            'patient_type' => 'External',
-            'firstname' => $this->firstname,
-            'middlename' => $this->middlename,
-            'lastname' => $this->lastname,
-            'birthdate' => $this->birthdate,
-            'gender' => $this->gender,
-            'contact_number' => $this->contact_number,
-            'address' => $this->address,
-        ]);
-
-        $this->reset([
-            'firstname', 'middlename', 'lastname', 
-            'birthdate', 'gender', 'contact_number', 'address'
-        ]);
-        
-        $this->logActivity("Created patient: {$this->firstname} {$this->lastname}");
-        $this->flashMessage = 'Patient added successfully.';
-        $this->showForm = false; // Close form after successful save
-        $this->resetPage(); // Reset pagination to show new patient
-    }
-
-    public function edit($id)
-    {
-        $patient = Patient::findOrFail($id);
-        $this->editingPatientId = $id;
-        $this->firstname = $patient->firstname;
-        $this->middlename = $patient->middlename;
-        $this->lastname = $patient->lastname;
-        $this->birthdate = $patient->birthdate ? \Carbon\Carbon::parse($patient->birthdate)->format('Y-m-d') : '';
-        $this->gender = $patient->gender;
-        $this->contact_number = $patient->contact_number;
-        $this->address = $patient->address;
-        $this->editMode = true;
-    }
-
-    public function update()
-    {
-        $this->validate();
-
-        $patient = Patient::findOrFail($this->editingPatientId);
-        $patient->update([
-            'firstname' => $this->firstname,
-            'middlename' => $this->middlename,
-            'lastname' => $this->lastname,
-            'birthdate' => $this->birthdate,
-            'gender' => $this->gender,
-            'contact_number' => $this->contact_number,
-            'address' => $this->address,
-        ]);
-
-        $this->cancelEdit();
-        $this->logActivity("Updated patient ID {$patient->patient_id}: {$this->firstname} {$this->lastname}");
-        $this->flashMessage = 'Patient updated successfully.';
-    }
-
-    public function cancelEdit()
-    {
-        $this->reset([
-            'firstname', 'middlename', 'lastname', 
-            'birthdate', 'gender', 'contact_number', 'address',
-            'editMode', 'editingPatientId'
-        ]);
-    }
-
-    public $patientLabResults = [];
-
-    public function viewPatient($id)
-    {
-        $this->viewingPatient = Patient::findOrFail($id);
-        $this->patientLabResults = LabResult::with(['test', 'performedBy', 'verifiedBy'])
-            ->where('patient_id', $id)
-            ->orderBy('result_date', 'desc')
-            ->get();
-        $this->viewMode = true;
-    }
-
-    public function closeView()
-    {
-        $this->viewMode = false;
-        $this->viewingPatient = null;
-        $this->patientLabResults = [];
-    }
-
-    public function delete($id)
-    {
-        $patient = Patient::findOrFail($id);
-        $patient->softDelete();
-        $this->logActivity("Deleted patient ID {$id}: {$patient->firstname} {$patient->lastname}");
-        $this->flashMessage = 'Patient deleted successfully.';
-        $this->resetPage(); // Reset pagination after delete
-    }
-
-    public function with(): array
-    {
-        $query = Patient::active()
-            ->when($this->search, function($query) {
-                $query->where(function($q) {
-                    $q->where('firstname', 'like', '%' . $this->search . '%')
-                      ->orWhere('lastname', 'like', '%' . $this->search . '%')
-                      ->orWhere('patient_id', 'like', '%' . $this->search . '%');
-                });
-            })
-            ->when($this->filterGender, function($query) {
-                $query->where('gender', $this->filterGender);
-            })
-            ->orderBy('patient_id', 'desc');
-            
-        return [
-            'patients' => $this->perPage === 'all' ? $query->get() : $query->paginate((int)$this->perPage)
-        ];
-    }
-}; ?>
+?>
 
 <div class="p-6">
     <!-- Page Header -->
@@ -214,58 +18,93 @@ new class extends Component
         </h1>
     </div>
 
-    @if($flashMessage)
+    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($flashMessage): ?>
         <div class="mb-6 p-4 bg-green-50 border-l-4 border-green-500 rounded">
-            <p class="text-green-800">{{ $flashMessage }}</p>
+            <p class="text-green-800"><?php echo e($flashMessage); ?></p>
         </div>
-    @endif
+    <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
 
-    @error('duplicate')
+    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__errorArgs = ['duplicate'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?>
         <div class="mb-6 p-4 bg-red-50 border-l-4 border-red-500 rounded">
-            <p class="text-red-800">{{ $message }}</p>
+            <p class="text-red-800"><?php echo e($message); ?></p>
         </div>
-    @enderror
+    <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
 
     <!-- Add New Patient Card -->
     <div class="bg-white rounded-lg shadow-sm mb-6">
         <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
             <h2 class="text-lg font-semibold text-gray-900">Add New Patient</h2>
-            <button wire:click="toggleForm" type="button" class="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-colors {{ $showForm ? 'bg-gray-100 text-gray-700 hover:bg-gray-200' : 'bg-pink-600 text-white hover:bg-pink-700' }}">
-                @if($showForm)
+            <button wire:click="toggleForm" type="button" class="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-colors <?php echo e($showForm ? 'bg-gray-100 text-gray-700 hover:bg-gray-200' : 'bg-pink-600 text-white hover:bg-pink-700'); ?>">
+                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($showForm): ?>
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                     </svg>
                     <span>Close Form</span>
-                @else
+                <?php else: ?>
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                     </svg>
                     <span>Add New Patient</span>
-                @endif
+                <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
             </button>
         </div>
-        @if($showForm)
+        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($showForm): ?>
         <form wire:submit.prevent="save" class="p-6">
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">First Name *</label>
                     <input type="text" wire:model="firstname" placeholder="Juan" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500" required>
-                    @error('firstname') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__errorArgs = ['firstname'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> <span class="text-red-500 text-xs mt-1 block"><?php echo e($message); ?></span> <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Middle Name</label>
                     <input type="text" wire:model="middlename" placeholder="Santos" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500">
-                    @error('middlename') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__errorArgs = ['middlename'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> <span class="text-red-500 text-xs mt-1 block"><?php echo e($message); ?></span> <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Last Name *</label>
                     <input type="text" wire:model="lastname" placeholder="Dela Cruz" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500" required>
-                    @error('lastname') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__errorArgs = ['lastname'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> <span class="text-red-500 text-xs mt-1 block"><?php echo e($message); ?></span> <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Date of Birth *</label>
                     <input type="date" wire:model="birthdate" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500" required>
-                    @error('birthdate') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__errorArgs = ['birthdate'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> <span class="text-red-500 text-xs mt-1 block"><?php echo e($message); ?></span> <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                 </div>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
@@ -276,7 +115,14 @@ new class extends Component
                         <option value="Male">Male</option>
                         <option value="Female">Female</option>
                     </select>
-                    @error('gender') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__errorArgs = ['gender'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> <span class="text-red-500 text-xs mt-1 block"><?php echo e($message); ?></span> <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                 </div>
                 <div x-data="{ val: $wire.entangle('contact_number'), get missing() { return this.val ? 11 - this.val.length : 0 } }">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Contact Number</label>
@@ -287,13 +133,27 @@ new class extends Component
                     <template x-if="val && val.length > 0 && val.length < 11">
                         <span class="text-red-500 text-xs mt-1 block" x-text="'You\'re missing ' + missing + (missing === 1 ? ' number' : ' numbers')"></span>
                     </template>
-                    @error('contact_number') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__errorArgs = ['contact_number'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> <span class="text-red-500 text-xs mt-1 block"><?php echo e($message); ?></span> <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                     <span class="text-xs text-gray-400 mt-1 block">11 digits only</span>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Address</label>
                     <input type="text" wire:model="address" placeholder="123 Street, City" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500">
-                    @error('address') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__errorArgs = ['address'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> <span class="text-red-500 text-xs mt-1 block"><?php echo e($message); ?></span> <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                 </div>
             </div>
             <div class="flex justify-end">
@@ -302,7 +162,7 @@ new class extends Component
                 </button>
             </div>
         </form>
-        @endif
+        <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
     </div>
 
     <!-- Search and Filters Card -->
@@ -352,39 +212,43 @@ new class extends Component
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
-                    @forelse($patients as $patient)
-                        <tr wire:key="patient-{{ $patient->patient_id }}" class="hover:bg-gray-50">
+                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__empty_1 = true; $__currentLoopData = $patients; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $patient): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
+                        <tr <?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processElementKey('patient-{{ $patient->patient_id }}', get_defined_vars()); ?>wire:key="patient-<?php echo e($patient->patient_id); ?>" class="hover:bg-gray-50">
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="flex items-center">
                                     <div class="w-8 h-8 bg-pink-500 rounded-full flex items-center justify-center text-white text-xs font-bold mr-3">
-                                        {{ strtoupper(substr($patient->firstname, 0, 1) . substr($patient->lastname, 0, 1)) }}
+                                        <?php echo e(strtoupper(substr($patient->firstname, 0, 1) . substr($patient->lastname, 0, 1))); ?>
+
                                     </div>
                                     <div>
-                                        <div class="font-medium text-gray-900">{{ $patient->full_name }}</div>
-                                        <div class="text-xs text-gray-500">ID: {{ $patient->patient_id }}</div>
+                                        <div class="font-medium text-gray-900"><?php echo e($patient->full_name); ?></div>
+                                        <div class="text-xs text-gray-500">ID: <?php echo e($patient->patient_id); ?></div>
                                     </div>
                                 </div>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {{ \Carbon\Carbon::parse($patient->birthdate)->format('M d, Y') }}
+                                <?php echo e(\Carbon\Carbon::parse($patient->birthdate)->format('M d, Y')); ?>
+
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {{ $patient->gender }}
+                                <?php echo e($patient->gender); ?>
+
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {{ $patient->contact_number ?: 'N/A' }}
+                                <?php echo e($patient->contact_number ?: 'N/A'); ?>
+
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                 <div class="flex space-x-2">
-                                    <button type="button" wire:click="viewPatient({{ $patient->patient_id }})" 
+                                    <button type="button" wire:click="viewPatient(<?php echo e($patient->patient_id); ?>)" 
                                             class="px-4 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors">
                                         View
                                     </button>
-                                    <button type="button" wire:click="edit({{ $patient->patient_id }})" 
+                                    <button type="button" wire:click="edit(<?php echo e($patient->patient_id); ?>)" 
                                             class="px-4 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg transition-colors">
                                         Edit
                                     </button>
-                                    <button type="button" wire:click="delete({{ $patient->patient_id }})" 
+                                    <button type="button" wire:click="delete(<?php echo e($patient->patient_id); ?>)" 
                                             wire:confirm="Are you sure you want to delete this patient?"
                                             class="px-4 py-1.5 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors">
                                         Delete
@@ -392,26 +256,27 @@ new class extends Component
                                 </div>
                             </td>
                         </tr>
-                    @empty
+                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
                         <tr>
                             <td colspan="5" class="px-6 py-12 text-center text-gray-500">
                                 No patients found
                             </td>
                         </tr>
-                    @endforelse
+                    <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                 </tbody>
             </table>
         </div>
         
-        @if($perPage !== 'all' && $patients->hasPages())
+        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($perPage !== 'all' && $patients->hasPages()): ?>
             <div class="px-6 py-4 border-t border-gray-200">
-                {{ $patients->links() }}
+                <?php echo e($patients->links()); ?>
+
             </div>
-        @endif
+        <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
     </div>
 
     <!-- Edit Patient Modal -->
-    @if($editMode)
+    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($editMode): ?>
     <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 p-4">
         <div class="relative top-10 mx-auto p-6 border w-full max-w-4xl shadow-lg rounded-xl bg-white">
             <div class="flex items-center justify-between mb-6">
@@ -428,22 +293,50 @@ new class extends Component
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">First Name *</label>
                         <input type="text" wire:model="firstname" placeholder="Juan" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500" required>
-                        @error('firstname') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__errorArgs = ['firstname'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> <span class="text-red-500 text-xs mt-1 block"><?php echo e($message); ?></span> <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Middle Name</label>
                         <input type="text" wire:model="middlename" placeholder="Santos" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500">
-                        @error('middlename') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__errorArgs = ['middlename'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> <span class="text-red-500 text-xs mt-1 block"><?php echo e($message); ?></span> <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Last Name *</label>
                         <input type="text" wire:model="lastname" placeholder="Dela Cruz" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500" required>
-                        @error('lastname') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__errorArgs = ['lastname'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> <span class="text-red-500 text-xs mt-1 block"><?php echo e($message); ?></span> <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Date of Birth *</label>
                         <input type="date" wire:model="birthdate" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500" required>
-                        @error('birthdate') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__errorArgs = ['birthdate'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> <span class="text-red-500 text-xs mt-1 block"><?php echo e($message); ?></span> <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                     </div>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -454,7 +347,14 @@ new class extends Component
                             <option value="Male">Male</option>
                             <option value="Female">Female</option>
                         </select>
-                        @error('gender') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__errorArgs = ['gender'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> <span class="text-red-500 text-xs mt-1 block"><?php echo e($message); ?></span> <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                     </div>
                     <div x-data="{ val: $wire.entangle('contact_number'), get missing() { return this.val ? 11 - this.val.length : 0 } }">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Contact Number</label>
@@ -465,13 +365,27 @@ new class extends Component
                         <template x-if="val && val.length > 0 && val.length < 11">
                             <span class="text-red-500 text-xs mt-1 block" x-text="'You\'re missing ' + missing + (missing === 1 ? ' number' : ' numbers')"></span>
                         </template>
-                        @error('contact_number') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__errorArgs = ['contact_number'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> <span class="text-red-500 text-xs mt-1 block"><?php echo e($message); ?></span> <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                         <span class="text-xs text-gray-400 mt-1 block">11 digits only</span>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Address</label>
                         <input type="text" wire:model="address" placeholder="123 Street, City" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500">
-                        @error('address') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__errorArgs = ['address'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> <span class="text-red-500 text-xs mt-1 block"><?php echo e($message); ?></span> <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                     </div>
                 </div>
                 <div class="flex justify-end space-x-3 pt-4 border-t">
@@ -487,10 +401,10 @@ new class extends Component
             </form>
         </div>
     </div>
-    @endif
+    <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
 
     <!-- View Patient Modal -->
-    @if($viewMode && $viewingPatient)
+    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($viewMode && $viewingPatient): ?>
     <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 p-4">
         <div class="relative top-10 mx-auto p-6 border w-full max-w-5xl shadow-lg rounded-xl bg-white">
             <div class="flex items-center justify-between mb-6">
@@ -505,38 +419,39 @@ new class extends Component
             <div class="space-y-4">
                 <div class="flex items-center mb-6">
                     <div class="w-16 h-16 bg-gradient-to-br from-pink-500 to-purple-500 rounded-full flex items-center justify-center text-white text-2xl font-bold mr-4">
-                        {{ strtoupper(substr($viewingPatient->firstname, 0, 1) . substr($viewingPatient->lastname, 0, 1)) }}
+                        <?php echo e(strtoupper(substr($viewingPatient->firstname, 0, 1) . substr($viewingPatient->lastname, 0, 1))); ?>
+
                     </div>
                     <div>
-                        <h4 class="text-xl font-bold text-gray-900">{{ $viewingPatient->full_name }}</h4>
-                        <p class="text-sm text-gray-500">Patient ID: {{ $viewingPatient->patient_id }}</p>
+                        <h4 class="text-xl font-bold text-gray-900"><?php echo e($viewingPatient->full_name); ?></h4>
+                        <p class="text-sm text-gray-500">Patient ID: <?php echo e($viewingPatient->patient_id); ?></p>
                     </div>
                 </div>
 
                 <div class="grid grid-cols-2 gap-4">
                     <div class="bg-gray-50 p-4 rounded-lg">
                         <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Gender</p>
-                        <p class="text-sm font-medium text-gray-900">{{ $viewingPatient->gender }}</p>
+                        <p class="text-sm font-medium text-gray-900"><?php echo e($viewingPatient->gender); ?></p>
                     </div>
                     <div class="bg-gray-50 p-4 rounded-lg">
                         <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Birthdate</p>
-                        <p class="text-sm font-medium text-gray-900">{{ \Carbon\Carbon::parse($viewingPatient->birthdate)->format('M d, Y') }}</p>
+                        <p class="text-sm font-medium text-gray-900"><?php echo e(\Carbon\Carbon::parse($viewingPatient->birthdate)->format('M d, Y')); ?></p>
                     </div>
                     <div class="bg-gray-50 p-4 rounded-lg">
                         <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Age</p>
-                        <p class="text-sm font-medium text-gray-900">{{ \Carbon\Carbon::parse($viewingPatient->birthdate)->age }} years old</p>
+                        <p class="text-sm font-medium text-gray-900"><?php echo e(\Carbon\Carbon::parse($viewingPatient->birthdate)->age); ?> years old</p>
                     </div>
                     <div class="bg-gray-50 p-4 rounded-lg col-span-2">
                         <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Contact Number</p>
-                        <p class="text-sm font-medium text-gray-900">{{ $viewingPatient->contact_number ?: 'N/A' }}</p>
+                        <p class="text-sm font-medium text-gray-900"><?php echo e($viewingPatient->contact_number ?: 'N/A'); ?></p>
                     </div>
                     <div class="bg-gray-50 p-4 rounded-lg col-span-2">
                         <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Address</p>
-                        <p class="text-sm font-medium text-gray-900">{{ $viewingPatient->address ?: 'N/A' }}</p>
+                        <p class="text-sm font-medium text-gray-900"><?php echo e($viewingPatient->address ?: 'N/A'); ?></p>
                     </div>
                     <div class="bg-gray-50 p-4 rounded-lg">
                         <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Date Added</p>
-                        <p class="text-sm font-medium text-gray-900">{{ \Carbon\Carbon::parse($viewingPatient->datetime_added)->format('M d, Y h:i A') }}</p>
+                        <p class="text-sm font-medium text-gray-900"><?php echo e(\Carbon\Carbon::parse($viewingPatient->datetime_added)->format('M d, Y h:i A')); ?></p>
                     </div>
                     <div class="bg-gray-50 p-4 rounded-lg">
                         <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Status</p>
@@ -552,7 +467,7 @@ new class extends Component
                         </svg>
                         Lab Results
                     </h4>
-                    @if(count($patientLabResults) > 0)
+                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(count($patientLabResults) > 0): ?>
                     <div class="overflow-x-auto border border-gray-200 rounded-lg">
                         <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-gray-50">
@@ -568,47 +483,49 @@ new class extends Component
                                 </tr>
                             </thead>
                             <tbody class="bg-white divide-y divide-gray-200">
-                                @foreach($patientLabResults as $result)
+                                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__currentLoopData = $patientLabResults; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $result): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
                                 <tr class="hover:bg-gray-50">
-                                    <td class="px-4 py-3 text-sm font-medium text-gray-900">{{ $result->test->label ?? 'N/A' }}</td>
-                                    <td class="px-4 py-3 text-sm text-gray-700">{{ $result->result_value ?? 'N/A' }}</td>
-                                    <td class="px-4 py-3 text-sm text-gray-500">{{ $result->normal_range ?? 'N/A' }}</td>
-                                    <td class="px-4 py-3 text-sm text-gray-500">{{ $result->findings ?? '-' }}</td>
-                                    <td class="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">{{ $result->result_date ? $result->result_date->format('M d, Y') : 'N/A' }}</td>
+                                    <td class="px-4 py-3 text-sm font-medium text-gray-900"><?php echo e($result->test->label ?? 'N/A'); ?></td>
+                                    <td class="px-4 py-3 text-sm text-gray-700"><?php echo e($result->result_value ?? 'N/A'); ?></td>
+                                    <td class="px-4 py-3 text-sm text-gray-500"><?php echo e($result->normal_range ?? 'N/A'); ?></td>
+                                    <td class="px-4 py-3 text-sm text-gray-500"><?php echo e($result->findings ?? '-'); ?></td>
+                                    <td class="px-4 py-3 text-sm text-gray-500 whitespace-nowrap"><?php echo e($result->result_date ? $result->result_date->format('M d, Y') : 'N/A'); ?></td>
                                     <td class="px-4 py-3 whitespace-nowrap">
-                                        <span class="px-2 py-1 text-xs rounded-full {{ $result->status_badge_class }}">
-                                            {{ ucfirst($result->status) }}
+                                        <span class="px-2 py-1 text-xs rounded-full <?php echo e($result->status_badge_class); ?>">
+                                            <?php echo e(ucfirst($result->status)); ?>
+
                                         </span>
                                     </td>
                                     <td class="px-4 py-3 text-sm text-gray-500">
-                                        {{ $result->performedBy->firstname ?? '' }} {{ $result->performedBy->lastname ?? 'N/A' }}
+                                        <?php echo e($result->performedBy->firstname ?? ''); ?> <?php echo e($result->performedBy->lastname ?? 'N/A'); ?>
+
                                     </td>
                                     <td class="px-4 py-3 whitespace-nowrap">
-                                        @if($result->status === 'final')
-                                        <a href="{{ route('lab-results.show', $result->lab_result_id) }}" target="_blank"
+                                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($result->status === 'final'): ?>
+                                        <a href="<?php echo e(route('lab-results.show', $result->lab_result_id)); ?>" target="_blank"
                                            class="inline-flex items-center px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded-lg transition-colors">
                                             <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
                                             </svg>
                                             Print
                                         </a>
-                                        @else
+                                        <?php else: ?>
                                         <span class="text-xs text-gray-400 italic">Pending</span>
-                                        @endif
+                                        <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                                     </td>
                                 </tr>
-                                @endforeach
+                                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
                             </tbody>
                         </table>
                     </div>
-                    @else
+                    <?php else: ?>
                     <div class="bg-gray-50 border border-gray-200 rounded-lg p-6 text-center">
                         <svg class="w-10 h-10 text-gray-300 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
                         </svg>
                         <p class="text-sm text-gray-500">No lab results found for this patient.</p>
                     </div>
-                    @endif
+                    <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                 </div>
 
                 <div class="flex justify-end pt-4 border-t mt-6">
@@ -619,5 +536,5 @@ new class extends Component
             </div>
         </div>
     </div>
-    @endif
-</div>
+    <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+</div><?php /**PATH C:\xampp\htdocs\dashboard\clinlab_app\storage\framework/views/livewire/views/4847fbb4.blade.php ENDPATH**/ ?>

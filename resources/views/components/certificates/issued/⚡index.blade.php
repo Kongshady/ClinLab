@@ -4,10 +4,11 @@ use Livewire\Volt\Component;
 use Livewire\WithPagination;
 use App\Models\CertificateIssue;
 use Barryvdh\DomPDF\Facade\Pdf;
+use App\Traits\LogsActivity;
 
 new class extends Component
 {
-    use WithPagination;
+    use WithPagination, LogsActivity;
 
     // Search and filters
     public $search = '';
@@ -60,6 +61,7 @@ new class extends Component
     {
         $certificate = CertificateIssue::findOrFail($id);
         $certificate->update(['status' => 'Revoked']);
+        $this->logActivity("Revoked certificate ID {$id}: {$certificate->certificate_no}");
         $this->flashMessage = 'Certificate revoked successfully!';
     }
 

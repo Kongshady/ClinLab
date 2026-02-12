@@ -4,10 +4,11 @@ use Livewire\Volt\Component;
 use Livewire\WithPagination;
 use Livewire\Attributes\Validate;
 use App\Models\CertificateTemplate;
+use App\Traits\LogsActivity;
 
 new class extends Component
 {
-    use WithPagination;
+    use WithPagination, LogsActivity;
 
     // Search and filters
     public $search = '';
@@ -81,6 +82,7 @@ new class extends Component
                 'version' => $this->version,
                 'is_active' => $this->is_active,
             ]);
+            $this->logActivity("Updated certificate template ID {$this->templateId}: {$this->name}");
             $this->flashMessage = 'Template updated successfully!';
         } else {
             CertificateTemplate::create([
@@ -91,6 +93,7 @@ new class extends Component
                 'is_active' => $this->is_active,
                 'created_by' => auth()->id(),
             ]);
+            $this->logActivity("Created certificate template: {$this->name}");
             $this->flashMessage = 'Template created successfully!';
         }
 
@@ -102,12 +105,14 @@ new class extends Component
     {
         $template = CertificateTemplate::findOrFail($id);
         $template->update(['is_active' => !$template->is_active]);
+        $this->logActivity("Toggled status for certificate template ID {$id}: {$template->name}");
         $this->flashMessage = 'Template status updated!';
     }
 
     public function delete($id)
     {
         CertificateTemplate::findOrFail($id)->delete();
+        $this->logActivity("Deleted certificate template ID {$id}");
         $this->flashMessage = 'Template deleted successfully!';
     }
 
