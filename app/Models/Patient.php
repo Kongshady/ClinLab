@@ -67,4 +67,12 @@ class Patient extends Model
     {
         return $this->hasMany(LabResult::class, 'patient_id', 'patient_id');
     }
+
+    /**
+     * Get the lab test orders for this patient.
+     */
+    public function labTestOrders()
+    {
+        return $this->hasMany(LabTestOrder::class, 'patient_id', 'patient_id');
+    }
 }

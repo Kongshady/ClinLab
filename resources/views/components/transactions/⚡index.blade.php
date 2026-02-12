@@ -273,7 +273,7 @@ new class extends Component
                         <th class="px-6 py-3 text-left w-10">
                             <input type="checkbox" x-model="selectAll" 
                                    @change="toggleAll([{{ $transactions instanceof \Illuminate\Pagination\LengthAwarePaginator ? $transactions->pluck('transaction_id')->implode(',') : $transactions->pluck('transaction_id')->implode(',') }}])"
-                                   class="rounded border-gray-300 text-purple-600 focus:ring-purple-500">
+                                   class="rounded border-gray-300 text-purple-600 focus:ring-purple-500 h-4 w-4">
                         </th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">OR Number</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
@@ -289,7 +289,7 @@ new class extends Component
                                 <input type="checkbox" value="{{ $transaction->transaction_id }}" 
                                        @change="toggleOne({{ $transaction->transaction_id }})"
                                        :checked="selectedIds.includes({{ $transaction->transaction_id }})"
-                                       class="rounded border-gray-300 text-purple-600 focus:ring-purple-500">
+                                       class="rounded border-gray-300 text-purple-600 focus:ring-purple-500 h-4 w-4">
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $transaction->or_number }}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">

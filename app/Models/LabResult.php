@@ -65,6 +65,18 @@ class LabResult extends Model
         return $this->belongsTo(Employee::class, 'verified_by', 'employee_id');
     }
 
+    // Relationship with Lab Test Order
+    public function labTestOrder()
+    {
+        return $this->belongsTo(LabTestOrder::class, 'lab_test_order_id', 'lab_test_order_id');
+    }
+
+    // Relationship with Order Test
+    public function orderTest()
+    {
+        return $this->belongsTo(OrderTest::class, 'order_test_id', 'order_test_id');
+    }
+
     // Accessor for status badge class
     public function getStatusBadgeClassAttribute()
     {
