@@ -1,1 +1,0 @@
-order-{{ $order->lab_test_order_id }}

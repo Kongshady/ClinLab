@@ -46,7 +46,7 @@ class CertificateService
             'issued_at' => now(),
             'valid_until' => $validUntil,
             'generated_by' => auth()->id(),
-            'status' => 'Issued',
+            'status' => 'Pending',
             'equipment_id' => $equipmentId,
             'calibration_id' => $calibrationId,
         ]);
@@ -86,7 +86,7 @@ class CertificateService
             'issued_at' => now(),
             'valid_until' => now()->addYear(),
             'generated_by' => auth()->id(),
-            'status' => 'Issued',
+            'status' => 'Pending',
             'equipment_id' => $equipmentId,
             'maintenance_id' => $maintenanceId,
         ]);
@@ -105,7 +105,7 @@ class CertificateService
             'issue_date' => $certificate->issued_at->format('F d, Y'),
             'equipment_name' => $equipment->name ?? 'N/A',
             'equipment_model' => $equipment->model ?? 'N/A',
-            'serial_no' => $equipment->serial_number ?? 'N/A',
+            'serial_no' => $equipment->serial_no ?? 'N/A',
             'calibration_date' => $calibration->calibration_date ? date('F d, Y', strtotime($calibration->calibration_date)) : 'N/A',
             'due_date' => $calibration->next_calibration_date ? date('F d, Y', strtotime($calibration->next_calibration_date)) : 'N/A',
             'result' => strtoupper($calibration->result_status ?? 'PASSED'),

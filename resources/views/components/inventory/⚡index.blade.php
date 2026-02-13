@@ -863,10 +863,21 @@ new class extends Component
         </div>
 
         <!-- Stock Movement History -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mt-8">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mt-8" x-data="{ 
+            showSidebar: false, 
+            selected: null,
+            openDetails(movement) {
+                this.selected = movement;
+                this.showSidebar = true;
+            },
+            closeSidebar() {
+                this.showSidebar = false;
+                setTimeout(() => this.selected = null, 300);
+            }
+        }">
             <div class="px-8 py-6 border-b border-gray-200">
                 <h2 class="text-xl font-bold text-gray-900">Stock Movement History</h2>
-                <p class="mt-1 text-sm text-gray-500">Recent stock transactions and activities</p>
+                <p class="mt-1 text-sm text-gray-500">Recent stock transactions and activities — click a row for details</p>
             </div>
 
             <!-- Movement Table -->
@@ -885,7 +896,19 @@ new class extends Component
                     </thead>
                     <tbody class="divide-y divide-gray-100 bg-white">
                         @forelse($movements as $movement)
-                            <tr class="hover:bg-gray-50 transition-colors">
+                            <tr class="hover:bg-gray-50 cursor-pointer transition-colors"
+                                @click="openDetails({
+                                    date: '{{ $movement->datetime_added->format('M d, Y') }}',
+                                    time: '{{ $movement->datetime_added->format('h:i A') }}',
+                                    type: '{{ $movement->type }}',
+                                    item: '{{ addslashes($movement->item->label ?? 'N/A') }}',
+                                    section: '{{ addslashes($movement->item->section->label ?? 'N/A') }}',
+                                    quantity: '{{ number_format($movement->quantity) }}',
+                                    reference: '{{ addslashes($movement->reference ?? $movement->reference_number ?? '—') }}',
+                                    supplier: '{{ addslashes($movement->supplier ?? '—') }}',
+                                    performedBy: '{{ $movement->type === 'USAGE' && $movement->employee ? addslashes($movement->employee->firstname . ' ' . $movement->employee->lastname) : ($movement->performedByEmployee ? addslashes($movement->performedByEmployee->firstname . ' ' . $movement->performedByEmployee->lastname) : 'System') }}',
+                                    remarks: '{{ addslashes($movement->remarks ?? '—') }}'
+                                })">
                                 <td class="px-4 py-3 whitespace-nowrap">
                                     <div class="text-sm font-medium text-gray-900">{{ $movement->datetime_added->format('M d, Y') }}</div>
                                     <div class="text-xs text-gray-500">{{ $movement->datetime_added->format('h:i A') }}</div>
@@ -959,6 +982,137 @@ new class extends Component
             <!-- Pagination -->
             <div class="px-8 py-4 border-t border-gray-200 bg-gray-50">
                 {{ $movements->links() }}
+            </div>
+
+            <!-- Detail Sidebar -->
+            <div x-show="showSidebar" x-cloak class="fixed inset-0 z-50 overflow-hidden">
+                <!-- Backdrop -->
+                <div x-show="showSidebar" 
+                     x-transition:enter="transition-opacity ease-out duration-300"
+                     x-transition:enter-start="opacity-0"
+                     x-transition:enter-end="opacity-100"
+                     x-transition:leave="transition-opacity ease-in duration-200"
+                     x-transition:leave-start="opacity-100"
+                     x-transition:leave-end="opacity-0"
+                     @click="closeSidebar()" 
+                     class="fixed inset-0 bg-black/40"></div>
+
+                <!-- Sidebar Panel -->
+                <div class="fixed inset-y-0 right-0 flex max-w-full">
+                    <div x-show="showSidebar"
+                         x-transition:enter="transform transition ease-out duration-300"
+                         x-transition:enter-start="translate-x-full"
+                         x-transition:enter-end="translate-x-0"
+                         x-transition:leave="transform transition ease-in duration-200"
+                         x-transition:leave-start="translate-x-0"
+                         x-transition:leave-end="translate-x-full"
+                         class="w-screen max-w-md">
+                        <div class="flex h-full flex-col bg-white shadow-2xl">
+                            <!-- Sidebar Header -->
+                            <div class="px-6 py-5 border-b border-gray-200">
+                                <div class="flex items-center justify-between">
+                                    <h3 class="text-lg font-semibold text-gray-900">Movement Details</h3>
+                                    <button @click="closeSidebar()" class="rounded-lg p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Sidebar Body -->
+                            <div class="flex-1 overflow-y-auto px-6 py-6" x-show="selected">
+                                <!-- Type Badge -->
+                                <div class="mb-6 flex items-center space-x-3">
+                                    <template x-if="selected?.type === 'IN'">
+                                        <span class="inline-flex items-center px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-700 text-sm font-semibold">
+                                            <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 11l5-5m0 0l5 5m-5-5v12"/>
+                                            </svg>
+                                            STOCK IN
+                                        </span>
+                                    </template>
+                                    <template x-if="selected?.type === 'OUT'">
+                                        <span class="inline-flex items-center px-3 py-1.5 rounded-lg bg-rose-100 text-rose-700 text-sm font-semibold">
+                                            <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 13l-5 5m0 0l-5-5m5 5V6"/>
+                                            </svg>
+                                            STOCK OUT
+                                        </span>
+                                    </template>
+                                    <template x-if="selected?.type === 'USAGE'">
+                                        <span class="inline-flex items-center px-3 py-1.5 rounded-lg bg-blue-100 text-blue-700 text-sm font-semibold">
+                                            <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                                            </svg>
+                                            USAGE
+                                        </span>
+                                    </template>
+                                </div>
+
+                                <!-- Details Grid -->
+                                <div class="space-y-5">
+                                    <!-- Item -->
+                                    <div class="bg-gray-50 rounded-lg p-4">
+                                        <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Item</p>
+                                        <p class="text-sm font-medium text-gray-900" x-text="selected?.item"></p>
+                                        <p class="text-xs text-gray-500 mt-0.5" x-text="selected?.section"></p>
+                                    </div>
+
+                                    <div class="grid grid-cols-2 gap-4">
+                                        <!-- Quantity -->
+                                        <div class="bg-gray-50 rounded-lg p-4">
+                                            <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Quantity</p>
+                                            <p class="text-sm font-medium" 
+                                               :class="selected?.type === 'IN' ? 'text-emerald-700' : 'text-gray-900'"
+                                               x-text="(selected?.type === 'IN' ? '+' : '-') + selected?.quantity"></p>
+                                        </div>
+
+                                        <!-- Date & Time -->
+                                        <div class="bg-gray-50 rounded-lg p-4">
+                                            <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Date & Time</p>
+                                            <p class="text-sm font-medium text-gray-900" x-text="selected?.date"></p>
+                                            <p class="text-xs text-gray-500" x-text="selected?.time"></p>
+                                        </div>
+                                    </div>
+
+                                    <!-- Supplier (IN only) -->
+                                    <template x-if="selected?.type === 'IN'">
+                                        <div class="bg-gray-50 rounded-lg p-4">
+                                            <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Supplier</p>
+                                            <p class="text-sm font-medium text-gray-900" x-text="selected?.supplier"></p>
+                                        </div>
+                                    </template>
+
+                                    <!-- Reference -->
+                                    <div class="bg-gray-50 rounded-lg p-4">
+                                        <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Reference</p>
+                                        <p class="text-sm font-medium text-gray-900" x-text="selected?.reference"></p>
+                                    </div>
+
+                                    <!-- Performed By -->
+                                    <div class="bg-gray-50 rounded-lg p-4">
+                                        <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Performed By</p>
+                                        <p class="text-sm font-medium text-gray-900" x-text="selected?.performedBy"></p>
+                                    </div>
+
+                                    <!-- Remarks -->
+                                    <div class="bg-gray-50 rounded-lg p-4">
+                                        <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Remarks</p>
+                                        <p class="text-sm text-gray-700 whitespace-pre-wrap" x-text="selected?.remarks"></p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Sidebar Footer -->
+                            <div class="px-6 py-4 border-t border-gray-200 bg-gray-50">
+                                <button @click="closeSidebar()" class="w-full px-4 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-medium rounded-lg transition-colors">
+                                    Close
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

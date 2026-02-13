@@ -19,6 +19,8 @@ class Equipment extends Model
         'purchase_date',
         'supplier',
         'remarks',
+        'is_deleted',
+        'datetime_added',
     ];
 
     protected $casts = [

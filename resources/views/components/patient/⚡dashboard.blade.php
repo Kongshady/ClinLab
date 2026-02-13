@@ -512,108 +512,121 @@ new class extends Component
             @if($activeTab === 'results')
             <div>
                 <div class="flex items-center justify-between mb-5">
-                    <h2 class="text-xl font-bold text-gray-900">Lab Results</h2>
+                    <div>
+                        <h2 class="text-xl font-bold text-gray-900">Lab Results</h2>
+                        <p class="text-sm text-gray-500 mt-0.5">View your lab test orders and results</p>
+                    </div>
                 </div>
 
                 @if(count($labOrders) > 0)
-                    <div class="space-y-4">
-                    @foreach($labOrders as $order)
-                        @php
-                            $totalTests = $order->orderTests->count();
-                            $completedTests = $order->orderTests->where('status', 'completed')->count();
-                            $progressPct = $totalTests > 0 ? round($completedTests / $totalTests * 100) : 0;
-                        @endphp
-                        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-                            {{-- Order Header --}}
-                            <div class="px-5 py-3.5 bg-gray-50 border-b border-gray-200">
-                                <div class="flex items-center justify-between">
-                                    <div class="flex items-center gap-3">
-                                        <div class="w-2.5 h-2.5 rounded-full 
-                                            @if($order->status === 'completed') bg-emerald-500
-                                            @elseif($order->status === 'cancelled') bg-red-500
-                                            @else bg-amber-500
-                                            @endif"></div>
-                                        <div>
-                                            <h3 class="text-sm font-semibold text-gray-800">Order #{{ $order->lab_test_order_id }}</h3>
-                                            <p class="text-xs text-gray-500">
-                                                {{ $order->order_date ? $order->order_date->format('F d, Y h:i A') : 'N/A' }}
-                                                @if($order->physician)
-                                                    &middot; Dr. {{ $order->physician->physician_name }}
-                                                @endif
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <div class="flex items-center gap-3">
+                    {{-- Summary Stats --}}
+                    <div class="grid grid-cols-3 gap-3 mb-5">
+                        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 text-center">
+                            <p class="text-2xl font-bold text-amber-500">{{ collect($labOrders)->where('status', 'pending')->count() }}</p>
+                            <p class="text-xs text-gray-500 mt-0.5">Pending</p>
+                        </div>
+                        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 text-center">
+                            <p class="text-2xl font-bold text-blue-500">{{ collect($labOrders)->filter(fn($o) => !in_array($o->status, ['completed','cancelled','pending']))->count() }}</p>
+                            <p class="text-xs text-gray-500 mt-0.5">In Progress</p>
+                        </div>
+                        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 text-center">
+                            <p class="text-2xl font-bold text-emerald-500">{{ collect($labOrders)->where('status', 'completed')->count() }}</p>
+                            <p class="text-xs text-gray-500 mt-0.5">Completed</p>
+                        </div>
+                    </div>
+
+                    {{-- Orders List --}}
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-5 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Order #</th>
+                                    <th class="px-5 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Date Requested</th>
+                                    <th class="px-5 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Date Released</th>
+                                    <th class="px-5 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Status</th>
+                                    <th class="px-5 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Physician</th>
+                                    <th class="px-5 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Tests</th>
+                                    <th class="px-5 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wide">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100">
+                                @foreach($labOrders as $order)
+                                @php
+                                    $totalTests = $order->orderTests->count();
+                                    $completedTests = $order->orderTests->where('status', 'completed')->count();
+                                    // Find the latest result date among completed tests as "released" date
+                                    $releasedDate = $order->orderTests
+                                        ->filter(fn($ot) => $ot->labResult && $ot->labResult->result_date)
+                                        ->map(fn($ot) => $ot->labResult->result_date)
+                                        ->sortDesc()
+                                        ->first();
+                                @endphp
+                                <tr class="hover:bg-blue-50/40 transition-colors">
+                                    <td class="px-5 py-3.5">
+                                        <span class="text-sm font-semibold text-gray-900">#{{ $order->lab_test_order_id }}</span>
+                                    </td>
+                                    <td class="px-5 py-3.5">
+                                        <span class="text-sm text-gray-700">{{ $order->order_date ? $order->order_date->format('M d, Y') : '—' }}</span>
+                                        <p class="text-xs text-gray-400">{{ $order->order_date ? $order->order_date->format('h:i A') : '' }}</p>
+                                    </td>
+                                    <td class="px-5 py-3.5">
+                                        @if($releasedDate)
+                                            <span class="text-sm text-gray-700">{{ $releasedDate->format('M d, Y') }}</span>
+                                            <p class="text-xs text-gray-400">{{ $releasedDate->format('h:i A') }}</p>
+                                        @else
+                                            <span class="text-xs text-gray-400 italic">Not yet released</span>
+                                        @endif
+                                    </td>
+                                    <td class="px-5 py-3.5">
+                                        @if($order->status === 'completed')
+                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-700">
+                                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                                Completed
+                                            </span>
+                                        @elseif($order->status === 'cancelled')
+                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-700">
+                                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                                Cancelled
+                                            </span>
+                                        @elseif($order->status === 'pending')
+                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-full bg-amber-100 text-amber-700">
+                                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                                Pending
+                                            </span>
+                                        @else
+                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-700">
+                                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                                                In Progress
+                                            </span>
+                                        @endif
+                                    </td>
+                                    <td class="px-5 py-3.5">
+                                        @if($order->physician)
+                                            <span class="text-sm text-gray-700">Dr. {{ $order->physician->physician_name }}</span>
+                                        @else
+                                            <span class="text-xs text-gray-400">—</span>
+                                        @endif
+                                    </td>
+                                    <td class="px-5 py-3.5">
                                         <div class="flex items-center gap-1.5">
-                                            <span class="text-xs font-medium text-gray-600">{{ $completedTests }}/{{ $totalTests }}</span>
-                                            <div class="w-14 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                                                <div class="h-full rounded-full {{ $progressPct >= 100 ? 'bg-emerald-500' : 'bg-blue-500' }}" 
-                                                     style="width: {{ $progressPct }}%"></div>
+                                            <span class="text-sm font-medium text-gray-700">{{ $completedTests }}/{{ $totalTests }}</span>
+                                            <div class="w-12 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                                                <div class="h-full rounded-full {{ $completedTests >= $totalTests ? 'bg-emerald-500' : 'bg-blue-500' }}" 
+                                                     style="width: {{ $totalTests > 0 ? round($completedTests/$totalTests*100) : 0 }}%"></div>
                                             </div>
                                         </div>
-                                        <span class="px-2 py-0.5 text-xs font-medium rounded-full 
-                                            @if($order->status === 'completed') bg-emerald-100 text-emerald-700
-                                            @elseif($order->status === 'cancelled') bg-red-100 text-red-700
-                                            @else bg-amber-100 text-amber-700
-                                            @endif">
-                                            {{ ucfirst($order->status) }}
-                                        </span>
+                                    </td>
+                                    <td class="px-5 py-3.5 text-center">
                                         <button wire:click="viewOrder({{ $order->lab_test_order_id }})"
-                                                class="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1">
+                                                class="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors">
                                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                                            Details
+                                            View
                                         </button>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {{-- Tests List --}}
-                            <div class="overflow-x-auto">
-                                <table class="min-w-full divide-y divide-gray-100">
-                                    <thead>
-                                        <tr class="text-xs text-gray-500 uppercase">
-                                            <th class="px-5 py-2.5 text-left font-medium">Test</th>
-                                            <th class="px-5 py-2.5 text-left font-medium">Result</th>
-                                            <th class="px-5 py-2.5 text-left font-medium">Normal Range</th>
-                                            <th class="px-5 py-2.5 text-left font-medium">Status</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody class="divide-y divide-gray-50">
-                                        @foreach($order->orderTests as $orderTest)
-                                        <tr class="hover:bg-blue-50/40 transition-colors">
-                                            <td class="px-5 py-3">
-                                                <div class="text-sm font-medium text-gray-900">{{ $orderTest->test->label ?? 'N/A' }}</div>
-                                                @if($orderTest->test && $orderTest->test->section)
-                                                    <div class="text-xs text-gray-400">{{ $orderTest->test->section->label }}</div>
-                                                @endif
-                                            </td>
-                                            <td class="px-5 py-3 text-sm text-gray-700">
-                                                {{ $orderTest->labResult->result_value ?? '—' }}
-                                            </td>
-                                            <td class="px-5 py-3 text-sm text-gray-500">
-                                                {{ $orderTest->labResult->normal_range ?? '—' }}
-                                            </td>
-                                            <td class="px-5 py-3">
-                                                @if($orderTest->labResult)
-                                                    @php
-                                                        $sc = match($orderTest->labResult->status ?? 'draft') {
-                                                            'final' => 'bg-emerald-100 text-emerald-700',
-                                                            'revised' => 'bg-blue-100 text-blue-700',
-                                                            default => 'bg-amber-100 text-amber-700',
-                                                        };
-                                                    @endphp
-                                                    <span class="px-2 py-0.5 text-xs font-medium rounded-full {{ $sc }}">{{ ucfirst($orderTest->labResult->status) }}</span>
-                                                @else
-                                                    <span class="px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-500">Pending</span>
-                                                @endif
-                                            </td>
-                                        </tr>
-                                        @endforeach
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    @endforeach
+                                    </td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
                     </div>
                 @else
                     <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-12 text-center">
@@ -1091,20 +1104,22 @@ new class extends Component
     {{-- ===== ORDER DETAIL MODAL ===== --}}
     @if($selectedOrder)
     <div class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4" wire:click.self="closeOrder">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col" id="printable-result">
             {{-- Header --}}
             <div class="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-5 text-white">
                 <div class="flex items-center justify-between">
                     <div>
-                        <h3 class="text-lg font-bold">Order #{{ $selectedOrder->lab_test_order_id }}</h3>
-                        <p class="text-blue-100 text-sm mt-0.5">{{ $selectedOrder->order_date->format('F d, Y - h:i A') }}</p>
+                        <h3 class="text-lg font-bold">Lab Test Order #{{ $selectedOrder->lab_test_order_id }}</h3>
+                        <p class="text-blue-100 text-sm mt-0.5">
+                            Requested: {{ $selectedOrder->order_date->format('F d, Y - h:i A') }}
+                        </p>
                     </div>
                     <div class="flex items-center gap-3">
                         <span class="px-3 py-1.5 text-xs font-bold rounded-full
                             {{ $selectedOrder->status === 'completed' ? 'bg-green-400/20 text-green-100' : ($selectedOrder->status === 'cancelled' ? 'bg-red-400/20 text-red-100' : 'bg-yellow-400/20 text-yellow-100') }}">
                             {{ ucfirst($selectedOrder->status) }}
                         </span>
-                        <button wire:click="closeOrder" class="p-1.5 hover:bg-white/20 rounded-lg transition-colors">
+                        <button wire:click="closeOrder" class="p-1.5 hover:bg-white/20 rounded-lg transition-colors print:hidden">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                         </button>
                     </div>
@@ -1112,9 +1127,13 @@ new class extends Component
             </div>
 
             {{-- Body --}}
-            <div class="p-6 overflow-y-auto space-y-5">
+            <div class="p-6 overflow-y-auto space-y-5 flex-1">
                 {{-- Order Info --}}
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    <div class="bg-gray-50 p-3.5 rounded-xl">
+                        <p class="text-xs font-medium text-gray-500 uppercase mb-1">Patient</p>
+                        <p class="text-sm font-semibold text-gray-900">{{ $patient->full_name }}</p>
+                    </div>
                     <div class="bg-gray-50 p-3.5 rounded-xl">
                         <p class="text-xs font-medium text-gray-500 uppercase mb-1">Physician</p>
                         <p class="text-sm font-semibold text-gray-900">{{ $selectedOrder->physician->physician_name ?? 'Not specified' }}</p>
@@ -1133,104 +1152,182 @@ new class extends Component
                             <span class="text-xs font-semibold text-gray-600">{{ $completed }}/{{ $total }}</span>
                         </div>
                     </div>
-                    @if($selectedOrder->remarks)
-                    <div class="bg-gray-50 p-3.5 rounded-xl col-span-2">
-                        <p class="text-xs font-medium text-gray-500 uppercase mb-1">Remarks</p>
-                        <p class="text-sm text-gray-900">{{ $selectedOrder->remarks }}</p>
-                    </div>
-                    @endif
                 </div>
 
-                {{-- Tests & Results --}}
+                {{-- Test Results Table --}}
                 <div>
                     <h4 class="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
                         <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-                        Ordered Tests
+                        Test Results
                     </h4>
-                    <div class="space-y-3">
-                        @foreach($selectedOrder->orderTests as $ot)
-                        <div class="border border-gray-200 rounded-xl overflow-hidden">
-                            <div class="flex items-center justify-between px-4 py-3 bg-gray-50">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-2.5 h-2.5 rounded-full flex-shrink-0
-                                        {{ $ot->status === 'completed' ? 'bg-green-500' : ($ot->status === 'in_progress' ? 'bg-blue-500' : ($ot->status === 'cancelled' ? 'bg-red-400' : 'bg-amber-400')) }}"></div>
-                                    <div>
-                                        <p class="text-sm font-semibold text-gray-900">{{ $ot->test->label ?? 'Unknown Test' }}</p>
-                                        <p class="text-xs text-gray-500">{{ $ot->test->section->label ?? '' }}</p>
-                                    </div>
-                                </div>
-                                <span class="text-xs font-medium px-2.5 py-1 rounded-full
-                                    {{ $ot->status === 'completed' ? 'bg-green-100 text-green-700' : ($ot->status === 'in_progress' ? 'bg-blue-100 text-blue-700' : ($ot->status === 'cancelled' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700')) }}">
-                                    {{ ucfirst(str_replace('_', ' ', $ot->status)) }}
-                                </span>
-                            </div>
-                            @if($ot->labResult)
-                            <div class="px-4 py-3 grid grid-cols-2 gap-3 text-sm">
-                                <div>
-                                    <span class="text-xs text-gray-500 uppercase">Result</span>
-                                    <p class="font-semibold text-gray-900 mt-0.5">{{ $ot->labResult->result_value ?? 'N/A' }}</p>
-                                </div>
-                                <div>
-                                    <span class="text-xs text-gray-500 uppercase">Normal Range</span>
-                                    <p class="font-medium text-gray-700 mt-0.5">{{ $ot->labResult->normal_range ?? 'N/A' }}</p>
-                                </div>
-                                @if($ot->labResult->findings)
-                                <div class="col-span-2">
-                                    <span class="text-xs text-gray-500 uppercase">Findings</span>
-                                    <p class="text-gray-700 mt-0.5">{{ $ot->labResult->findings }}</p>
-                                </div>
-                                @endif
-                                @if($ot->labResult->remarks)
-                                <div class="col-span-2">
-                                    <span class="text-xs text-gray-500 uppercase">Remarks</span>
-                                    <p class="text-gray-700 mt-0.5">{{ $ot->labResult->remarks }}</p>
-                                </div>
-                                @endif
-                                <div>
-                                    <span class="text-xs text-gray-500 uppercase">Result Date</span>
-                                    <p class="text-gray-700 mt-0.5">{{ $ot->labResult->result_date ? \Carbon\Carbon::parse($ot->labResult->result_date)->format('M d, Y') : 'N/A' }}</p>
-                                </div>
-                                <div>
-                                    <span class="text-xs text-gray-500 uppercase">Status</span>
-                                    <p class="mt-0.5">
-                                        <span class="text-xs font-medium px-2 py-0.5 rounded-full
-                                            {{ $ot->labResult->status === 'final' ? 'bg-green-100 text-green-700' : ($ot->labResult->status === 'revised' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700') }}">
-                                            {{ ucfirst($ot->labResult->status) }}
-                                        </span>
-                                    </p>
-                                </div>
-                                @if($ot->labResult->performedBy)
-                                <div>
-                                    <span class="text-xs text-gray-500 uppercase">Performed By</span>
-                                    <p class="text-gray-700 mt-0.5">{{ $ot->labResult->performedBy->firstname . ' ' . $ot->labResult->performedBy->lastname }}</p>
-                                </div>
-                                @endif
-                                @if($ot->labResult->verifiedBy)
-                                <div>
-                                    <span class="text-xs text-gray-500 uppercase">Verified By</span>
-                                    <p class="text-gray-700 mt-0.5">{{ $ot->labResult->verifiedBy->firstname . ' ' . $ot->labResult->verifiedBy->lastname }}</p>
-                                </div>
-                                @endif
-                            </div>
-                            @else
-                            <div class="px-4 py-3 text-center">
-                                <p class="text-sm text-gray-400 italic">Results pending</p>
-                            </div>
-                            @endif
+
+                    <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Test Name</th>
+                                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Result</th>
+                                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Reference Range</th>
+                                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Flag</th>
+                                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Remarks</th>
+                                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100">
+                                    @foreach($selectedOrder->orderTests as $ot)
+                                    @php
+                                        $result = $ot->labResult;
+                                        // Determine flag from result_value vs normal_range
+                                        $flag = null;
+                                        $flagClass = '';
+                                        if ($result && $result->result_value && $result->normal_range) {
+                                            $val = floatval($result->result_value);
+                                            $range = $result->normal_range;
+                                            // Try to parse ranges like "70-110", "3.5 - 5.5", "<100", ">10"
+                                            if (preg_match('/^(\d+\.?\d*)\s*[-–]\s*(\d+\.?\d*)/', $range, $m)) {
+                                                $low = floatval($m[1]);
+                                                $high = floatval($m[2]);
+                                                if (is_numeric($result->result_value)) {
+                                                    if ($val < $low) { $flag = 'Low'; $flagClass = 'bg-blue-100 text-blue-700'; }
+                                                    elseif ($val > $high) { $flag = 'High'; $flagClass = 'bg-red-100 text-red-700'; }
+                                                    else { $flag = 'Normal'; $flagClass = 'bg-emerald-100 text-emerald-700'; }
+                                                }
+                                            }
+                                        }
+                                        // Fallback: check remarks/findings for keywords
+                                        if (!$flag && $result) {
+                                            $text = strtolower(($result->findings ?? '') . ' ' . ($result->remarks ?? ''));
+                                            if (str_contains($text, 'high') || str_contains($text, 'elevated')) { $flag = 'High'; $flagClass = 'bg-red-100 text-red-700'; }
+                                            elseif (str_contains($text, 'low') || str_contains($text, 'decreased')) { $flag = 'Low'; $flagClass = 'bg-blue-100 text-blue-700'; }
+                                            elseif (str_contains($text, 'normal') || str_contains($text, 'within')) { $flag = 'Normal'; $flagClass = 'bg-emerald-100 text-emerald-700'; }
+                                        }
+                                    @endphp
+                                    <tr class="hover:bg-blue-50/30 transition-colors">
+                                        <td class="px-4 py-3">
+                                            <div class="text-sm font-semibold text-gray-900">{{ $ot->test->label ?? 'Unknown Test' }}</div>
+                                            @if($ot->test && $ot->test->section)
+                                                <div class="text-xs text-gray-400">{{ $ot->test->section->label }}</div>
+                                            @endif
+                                        </td>
+                                        <td class="px-4 py-3">
+                                            @if($result && $result->result_value)
+                                                <span class="text-sm font-semibold text-gray-900">{{ $result->result_value }}</span>
+                                            @else
+                                                <span class="text-sm text-gray-400 italic">Pending</span>
+                                            @endif
+                                        </td>
+                                        <td class="px-4 py-3">
+                                            <span class="text-sm text-gray-600">{{ $result->normal_range ?? '—' }}</span>
+                                        </td>
+                                        <td class="px-4 py-3">
+                                            @if($flag)
+                                                <span class="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold rounded-full {{ $flagClass }}">
+                                                    @if($flag === 'High')
+                                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg>
+                                                    @elseif($flag === 'Low')
+                                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                                    @else
+                                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                                    @endif
+                                                    {{ $flag }}
+                                                </span>
+                                            @else
+                                                <span class="text-xs text-gray-400">—</span>
+                                            @endif
+                                        </td>
+                                        <td class="px-4 py-3">
+                                            <span class="text-xs text-gray-600">{{ $result->remarks ?? ($result->findings ?? '—') }}</span>
+                                        </td>
+                                        <td class="px-4 py-3">
+                                            @if($result)
+                                                @php
+                                                    $rsc = match($result->status ?? 'draft') {
+                                                        'final' => 'bg-emerald-100 text-emerald-700',
+                                                        'revised' => 'bg-blue-100 text-blue-700',
+                                                        default => 'bg-amber-100 text-amber-700',
+                                                    };
+                                                @endphp
+                                                <span class="px-2 py-0.5 text-xs font-medium rounded-full {{ $rsc }}">{{ ucfirst($result->status) }}</span>
+                                            @else
+                                                <span class="px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-500">Pending</span>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
                         </div>
-                        @endforeach
                     </div>
                 </div>
+
+                {{-- Additional Info --}}
+                @if($selectedOrder->remarks)
+                <div class="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                    <p class="text-xs font-semibold text-amber-700 uppercase mb-1">Order Remarks</p>
+                    <p class="text-sm text-amber-800">{{ $selectedOrder->remarks }}</p>
+                </div>
+                @endif
+
+                {{-- Performed/Verified Info --}}
+                @php
+                    $performers = $selectedOrder->orderTests
+                        ->filter(fn($ot) => $ot->labResult && $ot->labResult->performedBy)
+                        ->map(fn($ot) => $ot->labResult->performedBy->firstname . ' ' . $ot->labResult->performedBy->lastname)
+                        ->unique()->values();
+                    $verifiers = $selectedOrder->orderTests
+                        ->filter(fn($ot) => $ot->labResult && $ot->labResult->verifiedBy)
+                        ->map(fn($ot) => $ot->labResult->verifiedBy->firstname . ' ' . $ot->labResult->verifiedBy->lastname)
+                        ->unique()->values();
+                @endphp
+                @if($performers->isNotEmpty() || $verifiers->isNotEmpty())
+                <div class="grid grid-cols-2 gap-3">
+                    @if($performers->isNotEmpty())
+                    <div class="bg-gray-50 p-3.5 rounded-xl">
+                        <p class="text-xs font-medium text-gray-500 uppercase mb-1">Performed By</p>
+                        <p class="text-sm font-medium text-gray-900">{{ $performers->implode(', ') }}</p>
+                    </div>
+                    @endif
+                    @if($verifiers->isNotEmpty())
+                    <div class="bg-gray-50 p-3.5 rounded-xl">
+                        <p class="text-xs font-medium text-gray-500 uppercase mb-1">Verified By</p>
+                        <p class="text-sm font-medium text-gray-900">{{ $verifiers->implode(', ') }}</p>
+                    </div>
+                    @endif
+                </div>
+                @endif
             </div>
 
             {{-- Footer --}}
-            <div class="px-6 py-4 border-t border-gray-100 flex justify-end">
+            <div class="px-6 py-4 border-t border-gray-100 flex items-center justify-between print:hidden">
                 <button wire:click="closeOrder" class="px-5 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors">
                     Close
                 </button>
+                <div class="flex items-center gap-2">
+                    <button onclick="printResult()"
+                            class="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 rounded-xl shadow-sm shadow-blue-500/25 transition-all">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                        Print Result
+                    </button>
+                </div>
             </div>
         </div>
     </div>
+
+    <script>
+        function printResult() {
+            window.print();
+        }
+    </script>
+
+    <style>
+        @media print {
+            body * { visibility: hidden; }
+            #printable-result, #printable-result * { visibility: visible; }
+            #printable-result { position: fixed; left: 0; top: 0; width: 100%; max-height: none; overflow: visible; box-shadow: none; border-radius: 0; }
+            .print\\:hidden { display: none !important; }
+        }
+    </style>
     @endif
 
     {{-- ===== CERTIFICATE DETAIL MODAL ===== --}}

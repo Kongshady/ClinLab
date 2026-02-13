@@ -36,4 +36,15 @@ class CalibrationRecord extends Model
     {
         return $this->belongsTo(Employee::class, 'performed_by', 'employee_id');
     }
+
+    public function procedure()
+    {
+        return $this->belongsTo(\Illuminate\Database\Eloquent\Model::class, 'procedure_id', 'procedure_id')
+            ->setTable('calibration_procedure');
+    }
+
+    public function certificateIssue()
+    {
+        return $this->hasOne(CertificateIssue::class, 'calibration_id', 'record_id');
+    }
 }

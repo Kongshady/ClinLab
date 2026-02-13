@@ -228,7 +228,7 @@ new class extends Component
 
         return [
             'employees' => $employees,
-            'roles' => Role::where('status_code', 1)->get()
+            'roles' => Role::where('status_code', 1)->where('role_name', '!=', 'Patient')->get()
         ];
     }
 };
@@ -337,7 +337,7 @@ new class extends Component
                                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent">
                             <option value="">Select Role</option>
                             @foreach($roles as $role)
-                                <option value="{{ $role->id }}">{{ $role->name }}</option>
+                                <option value="{{ $role->role_id }}">{{ $role->role_name }}</option>
                             @endforeach
                         </select>
                         @error('role_id') <span class="text-red-600 text-xs mt-1">{{ $message }}</span> @enderror

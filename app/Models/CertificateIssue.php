@@ -13,6 +13,8 @@ class CertificateIssue extends Model
         'issued_at',
         'valid_until',
         'generated_by',
+        'approved_by',
+        'approved_at',
         'status',
         'equipment_id',
         'calibration_id',
@@ -24,6 +26,7 @@ class CertificateIssue extends Model
     protected $casts = [
         'issued_at' => 'datetime',
         'valid_until' => 'datetime',
+        'approved_at' => 'datetime',
     ];
 
     /**
@@ -40,6 +43,14 @@ class CertificateIssue extends Model
     public function generator()
     {
         return $this->belongsTo(User::class, 'generated_by');
+    }
+
+    /**
+     * Get the user who approved this certificate.
+     */
+    public function approver()
+    {
+        return $this->belongsTo(User::class, 'approved_by');
     }
 
     /**

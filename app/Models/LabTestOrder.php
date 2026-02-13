@@ -11,7 +11,7 @@ class LabTestOrder extends Model
     public $timestamps = false;
 
     protected $fillable = [
-        'patient_id',
+        'patient_id', 
         'physician_id',
         'test_id',
         'order_date',

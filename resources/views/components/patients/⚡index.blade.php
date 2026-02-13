@@ -179,7 +179,25 @@ new class extends Component
         $patient->softDelete();
         $this->logActivity("Deleted patient ID {$id}: {$patient->firstname} {$patient->lastname}");
         $this->flashMessage = 'Patient deleted successfully.';
-        $this->resetPage(); // Reset pagination after delete
+        $this->resetPage();
+    }
+
+    public function deleteSelected($ids)
+    {
+        if (empty($ids)) return;
+
+        $count = 0;
+        foreach ($ids as $id) {
+            $patient = Patient::find($id);
+            if ($patient) {
+                $patient->softDelete();
+                $count++;
+            }
+        }
+        $this->logActivity("Bulk deleted {$count} patient(s)");
+        $this->flashMessage = $count . ' patient(s) deleted successfully!';
+        $this->resetPage();
+        $this->dispatch('selection-cleared');
     }
 
     public function with(): array
@@ -203,7 +221,25 @@ new class extends Component
     }
 }; ?>
 
-<div class="p-6">
+<div class="p-6 space-y-6" x-data="{ 
+    selectedIds: [],
+    selectAll: false,
+    toggleAll(ids) {
+        if (this.selectAll) {
+            this.selectedIds = ids;
+        } else {
+            this.selectedIds = [];
+        }
+    },
+    toggleOne(id) {
+        const idx = this.selectedIds.indexOf(id);
+        if (idx > -1) {
+            this.selectedIds.splice(idx, 1);
+        } else {
+            this.selectedIds.push(id);
+        }
+    }
+}" @selection-cleared.window="selectedIds = []; selectAll = false">
     <!-- Page Header -->
     <div class="mb-6">
         <h1 class="text-2xl font-bold text-gray-900 flex items-center">
@@ -338,22 +374,47 @@ new class extends Component
     <!-- Patients List Card -->
     <div class="bg-white rounded-lg shadow-sm">
         <div class="px-6 py-4 border-b border-gray-200">
-            <h2 class="text-lg font-semibold text-gray-900">Patients Directory</h2>
+            <div class="flex items-center justify-between">
+                <h2 class="text-lg font-semibold text-gray-900">Patients Directory</h2>
+                <!-- Delete Selected Button -->
+                <div x-show="selectedIds.length > 0" x-cloak x-transition>
+                    <button type="button" 
+                            @click="if(confirm('Are you sure you want to delete ' + selectedIds.length + ' selected patient(s)?')) { $wire.deleteSelected(selectedIds) }"
+                            class="inline-flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                        </svg>
+                        Delete Selected (<span x-text="selectedIds.length"></span>)
+                    </button>
+                </div>
+            </div>
         </div>
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
+                        <th class="px-6 py-3 text-left w-10">
+                            <input type="checkbox" x-model="selectAll" 
+                                   @change="toggleAll([{{ $patients instanceof \Illuminate\Pagination\LengthAwarePaginator ? $patients->pluck('patient_id')->implode(',') : $patients->pluck('patient_id')->implode(',') }}])"
+                                   class="rounded border-gray-300 text-pink-600 focus:ring-pink-500">
+                        </th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Full Name</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Birthdate</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gender</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
                     @forelse($patients as $patient)
-                        <tr wire:key="patient-{{ $patient->patient_id }}" class="hover:bg-gray-50">
+                        <tr wire:key="patient-{{ $patient->patient_id }}" 
+                            class="hover:bg-gray-50 cursor-pointer transition-colors"
+                            wire:click="viewPatient({{ $patient->patient_id }})">
+                            <td class="px-6 py-4" wire:click.stop>
+                                <input type="checkbox" value="{{ $patient->patient_id }}" 
+                                       @change="toggleOne({{ $patient->patient_id }})"
+                                       :checked="selectedIds.includes({{ $patient->patient_id }})"
+                                       class="rounded border-gray-300 text-pink-600 focus:ring-pink-500">
+                            </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="flex items-center">
                                     <div class="w-8 h-8 bg-pink-500 rounded-full flex items-center justify-center text-white text-xs font-bold mr-3">
@@ -374,23 +435,6 @@ new class extends Component
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                 {{ $patient->contact_number ?: 'N/A' }}
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                <div class="flex space-x-2">
-                                    <button type="button" wire:click="viewPatient({{ $patient->patient_id }})" 
-                                            class="px-4 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors">
-                                        View
-                                    </button>
-                                    <button type="button" wire:click="edit({{ $patient->patient_id }})" 
-                                            class="px-4 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg transition-colors">
-                                        Edit
-                                    </button>
-                                    <button type="button" wire:click="delete({{ $patient->patient_id }})" 
-                                            wire:confirm="Are you sure you want to delete this patient?"
-                                            class="px-4 py-1.5 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors">
-                                        Delete
-                                    </button>
-                                </div>
-                            </td>
                         </tr>
                     @empty
                         <tr>
@@ -403,7 +447,7 @@ new class extends Component
             </table>
         </div>
         
-        @if($perPage !== 'all' && $patients->hasPages())
+        @if($perPage !== 'all' && $patients instanceof \Illuminate\Pagination\LengthAwarePaginator && $patients->hasPages())
             <div class="px-6 py-4 border-t border-gray-200">
                 {{ $patients->links() }}
             </div>

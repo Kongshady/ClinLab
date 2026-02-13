@@ -25,17 +25,99 @@
         }
     </script>
     
+    <style>
+        /* Sidebar transition */
+        .sidebar-transition {
+            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Collapsed sidebar - hide text labels in nav */
+        aside.sidebar-collapsed nav a.nav-link span {
+            display: none;
+        }
+
+        /* Collapsed sidebar - hide section headings */
+        aside.sidebar-collapsed nav p {
+            display: none;
+        }
+
+        /* Collapsed sidebar - center nav links */
+        aside.sidebar-collapsed nav a.nav-link {
+            justify-content: center;
+            padding-left: 0.75rem;
+            padding-right: 0.75rem;
+            position: relative;
+        }
+
+        /* Collapsed sidebar - remove icon margin */
+        aside.sidebar-collapsed nav a.nav-link svg {
+            margin-right: 0;
+        }
+
+        /* Collapsed sidebar - hide brand text */
+        aside.sidebar-collapsed .sidebar-brand-text {
+            display: none;
+        }
+
+        /* Smooth icon margin transition */
+        .nav-link svg {
+            transition: margin 0.2s ease-in-out;
+            flex-shrink: 0;
+        }
+
+        /* Tooltip on hover when collapsed */
+        aside.sidebar-collapsed nav {
+            overflow: visible !important;
+        }
+
+        aside.sidebar-collapsed nav a.nav-link:hover span {
+            display: block;
+            position: absolute;
+            left: calc(100% + 12px);
+            top: 50%;
+            transform: translateY(-50%);
+            background: #1f2937;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            white-space: nowrap;
+            z-index: 1000;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            pointer-events: none;
+        }
+
+        aside.sidebar-collapsed nav a.nav-link:hover span::before {
+            content: '';
+            position: absolute;
+            right: 100%;
+            top: 50%;
+            transform: translateY(-50%);
+            border: 5px solid transparent;
+            border-right-color: #1f2937;
+        }
+
+        /* Scrollbar styles */
+        .scrollbar-thin::-webkit-scrollbar { width: 4px; }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 2px; }
+        .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+    </style>
+
     @livewireStyles
 </head>
 <body class="bg-gray-50 font-sans antialiased">
-    <div class="flex h-screen overflow-hidden">
+    <div class="flex h-screen overflow-hidden" x-data="{ sidebarOpen: localStorage.getItem('sidebarOpen') !== 'false' }" x-init="$watch('sidebarOpen', val => localStorage.setItem('sidebarOpen', val))">
         <!-- Sidebar -->
-        <aside class="w-64 bg-white border-r border-gray-200 flex flex-col shadow-sm">
+        <aside :class="sidebarOpen ? 'w-64' : 'w-20 sidebar-collapsed'" class="bg-white border-r border-gray-200 flex flex-col shadow-sm" x-init="$nextTick(() => $el.classList.add('sidebar-transition'))">
             <!-- Logo/Brand -->
-            <div class="p-6 border-b border-gray-200">
-                <div class="flex items-center space-x-3">
-                    
-                    <div>
+            <div class="border-b border-gray-200 transition-all duration-300" :class="sidebarOpen ? 'p-5' : 'p-3'">
+                <div class="flex items-center" :class="sidebarOpen ? 'space-x-3' : 'justify-center'">
+                    <button @click="sidebarOpen = !sidebarOpen" class="p-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-500 hover:text-gray-900 flex-shrink-0" :title="sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'">
+                        <svg class="w-5 h-5 transition-transform duration-300" :class="sidebarOpen ? '' : 'rotate-180'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"/>
+                        </svg>
+                    </button>
+                    <div class="sidebar-brand-text">
                         <h1 class="text-xl font-bold text-gray-900">ClinLab</h1>
                         <p class="text-xs text-gray-500">Laboratory System</p>
                     </div>
@@ -43,7 +125,7 @@
             </div>
 
             <!-- Navigation -->
-            <nav class="flex-1 px-4 py-6 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
+            <nav class="flex-1 py-6 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent transition-all duration-300" :class="sidebarOpen ? 'px-4' : 'px-2'">
                 <div class="space-y-1.5">
                     <!-- Main Section -->
                     <div class="mb-6">
@@ -213,46 +295,46 @@
             </nav>
 
             <!-- User Profile & Settings -->
-            <div class="p-4 border-t border-gray-200" x-data="{ open: false }">
+            <div class="border-t border-gray-200 transition-all duration-300" :class="sidebarOpen ? 'p-4' : 'p-2'" x-data="{ open: false }">
                 <!-- Dropdown Menu -->
                 <div x-show="open" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 translate-y-1" x-transition:enter-end="opacity-100 translate-y-0" x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 translate-y-0" x-transition:leave-end="opacity-0 translate-y-1" class="mb-2 space-y-1">
                     <!-- Account Settings -->
-                    <a href="/account-settings" class="flex items-center justify-between px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors">
-                        <div class="flex items-center space-x-3">
-                            <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <a href="/account-settings" class="flex items-center py-3 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors" :class="sidebarOpen ? 'justify-between px-4' : 'justify-center px-2'">
+                        <div class="flex items-center" :class="sidebarOpen ? 'space-x-3' : ''">
+                            <svg class="w-5 h-5 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
                             </svg>
-                            <span class="text-sm font-medium">Account Settings</span>
+                            <span x-show="sidebarOpen" class="text-sm font-medium">Account Settings</span>
                         </div>
-                        
                     </a>
 
                     <!-- Log out -->
                     <form method="POST" action="{{ route('logout') }}">
                         @csrf
-                        <button type="submit" class="w-full flex items-center justify-between px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-                            <div class="flex items-center space-x-3">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <button type="submit" class="w-full flex items-center py-3 text-red-600 hover:bg-red-50 rounded-lg transition-colors" :class="sidebarOpen ? 'justify-between px-4' : 'justify-center px-2'">
+                            <div class="flex items-center" :class="sidebarOpen ? 'space-x-3' : ''">
+                                <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
                                 </svg>
-                                <span class="text-sm font-medium">Log out</span>
+                                <span x-show="sidebarOpen" class="text-sm font-medium">Log out</span>
                             </div>
-                            
                         </button>
                     </form>
                 </div>
 
                 <!-- User Profile Toggle -->
-                <button @click="open = !open" class="w-full flex items-center space-x-3 px-3 py-2 hover:bg-gray-50 rounded-lg transition-colors">
-                    <div class="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-semibold text-sm">
+                <button @click="open = !open" class="w-full flex items-center py-2 hover:bg-gray-50 rounded-lg transition-colors" :class="sidebarOpen ? 'space-x-3 px-3' : 'justify-center px-1'">
+                    <div class="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
                         {{ strtoupper(substr(auth()->user()->name, 0, 1)) }}
                     </div>
-                    <div class="flex-1 text-left">
-                        <p class="text-sm font-semibold text-gray-900">{{ auth()->user()->name }}</p>
-                        <p class="text-xs text-gray-500">{{ ucfirst(str_replace('_', ' ', auth()->user()->roles->first()->name ?? 'User')) }}</p>
-                    </div>
-                    <svg class="w-4 h-4 text-gray-400 transition-transform" :class="{ 'rotate-180': open }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <template x-if="sidebarOpen">
+                        <div class="flex-1 text-left">
+                            <p class="text-sm font-semibold text-gray-900">{{ auth()->user()->name }}</p>
+                            <p class="text-xs text-gray-500">{{ ucfirst(str_replace('_', ' ', auth()->user()->roles->first()->name ?? 'User')) }}</p>
+                        </div>
+                    </template>
+                    <svg x-show="sidebarOpen" class="w-4 h-4 text-gray-400 transition-transform" :class="{ 'rotate-180': open }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/>
                     </svg>
                 </button>

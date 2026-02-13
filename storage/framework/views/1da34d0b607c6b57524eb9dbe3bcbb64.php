@@ -7,7 +7,25 @@ use App\Models\LabResult;
 use App\Traits\LogsActivity;
 ?>
 
-<div class="p-6">
+<div class="p-6 space-y-6" x-data="{ 
+    selectedIds: [],
+    selectAll: false,
+    toggleAll(ids) {
+        if (this.selectAll) {
+            this.selectedIds = ids;
+        } else {
+            this.selectedIds = [];
+        }
+    },
+    toggleOne(id) {
+        const idx = this.selectedIds.indexOf(id);
+        if (idx > -1) {
+            this.selectedIds.splice(idx, 1);
+        } else {
+            this.selectedIds.push(id);
+        }
+    }
+}" @selection-cleared.window="selectedIds = []; selectAll = false">
     <!-- Page Header -->
     <div class="mb-6">
         <h1 class="text-2xl font-bold text-gray-900 flex items-center">
@@ -198,22 +216,47 @@ unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendB
     <!-- Patients List Card -->
     <div class="bg-white rounded-lg shadow-sm">
         <div class="px-6 py-4 border-b border-gray-200">
-            <h2 class="text-lg font-semibold text-gray-900">Patients Directory</h2>
+            <div class="flex items-center justify-between">
+                <h2 class="text-lg font-semibold text-gray-900">Patients Directory</h2>
+                <!-- Delete Selected Button -->
+                <div x-show="selectedIds.length > 0" x-cloak x-transition>
+                    <button type="button" 
+                            @click="if(confirm('Are you sure you want to delete ' + selectedIds.length + ' selected patient(s)?')) { $wire.deleteSelected(selectedIds) }"
+                            class="inline-flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                        </svg>
+                        Delete Selected (<span x-text="selectedIds.length"></span>)
+                    </button>
+                </div>
+            </div>
         </div>
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
+                        <th class="px-6 py-3 text-left w-10">
+                            <input type="checkbox" x-model="selectAll" 
+                                   @change="toggleAll([<?php echo e($patients instanceof \Illuminate\Pagination\LengthAwarePaginator ? $patients->pluck('patient_id')->implode(',') : $patients->pluck('patient_id')->implode(',')); ?>])"
+                                   class="rounded border-gray-300 text-pink-600 focus:ring-pink-500">
+                        </th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Full Name</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Birthdate</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gender</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
                     <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__empty_1 = true; $__currentLoopData = $patients; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $patient): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
-                        <tr <?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processElementKey('patient-{{ $patient->patient_id }}', get_defined_vars()); ?>wire:key="patient-<?php echo e($patient->patient_id); ?>" class="hover:bg-gray-50">
+                        <tr <?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processElementKey('patient-{{ $patient->patient_id }}', get_defined_vars()); ?>wire:key="patient-<?php echo e($patient->patient_id); ?>" 
+                            class="hover:bg-gray-50 cursor-pointer transition-colors"
+                            wire:click="viewPatient(<?php echo e($patient->patient_id); ?>)">
+                            <td class="px-6 py-4" wire:click.stop>
+                                <input type="checkbox" value="<?php echo e($patient->patient_id); ?>" 
+                                       @change="toggleOne(<?php echo e($patient->patient_id); ?>)"
+                                       :checked="selectedIds.includes(<?php echo e($patient->patient_id); ?>)"
+                                       class="rounded border-gray-300 text-pink-600 focus:ring-pink-500">
+                            </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="flex items-center">
                                     <div class="w-8 h-8 bg-pink-500 rounded-full flex items-center justify-center text-white text-xs font-bold mr-3">
@@ -238,23 +281,6 @@ unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendB
                                 <?php echo e($patient->contact_number ?: 'N/A'); ?>
 
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                <div class="flex space-x-2">
-                                    <button type="button" wire:click="viewPatient(<?php echo e($patient->patient_id); ?>)" 
-                                            class="px-4 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors">
-                                        View
-                                    </button>
-                                    <button type="button" wire:click="edit(<?php echo e($patient->patient_id); ?>)" 
-                                            class="px-4 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg transition-colors">
-                                        Edit
-                                    </button>
-                                    <button type="button" wire:click="delete(<?php echo e($patient->patient_id); ?>)" 
-                                            wire:confirm="Are you sure you want to delete this patient?"
-                                            class="px-4 py-1.5 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors">
-                                        Delete
-                                    </button>
-                                </div>
-                            </td>
                         </tr>
                     <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
                         <tr>
@@ -267,7 +293,7 @@ unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendB
             </table>
         </div>
         
-        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($perPage !== 'all' && $patients->hasPages()): ?>
+        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($perPage !== 'all' && $patients instanceof \Illuminate\Pagination\LengthAwarePaginator && $patients->hasPages()): ?>
             <div class="px-6 py-4 border-t border-gray-200">
                 <?php echo e($patients->links()); ?>
 

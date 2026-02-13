@@ -275,83 +275,103 @@ new class extends Component
         </form>
     </div>
 
-    <!-- Search -->
-    <div class="bg-white rounded-lg shadow-sm p-6">
-        <input type="text" wire:model.live.debounce.300ms="search" placeholder="Search by item name, type, or section..." 
-               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent">
-    </div>
-
-    <!-- Rows per page -->
-    <div class="flex items-center space-x-3">
-        <label class="text-sm font-medium text-gray-700">Rows per page:</label>
-        <select wire:model.live="perPage" 
-                class="px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent text-sm">
-            <option value="10">10</option>
-            <option value="25">25</option>
-            <option value="50">50</option>
-            <option value="100">100</option>
-            <option value="all">All</option>
-        </select>
+    <!-- Search and Filters -->
+    <div class="bg-white rounded-lg shadow-sm mb-6">
+        <div class="p-6">
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
+                <div class="md:col-span-8">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Search Items</label>
+                    <input type="text" wire:model.live.debounce.300ms="search" placeholder="Search by item name, type, or section..." 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500">
+                </div>
+                <div class="md:col-span-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Rows per page</label>
+                    <select wire:model.live="perPage" 
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500">
+                        <option value="10">10</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                        <option value="all">All</option>
+                    </select>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Items List -->
     <div class="bg-white rounded-lg shadow-sm">
-        <div class="p-6">
-            <div class="flex items-center justify-between mb-4">
-                <h2 class="text-lg font-semibold text-gray-900">Items List</h2>
+        <div class="px-6 py-4 border-b border-gray-200">
+            <div class="flex items-center justify-between">
+                <h2 class="text-lg font-semibold text-gray-900">Items Directory</h2>
                 @if(count($selectedItems) > 0)
                 <button wire:click="deleteSelected" 
                         wire:confirm="Are you sure you want to delete {{ count($selectedItems) }} selected item(s)?"
-                        class="inline-flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors">
-                    <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        class="inline-flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                     </svg>
                     Delete Selected ({{ count($selectedItems) }})
                 </button>
                 @endif
             </div>
-            
-            <div class="overflow-x-auto">
-                <table class="w-full">
-                    <thead>
-                        <tr class="bg-gray-50">
-                            <th class="px-4 py-3 w-10"> 
-                                <input type="checkbox" wire:model.live="selectAll"
-                                       class="rounded border-gray-300 text-pink-600 focus:ring-pink-500 w-4 h-4">
-                            </th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Item Name</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Item Type</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Section</th>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left w-10"> 
+                            <input type="checkbox" wire:model.live="selectAll"
+                                   class="rounded border-gray-300 text-pink-600 focus:ring-pink-500">
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item Name</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item Type</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Section</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    @forelse($items as $item)
+                        <tr wire:key="item-{{ $item->item_id }}" 
+                            wire:click="openEditModal({{ $item->item_id }})" 
+                            class="hover:bg-gray-50 cursor-pointer transition-colors {{ in_array((string) $item->item_id, $selectedItems) ? 'bg-pink-50' : '' }}">
+                            <td class="px-6 py-4" wire:click.stop>
+                                <input type="checkbox" wire:model.live="selectedItems" value="{{ $item->item_id }}"
+                                       class="rounded border-gray-300 text-pink-600 focus:ring-pink-500">
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex items-center">
+                                    <div class="w-8 h-8 bg-pink-500 rounded-full flex items-center justify-center text-white text-xs font-bold mr-3">
+                                        {{ strtoupper(substr($item->label, 0, 2)) }}
+                                    </div>
+                                    <div>
+                                        <div class="font-medium text-gray-900">{{ $item->label }}</div>
+                                        <div class="text-xs text-gray-500">ID: {{ $item->item_id }}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ $item->item_type_label ?? 'N/A' }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                @if($item->section)
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">{{ $item->section->label }}</span>
+                                @else
+                                    <span class="text-gray-400">Unassigned</span>
+                                @endif
+                            </td>
                         </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-200">
-                        @forelse($items as $item)
-                            <tr wire:key="item-{{ $item->item_id }}" 
-                                wire:click="openEditModal({{ $item->item_id }})" 
-                                class="hover:bg-gray-100 cursor-pointer transition-colors {{ in_array((string) $item->item_id, $selectedItems) ? 'bg-pink-50' : '' }}">
-                                <td class="px-4 py-3" wire:click.stop>
-                                    <input type="checkbox" wire:model.live="selectedItems" value="{{ $item->item_id }}"
-                                           class="rounded border-gray-300 text-pink-600 focus:ring-pink-500 w-4 h-4">
-                                </td>
-                                <td class="px-4 py-3 text-sm text-gray-900 font-medium">{{ $item->label }}</td>
-                                <td class="px-4 py-3 text-sm text-gray-700">{{ $item->item_type_label ?? 'N/A' }}</td>
-                                <td class="px-4 py-3 text-sm text-gray-700">{{ $item->section->label ?? 'N/A' }}</td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="4" class="px-4 py-8 text-center text-gray-500">No items found.</td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
+                    @empty
+                        <tr>
+                            <td colspan="4" class="px-6 py-12 text-center text-gray-500">No items found.</td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
 
-            @if($perPage !== 'all' && method_exists($items, 'hasPages') && $items->hasPages())
-            <div class="mt-6">
+        @if($perPage !== 'all' && method_exists($items, 'hasPages') && $items->hasPages())
+            <div class="px-6 py-4 border-t border-gray-200">
                 {{ $items->links() }}
             </div>
-            @endif
-        </div>
+        @endif
     </div>
 
     <!-- Edit Item Modal -->

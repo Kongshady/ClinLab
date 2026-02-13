@@ -1,1 +1,0 @@
-physician-<?php echo e($physician->physician_id); ?><?php /**PATH C:\xampp\htdocs\dashboard\clinlab_app\storage\framework\views/c99f68587e5bd8aeb8a9f8a2e2f5d446.blade.php ENDPATH**/ ?>

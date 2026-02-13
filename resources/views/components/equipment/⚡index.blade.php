@@ -131,7 +131,18 @@ new class extends Component
 
     public function save()
     {
-        $this->validate();
+        $this->validate([
+            'name' => 'required|string|max:255',
+            'model' => 'nullable|string|max:100',
+            'serial_no' => 'nullable|string|max:100',
+            'section_id' => 'required|exists:section,section_id',
+            'status' => 'nullable|string|max:50',
+            'purchase_date' => 'nullable|date',
+            'supplier' => 'nullable|string|max:255',
+            'remarks' => 'nullable|string|max:500',
+        ]);
+
+        $savedName = $this->name;
 
         Equipment::create([
             'name' => $this->name,
@@ -139,16 +150,16 @@ new class extends Component
             'serial_no' => $this->serial_no,
             'section_id' => $this->section_id,
             'status' => $this->status,
-            'purchase_date' => $this->purchase_date,
+            'purchase_date' => $this->purchase_date ?: null,
             'supplier' => $this->supplier,
             'remarks' => $this->remarks,
             'is_deleted' => 0,
             'datetime_added' => now(),
         ]);
 
+        $this->logActivity("Created equipment: {$savedName}");
         $this->reset(['name', 'model', 'serial_no', 'section_id', 'purchase_date', 'supplier', 'remarks']);
         $this->status = 'Operational';
-        $this->logActivity("Created equipment: {$this->name}");
         $this->flashMessage = 'Equipment added successfully!';
         $this->showEquipmentModal = false;
         $this->resetPage();
@@ -171,7 +182,16 @@ new class extends Component
 
     public function update()
     {
-        $this->validate();
+        $this->validate([
+            'name' => 'required|string|max:255',
+            'model' => 'nullable|string|max:100',
+            'serial_no' => 'nullable|string|max:100',
+            'section_id' => 'required|exists:section,section_id',
+            'status' => 'nullable|string|max:50',
+            'purchase_date' => 'nullable|date',
+            'supplier' => 'nullable|string|max:255',
+            'remarks' => 'nullable|string|max:500',
+        ]);
 
         $equipment = Equipment::findOrFail($this->editingEquipmentId);
         $equipment->update([
@@ -180,7 +200,7 @@ new class extends Component
             'serial_no' => $this->serial_no,
             'section_id' => $this->section_id,
             'status' => $this->status,
-            'purchase_date' => $this->purchase_date,
+            'purchase_date' => $this->purchase_date ?: null,
             'supplier' => $this->supplier,
             'remarks' => $this->remarks,
         ]);

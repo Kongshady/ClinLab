@@ -1,6 +1,6 @@
 <?php
 
-use Livewire\Volt\Component;
+use Livewire\Component;
 use App\Models\CertificateIssue;
 
 new class extends Component
@@ -44,7 +44,7 @@ new class extends Component
     }
 }; ?>
 
-<div class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-6">
+<div class="p-6">
     <div class="max-w-4xl mx-auto">
         <!-- Header -->
         <div class="text-center mb-8">
@@ -96,7 +96,9 @@ new class extends Component
                             <span class="text-xl font-bold text-rose-700">INVALID CERTIFICATE</span>
                         </div>
                         <p class="mt-3 text-slate-600">
-                            @if($certificate->status === 'Revoked')
+                            @if($certificate->status === 'Pending')
+                                This certificate is pending approval.
+                            @elseif($certificate->status === 'Revoked')
                                 This certificate has been revoked.
                             @elseif($certificate->status === 'Expired')
                                 This certificate has expired.
@@ -128,7 +130,7 @@ new class extends Component
 
                             <div class="bg-slate-50 rounded-lg p-4">
                                 <p class="text-sm text-slate-600 mb-1">Serial Number</p>
-                                <p class="text-lg font-semibold text-slate-900">{{ $certificate->equipment->serial_number ?? 'N/A' }}</p>
+                                <p class="text-lg font-semibold text-slate-900">{{ $certificate->equipment->serial_no ?? 'N/A' }}</p>
                             </div>
                         @endif
 
@@ -146,7 +148,8 @@ new class extends Component
 
                         <div class="bg-slate-50 rounded-lg p-4">
                             <p class="text-sm text-slate-600 mb-1">Status</p>
-                            <p class="text-lg font-semibold 
+                            <p class="text-lg font-semibold
+                                {{ $certificate->status === 'Pending' ? 'text-orange-600' : '' }}
                                 {{ $certificate->status === 'Issued' ? 'text-emerald-600' : '' }}
                                 {{ $certificate->status === 'Revoked' ? 'text-rose-600' : '' }}
                                 {{ $certificate->status === 'Expired' ? 'text-amber-600' : '' }}

@@ -1,6 +1,6 @@
 <?php
 
-use Livewire\Volt\Component;
+use Livewire\Component;
 use Livewire\WithPagination;
 use Livewire\Attributes\Validate;
 use App\Models\CertificateTemplate;
@@ -141,7 +141,7 @@ new class extends Component
     }
 }; ?>
 
-<div class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-6">
+<div class="p-6">
     <div class="max-w-7xl mx-auto">
         <!-- Header -->
         <div class="mb-6">
@@ -328,7 +328,7 @@ new class extends Component
 
                         <div>
                             <label class="block text-sm font-medium text-slate-700 mb-1">Template HTML</label>
-                            <p class="text-xs text-slate-500 mb-2">Use placeholders like {{equipment_name}}, {{calibration_date}}, {{certificate_no}}, etc.</p>
+                            <p class="text-xs text-slate-500 mb-2">Use placeholders like @{{equipment_name}}, @{{calibration_date}}, @{{certificate_no}}, etc.</p>
                             <textarea 
                                 wire:model="body_html"
                                 rows="12"
