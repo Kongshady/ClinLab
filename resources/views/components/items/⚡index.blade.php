@@ -35,6 +35,12 @@ new class extends Component
     public $editLabel = '';
     public $editItemType = '';
 
+    // Delete confirmation modal properties
+    public $showDeleteModal = false;
+    public $deleteMessage = '';
+    public $deleteAction = '';
+    public $itemsToDelete = [];
+
     public function mount()
     {
         if (session()->has('success')) {
@@ -168,21 +174,43 @@ new class extends Component
     public function deleteSelected()
     {
         if (empty($this->selectedItems)) return;
+        
+        $count = count($this->selectedItems);
+        $this->deleteMessage = "Are you sure you want to delete {$count} selected item(s)? This action cannot be undone.";
+        $this->deleteAction = 'confirmDeleteSelected';
+        $this->itemsToDelete = $this->selectedItems;
+        $this->showDeleteModal = true;
+    }
 
+    // New method to confirm delete
+    public function confirmDeleteSelected()
+    {
+        if (empty($this->itemsToDelete)) return;
+        
         $count = 0;
-        foreach ($this->selectedItems as $id) {
+        foreach ($this->itemsToDelete as $id) {
             $item = Item::find($id);
             if ($item) {
                 $item->softDelete();
                 $count++;
             }
         }
-
-        $this->selectedItems = [];
-        $this->selectAll = false;
+        
         $this->logActivity("Bulk deleted {$count} item(s)");
         $this->flashMessage = $count . ' item(s) deleted successfully!';
+        $this->selectedItems = [];
+        $this->selectAll = false;
         $this->resetPage();
+        $this->closeDeleteModal();
+    }
+
+    // New method to close delete modal
+    public function closeDeleteModal()
+    {
+        $this->showDeleteModal = false;
+        $this->deleteMessage = '';
+        $this->deleteAction = '';
+        $this->itemsToDelete = [];
     }
 
     private function getFilteredQuery()
@@ -311,7 +339,6 @@ new class extends Component
                 <h2 class="text-lg font-semibold text-gray-900">Items Directory</h2>
                 @if(count($selectedItems) > 0)
                 <button wire:click="deleteSelected" 
-                        wire:confirm="Are you sure you want to delete {{ count($selectedItems) }} selected item(s)?"
                         class="inline-flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
@@ -455,6 +482,55 @@ new class extends Component
                         </button>
                     </div>
                 </form>
+            </div>
+        </div>
+    </div>
+    @endif
+
+    {{-- Delete Confirmation Modal --}}
+    @if($showDeleteModal)
+    <div class="fixed inset-0 z-50 overflow-y-auto" style="background-color: rgba(0, 0, 0, 0.5);">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-lg shadow-xl max-w-md w-full">
+                <!-- Modal Header -->
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-xl font-semibold text-gray-900">
+                            Confirm Deletion
+                        </h3>
+                        <button type="button" wire:click="closeDeleteModal" class="text-gray-400 hover:text-gray-600">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Modal Body -->
+                <div class="p-6">
+                    <div class="flex items-start space-x-3">
+                        <div class="flex-shrink-0">
+                            <svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+                            </svg>
+                        </div>
+                        <div class="flex-1">
+                            <p class="text-sm text-gray-700">{{ $deleteMessage }}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal Footer -->
+                <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end space-x-3 rounded-b-lg">
+                    <button type="button" wire:click="closeDeleteModal" 
+                            class="px-5 py-2.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                        Cancel
+                    </button>
+                    <button type="button" wire:click="{{ $deleteAction }}" 
+                            class="px-5 py-2.5 bg-red-600 text-white text-sm rounded-md font-medium hover:bg-red-700">
+                        Delete
+                    </button>
+                </div>
             </div>
         </div>
     </div>

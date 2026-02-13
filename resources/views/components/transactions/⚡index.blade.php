@@ -27,6 +27,10 @@ new class extends Component
     public $deleteAction = '';
     public $transactionsToDelete = [];
 
+    // Selection properties
+    public $selectedTransactions = [];
+    public $selectAll = false;
+
     // UPDATED: Changed to showEditModal and new property names
     public $showEditModal = false;
     public $editingTransactionId = null;
@@ -37,6 +41,7 @@ new class extends Component
     // View modal
     public $showViewModal = false;
     public $viewingTransaction = null;
+    public $editMode = false;
 
     public function mount()
     {
@@ -45,8 +50,7 @@ new class extends Component
         }
     }
 
-    // UPDATED: Handle select all
-    public function updatedSelectAll($value)
+public function updatedSelectAll($value)
     {
         if ($value) {
             $query = Transaction::with('patient')
@@ -65,6 +69,18 @@ new class extends Component
         } else {
             $this->selectedTransactions = [];
         }
+    }
+
+    public function updatedSelectedTransactions()
+    {
+        $this->selectAll = false;
+    }
+
+    public function updatedSearch()
+    {
+        $this->selectedTransactions = [];
+        $this->selectAll = false;
+        $this->resetPage();
     }
 
     // UPDATED: Delete selected using selectedTransactions - now shows modal
@@ -248,17 +264,6 @@ new class extends Component
         }
     }
 
-    public function deleteSelected($ids)
-    {
-        if (empty($ids)) return;
-        
-        $count = Transaction::whereIn('transaction_id', $ids)->delete();
-        $this->logActivity("Bulk deleted {$count} transaction(s)");
-        $this->flashMessage = $count . ' transaction(s) deleted successfully!';
-        $this->resetPage();
-        $this->dispatch('selection-cleared');
-    }
-
     public function with(): array
     {
         $query = Transaction::with('patient')
@@ -279,25 +284,7 @@ new class extends Component
 };
 ?>
 
-<div class="p-6" x-data="{ 
-    selectedIds: [],
-    selectAll: false,
-    toggleAll(ids) {
-        if (this.selectAll) {
-            this.selectedIds = ids;
-        } else {
-            this.selectedIds = [];
-        }
-    },
-    toggleOne(id) {
-        const idx = this.selectedIds.indexOf(id);
-        if (idx > -1) {
-            this.selectedIds.splice(idx, 1);
-        } else {
-            this.selectedIds.push(id);
-        }
-    }
-}" @selection-cleared.window="selectedIds = []; selectAll = false">
+<div class="p-6">
     <div class="mb-6">
         <h1 class="text-2xl font-bold text-gray-900 flex items-center">
             <svg class="w-7 h-7 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -397,8 +384,7 @@ new class extends Component
                 <thead class="bg-gray-50">
                     <tr>
                         <th class="px-6 py-3 text-left w-10">
-                            <input type="checkbox" x-model="selectAll" 
-                                   @change="toggleAll([{{ $transactions instanceof \Illuminate\Pagination\LengthAwarePaginator ? $transactions->pluck('transaction_id')->implode(',') : $transactions->pluck('transaction_id')->implode(',') }}])"
+                            <input type="checkbox" wire:model.live="selectAll"
                                    class="rounded border-gray-300 text-purple-600 focus:ring-purple-500 h-4 w-4">
                         </th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">OR Number</th>
@@ -409,12 +395,10 @@ new class extends Component
                 <tbody class="bg-white divide-y divide-gray-200">
                     @forelse($transactions as $transaction)
                         <tr wire:key="transaction-{{ $transaction->transaction_id }}" 
-                            class="hover:bg-gray-50 cursor-pointer transition-colors"
+                            class="hover:bg-gray-50 cursor-pointer transition-colors {{ in_array((string) $transaction->transaction_id, $selectedTransactions) ? 'bg-purple-50' : '' }}"
                             wire:click="showDetails({{ $transaction->transaction_id }})">
                             <td class="px-6 py-4" wire:click.stop>
-                                <input type="checkbox" value="{{ $transaction->transaction_id }}" 
-                                       @change="toggleOne({{ $transaction->transaction_id }})"
-                                       :checked="selectedIds.includes({{ $transaction->transaction_id }})"
+                                <input type="checkbox" wire:model.live="selectedTransactions" value="{{ $transaction->transaction_id }}"
                                        class="rounded border-gray-300 text-purple-600 focus:ring-purple-500 h-4 w-4">
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $transaction->or_number }}</td>

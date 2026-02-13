@@ -101,15 +101,18 @@
         .scrollbar-thin::-webkit-scrollbar { width: 4px; }
         .scrollbar-thin::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 2px; }
         .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+
+        /* Hide elements with x-cloak until Alpine initializes */
+        [x-cloak] { display: none !important; }
     </style>
 
     <?php echo \Livewire\Mechanisms\FrontendAssets\FrontendAssets::styles(); ?>
 
 </head>
 <body class="bg-gray-50 font-sans antialiased">
-    <div class="flex h-screen overflow-hidden" x-data="{ sidebarOpen: localStorage.getItem('sidebarOpen') !== 'false' }" x-init="$watch('sidebarOpen', val => localStorage.setItem('sidebarOpen', val))">
+    <div class="flex h-screen overflow-hidden" x-data="{ sidebarOpen: localStorage.getItem('sidebarOpen') !== 'false' }" x-init="$watch('sidebarOpen', val => localStorage.setItem('sidebarOpen', val))" x-cloak>
         <!-- Sidebar -->
-        <aside :class="sidebarOpen ? 'w-64' : 'w-20 sidebar-collapsed'" class="bg-white border-r border-gray-200 flex flex-col shadow-sm" x-init="$nextTick(() => $el.classList.add('sidebar-transition'))">
+        <aside :class="sidebarOpen ? 'w-64' : 'w-20 sidebar-collapsed'" class="bg-white border-r border-gray-200 flex flex-col shadow-sm sidebar-transition">
             <!-- Logo/Brand -->
             <div class="border-b border-gray-200 transition-all duration-300" :class="sidebarOpen ? 'p-5' : 'p-3'">
                 <div class="flex items-center" :class="sidebarOpen ? 'space-x-3' : 'justify-center'">
@@ -366,4 +369,4 @@
 
 </body>
 </html>
-<?php /**PATH C:\xampp\htdocs\dashboard\clinlab_app\resources\views/layouts/app.blade.php ENDPATH**/ ?>
+<?php /**PATH C:\Users\My PC\Desktop\LMS\Laravel LMS\offixial\ClinLab\resources\views/layouts/app.blade.php ENDPATH**/ ?>
