@@ -64,8 +64,14 @@ new class extends Component
         if (session()->has('success')) {
             $this->flashMessage = session('success');
         }
-        $this->resultDate = date('Y-m-d');
-        $this->editResultDate = date('Y-m-d');
+        $this->result_date = date('Y-m-d');
+        $this->status = 'draft';
+
+        // Check if we need to open edit modal from URL parameter
+        if (request()->has('edit')) {
+            $editId = request()->get('edit');
+            $this->openEditModal($editId);
+        }
     }
 
     // Create Order

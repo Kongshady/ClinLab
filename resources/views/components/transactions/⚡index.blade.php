@@ -21,8 +21,14 @@ new class extends Component
     public $perPage = 'all';
     public $flashMessage = '';
 
-    // Edit mode
-    public $editMode = false;
+    // UPDATED: New delete confirmation modal properties
+    public $showDeleteModal = false;
+    public $deleteMessage = '';
+    public $deleteAction = '';
+    public $transactionsToDelete = [];
+
+    // UPDATED: Changed to showEditModal and new property names
+    public $showEditModal = false;
     public $editingTransactionId = null;
 
     // Form visibility toggle
@@ -37,6 +43,105 @@ new class extends Component
         if (session()->has('success')) {
             $this->flashMessage = session('success');
         }
+    }
+
+    // UPDATED: Handle select all
+    public function updatedSelectAll($value)
+    {
+        if ($value) {
+            $query = Transaction::with('patient')
+                ->when($this->search, function ($query) {
+                    $query->where('or_number', 'like', '%' . $this->search . '%')
+                          ->orWhereHas('patient', function($q) {
+                              $q->where('firstname', 'like', '%' . $this->search . '%')
+                                ->orWhere('lastname', 'like', '%' . $this->search . '%');
+                          });
+                })
+                ->orderBy('transaction_id', 'desc');
+
+            $transactions = $this->perPage === 'all' ? $query->get() : $query->paginate((int)$this->perPage);
+            $this->selectedTransactions = $transactions->pluck('transaction_id')
+                ->map(fn($id) => (string)$id)->toArray();
+        } else {
+            $this->selectedTransactions = [];
+        }
+    }
+
+    // UPDATED: Delete selected using selectedTransactions - now shows modal
+    public function deleteSelected()
+    {
+        if (empty($this->selectedTransactions)) return;
+        
+        $count = count($this->selectedTransactions);
+        $this->deleteMessage = "Are you sure you want to delete {$count} selected transaction(s)? This action cannot be undone.";
+        $this->deleteAction = 'confirmDeleteSelected';
+        $this->transactionsToDelete = $this->selectedTransactions;
+        $this->showDeleteModal = true;
+    }
+
+    // UPDATED: New method to confirm delete
+    public function confirmDeleteSelected()
+    {
+        if (empty($this->transactionsToDelete)) return;
+        
+        $count = Transaction::whereIn('transaction_id', $this->transactionsToDelete)->delete();
+        $this->flashMessage = $count . ' transaction(s) deleted successfully!';
+        $this->selectedTransactions = [];
+        $this->selectAll = false;
+        $this->resetPage();
+        $this->closeDeleteModal();
+    }
+
+    // UPDATED: New method to close delete modal
+    public function closeDeleteModal()
+    {
+        $this->showDeleteModal = false;
+        $this->deleteMessage = '';
+        $this->deleteAction = '';
+        $this->transactionsToDelete = [];
+    }
+
+    // UPDATED: New openEditModal method
+    public function openEditModal($transactionId)
+    {
+        $transaction = Transaction::with('patient')->findOrFail($transactionId);
+        $this->editingTransactionId = $transactionId;
+        $this->editClientId = $transaction->client_id;
+        $this->editOrNumber = $transaction->or_number;
+        $this->showEditModal = true;
+        $this->resetErrorBag();
+    }
+
+    // UPDATED: New closeEditModal method
+    public function closeEditModal()
+    {
+        $this->showEditModal = false;
+        $this->editingTransactionId = null;
+        $this->editClientId = '';
+        $this->editOrNumber = '';
+        $this->resetErrorBag();
+    }
+
+    // UPDATED: New updateTransaction method
+    public function updateTransaction()
+    {
+        $this->validate([
+            'editClientId' => 'required|exists:patient,patient_id',
+            'editOrNumber' => 'required|string|max:50',
+        ], [
+            'editClientId.required' => 'The patient field is required.',
+            'editClientId.exists' => 'The selected patient is invalid.',
+            'editOrNumber.required' => 'The OR number field is required.',
+        ]);
+
+        $transaction = Transaction::findOrFail($this->editingTransactionId);
+        $transaction->update([
+            'client_id' => $this->editClientId,
+            'or_number' => $this->editOrNumber,
+        ]);
+
+        $this->flashMessage = 'Transaction updated successfully!';
+        $this->closeEditModal();
     }
 
     public function toggleForm()
@@ -203,8 +308,13 @@ new class extends Component
     </div>
 
     @if($flashMessage)
-        <div class="mb-6 p-4 bg-green-50 border-l-4 border-green-500 rounded">
-            <p class="text-green-800">{{ $flashMessage }}</p>
+        <div class="mb-6 bg-white border-l-4 border-green-500 shadow-sm rounded-lg p-4 flex items-center justify-between">
+            <div class="flex items-center">
+                <svg class="w-5 h-5 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                </svg>
+                <span class="text-sm font-medium text-gray-900">{{ $flashMessage }}</span>
+            </div>
         </div>
     @endif
 
@@ -251,17 +361,16 @@ new class extends Component
         <div class="px-6 py-4 border-b border-gray-200">
             <div class="flex items-center justify-between">
                 <h2 class="text-lg font-semibold text-gray-900">Transactions List</h2>
-                <!-- Delete Selected Button -->
-                <div x-show="selectedIds.length > 0" x-cloak x-transition>
-                    <button type="button" 
-                            @click="if(confirm('Are you sure you want to delete ' + selectedIds.length + ' selected transaction(s)?')) { $wire.deleteSelected(selectedIds) }"
-                            class="inline-flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                        </svg>
-                        Delete Selected (<span x-text="selectedIds.length"></span>)
-                    </button>
-                </div>
+                {{-- UPDATED: Delete button moved next to title --}}
+                @if(count($selectedTransactions) > 0)
+                <button wire:click="deleteSelected" 
+                        class="inline-flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                    </svg>
+                    Delete Selected ({{ count($selectedTransactions) }})
+                </button>
+                @endif
             </div>
         </div>
         <div class="p-6">
@@ -422,6 +531,55 @@ new class extends Component
                     </button>
                 </div>
                 @endif
+            </div>
+        </div>
+    </div>
+    @endif
+
+    {{-- Delete Confirmation Modal --}}
+    @if($showDeleteModal)
+    <div class="fixed inset-0 z-50 overflow-y-auto" style="background-color: rgba(0, 0, 0, 0.5);">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-lg shadow-xl max-w-md w-full">
+                <!-- Modal Header -->
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-xl font-semibold text-gray-900">
+                            Confirm Deletion
+                        </h3>
+                        <button type="button" wire:click="closeDeleteModal" class="text-gray-400 hover:text-gray-600">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Modal Body -->
+                <div class="p-6">
+                    <div class="flex items-start space-x-3">
+                        <div class="flex-shrink-0">
+                            <svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+                            </svg>
+                        </div>
+                        <div class="flex-1">
+                            <p class="text-sm text-gray-700">{{ $deleteMessage }}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal Footer -->
+                <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end space-x-3 rounded-b-lg">
+                    <button type="button" wire:click="closeDeleteModal" 
+                            class="px-5 py-2.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                        Cancel
+                    </button>
+                    <button type="button" wire:click="{{ $deleteAction }}" 
+                            class="px-5 py-2.5 bg-red-600 text-white text-sm rounded-md font-medium hover:bg-red-700">
+                        Delete
+                    </button>
+                </div>
             </div>
         </div>
     </div>
