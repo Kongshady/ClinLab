@@ -45,6 +45,12 @@ new class extends Component
     public $flashMessage = '';
     public $perPage = 'all';
 
+    // Delete confirmation modal properties
+    public $showDeleteModal = false;
+    public $deleteMessage = '';
+    public $itemToDelete = null;
+    public $itemName = '';
+
     // Edit mode
     public $editMode = false;
     public $editingEmployeeId = null;
@@ -195,12 +201,34 @@ new class extends Component
     {
         $employee = Employee::find($id);
         if ($employee) {
-            // Only soft delete the employee to maintain data integrity
-            // The associated user account remains for audit trail purposes
-            $employee->softDelete();
-            $this->logActivity("Deleted employee ID {$id}: {$employee->firstname} {$employee->lastname}");
-            $this->flashMessage = 'Employee account deleted successfully!';
+            $this->itemToDelete = $id;
+            $this->itemName = $employee->full_name;
+            $this->deleteMessage = "Are you sure you want to delete the employee '{$this->itemName}'? This action cannot be undone.";
+            $this->showDeleteModal = true;
         }
+    }
+
+    public function confirmDelete()
+    {
+        if ($this->itemToDelete) {
+            $employee = Employee::find($this->itemToDelete);
+            if ($employee) {
+                // Only soft delete the employee to maintain data integrity
+                // The associated user account remains for audit trail purposes
+                $employee->softDelete();
+                $this->logActivity("Deleted employee ID {$this->itemToDelete}: {$employee->firstname} {$employee->lastname}");
+                $this->flashMessage = 'Employee account deleted successfully!';
+            }
+            $this->closeDeleteModal();
+        }
+    }
+
+    public function closeDeleteModal()
+    {
+        $this->showDeleteModal = false;
+        $this->deleteMessage = '';
+        $this->itemToDelete = null;
+        $this->itemName = '';
     }
 
     public function updatedChangePassword($value)
@@ -236,8 +264,13 @@ new class extends Component
 
 <div class="p-6 space-y-6">
     @if($flashMessage)
-        <div class="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl" role="alert">
-            <span class="block sm:inline">{{ $flashMessage }}</span>
+        <div class="mb-6 bg-white border-l-4 border-green-500 shadow-sm rounded-lg p-4 flex items-center justify-between">
+            <div class="flex items-center">
+                <svg class="w-5 h-5 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                </svg>
+                <span class="text-sm font-medium text-gray-900">{{ $flashMessage }}</span>
+            </div>
         </div>
     @endif
 
@@ -410,7 +443,6 @@ new class extends Component
                                             Edit
                                         </button>
                                         <button wire:click="delete({{ $employee->employee_id }})" 
-                                                wire:confirm="Are you sure you want to delete this employee?"
                                                 class="px-4 py-1.5 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors">
                                             Delete
                                         </button>
@@ -563,6 +595,42 @@ new class extends Component
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+    @endif
+
+    {{-- Delete Confirmation Modal --}}
+    @if($showDeleteModal)
+    <div class="fixed inset-0 z-50 overflow-y-auto" style="background-color: rgba(0, 0, 0, 0.5);">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-lg shadow-xl max-w-md w-full">
+                <!-- Modal Header -->
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <div class="flex items-center">
+                        <svg class="w-6 h-6 text-red-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+                        </svg>
+                        <h3 class="text-lg font-semibold text-gray-900">Delete Employee</h3>
+                    </div>
+                </div>
+
+                <!-- Modal Body -->
+                <div class="p-6">
+                    <p class="text-sm text-gray-700">{{ $deleteMessage }}</p>
+                </div>
+
+                <!-- Modal Footer -->
+                <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end space-x-3 rounded-b-lg">
+                    <button wire:click="closeDeleteModal"
+                            class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium rounded-lg transition-colors">
+                        Cancel
+                    </button>
+                    <button wire:click="confirmDelete"
+                            class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white font-medium rounded-lg transition-colors">
+                        Delete Employee
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
     @endif
