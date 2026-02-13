@@ -1,5 +1,4 @@
 <?php
-
 use Livewire\Component;
 use Livewire\WithPagination;
 use Livewire\Attributes\Validate;
@@ -10,443 +9,21 @@ use App\Models\Item;
 use App\Models\Employee;
 use App\Models\Section;
 use App\Traits\LogsActivity;
-
-new class extends Component
-{
-    use WithPagination, LogsActivity;
-
-    public $activeTab = 'stock_in';
-    
-    // Stock In Properties - Multiple Items Support
-    public $stock_in_items = [];
-    
-    #[Validate('nullable|string|max:100')]
-    public $stock_in_supplier = '';
-    
-    #[Validate('nullable|string|max:50')]
-    public $stock_in_reference = '';
-    
-    #[Validate('nullable|string|max:500')]
-    public $stock_in_remarks = '';
-
-    // Stock Out Properties - Multiple Items Support
-    public $stock_out_items = [];
-    
-    #[Validate('nullable|string|max:50')]
-    public $stock_out_reference = '';
-    
-    #[Validate('nullable|string|max:500')]
-    public $stock_out_remarks = '';
-
-    // Stock Usage Properties - Multiple Items Support
-    public $stock_usage_items = [];
-    
-    #[Validate('required|exists:employee,employee_id')]
-    public $stock_usage_employee_id = '';
-    
-    #[Validate('required|string|max:30')]
-    public $stock_usage_purpose = '';
-    
-    #[Validate('nullable|string|max:50')]
-    public $stock_usage_or_number = '';
-
-    // Inventory Table Filters
-    public $search = '';
-    public $filterSection = '';
-    public $filterStatus = '';
-    public $perPage = 10;
-
-    public $flashMessage = '';
-    public $movementPerPage = 10;
-
-    public function mount()
-    {
-        if (session('success')) {
-            $this->flashMessage = session('success');
-        }
-        // Initialize with one empty row for each form
-        $this->addStockInRow();
-        $this->addStockOutRow();
-        $this->addStockUsageRow();
-    }
-    
-    // Stock In Row Management
-    public function addStockInRow()
-    {
-        $this->stock_in_items[] = ['item_id' => '', 'quantity' => '', 'expiry_date' => ''];
-    }
-    
-    public function removeStockInRow($index)
-    {
-        unset($this->stock_in_items[$index]);
-        $this->stock_in_items = array_values($this->stock_in_items);
-        if (count($this->stock_in_items) === 0) {
-            $this->addStockInRow();
-        }
-    }
-    
-    // Stock Out Row Management
-    public function addStockOutRow()
-    {
-        $this->stock_out_items[] = ['item_id' => '', 'quantity' => ''];
-    }
-    
-    public function removeStockOutRow($index)
-    {
-        unset($this->stock_out_items[$index]);
-        $this->stock_out_items = array_values($this->stock_out_items);
-        if (count($this->stock_out_items) === 0) {
-            $this->addStockOutRow();
-        }
-    }
-    
-    // Stock Usage Row Management
-    public function addStockUsageRow()
-    {
-        $this->stock_usage_items[] = ['item_id' => '', 'quantity' => 1];
-    }
-    
-    public function removeStockUsageRow($index)
-    {
-        unset($this->stock_usage_items[$index]);
-        $this->stock_usage_items = array_values($this->stock_usage_items);
-        if (count($this->stock_usage_items) === 0) {
-            $this->addStockUsageRow();
-        }
-    }
-
-    // Get available items for Stock In row, excluding items selected in other rows
-    public function getAvailableItemsForStockIn($currentIndex, $allItems)
-    {
-        $selectedItems = collect($this->stock_in_items)
-            ->pluck('item_id')
-            ->filter()
-            ->reject(function($itemId, $index) use ($currentIndex) {
-                return $index == $currentIndex;
-            })
-            ->toArray();
-        
-        return $allItems->reject(function($item) use ($selectedItems) {
-            return in_array($item->item_id, $selectedItems);
-        });
-    }
-
-    // Get available items for Stock Out row, excluding items selected in other rows
-    public function getAvailableItemsForStockOut($currentIndex, $allItems)
-    {
-        $selectedItems = collect($this->stock_out_items)
-            ->pluck('item_id')
-            ->filter()
-            ->reject(function($itemId, $index) use ($currentIndex) {
-                return $index == $currentIndex;
-            })
-            ->toArray();
-        
-        return $allItems->reject(function($item) use ($selectedItems) {
-            return in_array($item->item_id, $selectedItems);
-        });
-    }
-
-    // Get available items for Stock Usage row, excluding items selected in other rows
-    public function getAvailableItemsForStockUsage($currentIndex, $allItems)
-    {
-        $selectedItems = collect($this->stock_usage_items)
-            ->pluck('item_id')
-            ->filter()
-            ->reject(function($itemId, $index) use ($currentIndex) {
-                return $index == $currentIndex;
-            })
-            ->toArray();
-        
-        return $allItems->reject(function($item) use ($selectedItems) {
-            return in_array($item->item_id, $selectedItems);
-        });
-    }
-
-    public function setTab($tab)
-    {
-        $this->activeTab = $tab;
-        $this->resetValidation();
-    }
-
-    public function addStock()
-    {
-        // Validate items array
-        $this->validate([
-            'stock_in_items.*.item_id' => 'required|exists:item,item_id',
-            'stock_in_items.*.quantity' => 'required|integer|min:1',
-            'stock_in_items.*.expiry_date' => 'nullable|date',
-            'stock_in_supplier' => 'nullable|string|max:100',
-            'stock_in_reference' => 'nullable|string|max:50',
-            'stock_in_remarks' => 'nullable|string|max:500',
-        ]);
-
-        $itemsAdded = 0;
-        foreach ($this->stock_in_items as $item) {
-            if (!empty($item['item_id']) && !empty($item['quantity'])) {
-                StockIn::create([
-                    'item_id' => $item['item_id'],
-                    'quantity' => $item['quantity'],
-                    'performed_by' => auth()->user()->employee->employee_id ?? null,
-                    'supplier' => $this->stock_in_supplier,
-                    'reference_number' => $this->stock_in_reference,
-                    'expiry_date' => $item['expiry_date'] ?? null,
-                    'remarks' => $this->stock_in_remarks,
-                    'datetime_added' => now(),
-                ]);
-
-                // Log activity
-                $itemModel = Item::find($item['item_id']);
-                $this->logActivity("Added {$item['quantity']} units of {$itemModel->label} to stock" . 
-                    ($this->stock_in_supplier ? " from {$this->stock_in_supplier}" : ""));
-                
-                $itemsAdded++;
-            }
-        }
-
-        // Clear cache
-        cache()->forget('items_with_stock');
-
-        $this->reset(['stock_in_items', 'stock_in_supplier', 'stock_in_reference', 'stock_in_remarks']);
-        $this->addStockInRow();
-        $this->flashMessage = $itemsAdded . ' item(s) added to stock successfully!';
-    }
-
-    public function removeStock()
-    {
-        // Validate items array
-        $this->validate([
-            'stock_out_items.*.item_id' => 'required|exists:item,item_id',
-            'stock_out_items.*.quantity' => 'required|integer|min:1',
-            'stock_out_reference' => 'nullable|string|max:50',
-            'stock_out_remarks' => 'nullable|string|max:500',
-        ]);
-
-        $itemsRemoved = 0;
-        $errors = [];
-        
-        foreach ($this->stock_out_items as $index => $item) {
-            if (!empty($item['item_id']) && !empty($item['quantity'])) {
-                // Check if item has sufficient stock
-                $totalIn = StockIn::where('item_id', $item['item_id'])->sum('quantity');
-                $totalOut = StockOut::where('item_id', $item['item_id'])->sum('quantity');
-                $totalUsage = StockUsage::where('item_id', $item['item_id'])->sum('quantity');
-                $currentStock = $totalIn - $totalOut - $totalUsage;
-
-                if ($currentStock < $item['quantity']) {
-                    $itemModel = Item::find($item['item_id']);
-                    $this->addError('stock_out_items.'.$index.'.quantity', 'Insufficient stock for ' . $itemModel->label . '. Available: ' . number_format($currentStock));
-                    $errors[] = true;
-                    continue;
-                }
-
-                StockOut::create([
-                    'item_id' => $item['item_id'],
-                    'quantity' => $item['quantity'],
-                    'performed_by' => auth()->user()->employee->employee_id ?? null,
-                    'reference_number' => $this->stock_out_reference,
-                    'remarks' => $this->stock_out_remarks,
-                    'datetime_added' => now(),
-                ]);
-
-                // Log activity
-                $itemModel = Item::find($item['item_id']);
-                $this->logActivity("Removed {$item['quantity']} units of {$itemModel->label} from stock" . 
-                    ($this->stock_out_remarks ? " - {$this->stock_out_remarks}" : ""));
-                
-                $itemsRemoved++;
-            }
-        }
-
-        if (!empty($errors)) {
-            return;
-        }
-
-        // Clear cache
-        cache()->forget('items_with_stock');
-
-        $this->reset(['stock_out_items', 'stock_out_reference', 'stock_out_remarks']);
-        $this->addStockOutRow();
-        $this->flashMessage = $itemsRemoved . ' item(s) removed from stock successfully!';
-    }
-
-    public function recordUsage()
-    {
-        // Validate items array
-        $this->validate([
-            'stock_usage_items.*.item_id' => 'required|exists:item,item_id',
-            'stock_usage_items.*.quantity' => 'required|integer|min:1',
-            'stock_usage_employee_id' => 'required|exists:employee,employee_id',
-            'stock_usage_purpose' => 'required|string|max:30',
-            'stock_usage_or_number' => 'nullable|string|max:50',
-        ]);
-
-        $itemsRecorded = 0;
-        $errors = [];
-        $employee = Employee::find($this->stock_usage_employee_id);
-        
-        foreach ($this->stock_usage_items as $index => $item) {
-            if (!empty($item['item_id']) && !empty($item['quantity'])) {
-                // Check if item has sufficient stock
-                $totalIn = StockIn::where('item_id', $item['item_id'])->sum('quantity');
-                $totalOut = StockOut::where('item_id', $item['item_id'])->sum('quantity');
-                $totalUsage = StockUsage::where('item_id', $item['item_id'])->sum('quantity');
-                $currentStock = $totalIn - $totalOut - $totalUsage;
-
-                if ($currentStock < $item['quantity']) {
-                    $itemModel = Item::find($item['item_id']);
-                    $this->addError('stock_usage_items.'.$index.'.quantity', 'Insufficient stock for ' . $itemModel->label . '. Available: ' . number_format($currentStock));
-                    $errors[] = true;
-                    continue;
-                }
-
-                StockUsage::create([
-                    'item_id' => $item['item_id'],
-                    'quantity' => $item['quantity'],
-                    'employee_id' => $this->stock_usage_employee_id,
-                    'firstname' => $employee->firstname,
-                    'middlename' => $employee->middlename,
-                    'lastname' => $employee->lastname,
-                    'purpose' => $this->stock_usage_purpose,
-                    'datetime_added' => now(),
-                    'or_number' => $this->stock_usage_or_number ?? null,
-                ]);
-
-                // Log activity
-                $itemModel = Item::find($item['item_id']);
-                $this->logActivity("Recorded usage of {$item['quantity']} units of {$itemModel->label} for {$this->stock_usage_purpose}");
-                
-                $itemsRecorded++;
-            }
-        }
-
-        if (!empty($errors)) {
-            return;
-        }
-
-        // Clear cache
-        cache()->forget('items_with_stock');
-
-        $this->reset(['stock_usage_items', 'stock_usage_employee_id', 'stock_usage_purpose', 'stock_usage_or_number']);
-        $this->addStockUsageRow();
-        $this->flashMessage = $itemsRecorded . ' item(s) usage recorded successfully!';
-    }
-
-    public function with(): array
-    {
-        // Calculate inventory levels - only show items that have been stocked in
-        // Optimized: Use pagination directly instead of get()->map()
-        $inventoryQuery = Item::active()
-            ->with('section:section_id,label')
-            ->leftJoin('item_type', 'item.item_type_id', '=', 'item_type.item_type_id')
-            ->select('item.item_id', 'item.label', 'item.section_id', 'item.unit', 'item.reorder_level', 'item_type.label as item_type_label')
-            ->selectRaw('(SELECT COALESCE(SUM(quantity), 0) FROM stock_in WHERE stock_in.item_id = item.item_id) as total_in')
-            ->selectRaw('(SELECT COALESCE(SUM(quantity), 0) FROM stock_out WHERE stock_out.item_id = item.item_id) as total_out')
-            ->selectRaw('(SELECT COALESCE(SUM(quantity), 0) FROM stock_usage WHERE stock_usage.item_id = item.item_id) as total_usage')
-            ->whereRaw('(SELECT COALESCE(SUM(quantity), 0) FROM stock_in WHERE stock_in.item_id = item.item_id) > 0')
-            ->when($this->search, function($query) {
-                $query->where('item.label', 'like', '%' . $this->search . '%');
-            })
-            ->when($this->filterSection, function($query) {
-                $query->where('item.section_id', $this->filterSection);
-            });
-
-        // Apply status filter at database level
-        if ($this->filterStatus === 'low') {
-            $inventoryQuery->whereRaw('(SELECT COALESCE(SUM(quantity), 0) FROM stock_in WHERE stock_in.item_id = item.item_id) - 
-                                       (SELECT COALESCE(SUM(quantity), 0) FROM stock_out WHERE stock_out.item_id = item.item_id) - 
-                                       (SELECT COALESCE(SUM(quantity), 0) FROM stock_usage WHERE stock_usage.item_id = item.item_id) <= item.reorder_level');
-        } elseif ($this->filterStatus === 'in_stock') {
-            $inventoryQuery->whereRaw('(SELECT COALESCE(SUM(quantity), 0) FROM stock_in WHERE stock_in.item_id = item.item_id) - 
-                                       (SELECT COALESCE(SUM(quantity), 0) FROM stock_out WHERE stock_out.item_id = item.item_id) - 
-                                       (SELECT COALESCE(SUM(quantity), 0) FROM stock_usage WHERE stock_usage.item_id = item.item_id) > COALESCE(item.reorder_level, 0)');
-        }
-
-        $paginatedInventory = $inventoryQuery->paginate($this->perPage);
-
-        // Get recent stock movements - optimized with limit at database level
-        $stockInMovements = StockIn::with(['item:item_id,label,section_id', 'item.section:section_id,label', 'performedByEmployee:employee_id,firstname,lastname'])
-            ->select('stock_in_id as id', 'item_id', 'quantity', 'datetime_added', 'remarks', 'performed_by', 'supplier')
-            ->selectRaw("'IN' as type")
-            ->orderBy('datetime_added', 'desc')
-            ->limit(50)
-            ->get();
-
-        $stockOutMovements = StockOut::with(['item:item_id,label,section_id', 'item.section:section_id,label', 'performedByEmployee:employee_id,firstname,lastname'])
-            ->select('stock_out_id as id', 'item_id', 'quantity', 'datetime_added', 'remarks', 'performed_by', 'reference_number')
-            ->selectRaw("'OUT' as type")
-            ->orderBy('datetime_added', 'desc')
-            ->limit(50)
-            ->get();
-
-        $stockUsageMovements = StockUsage::with(['item:item_id,label,section_id', 'item.section:section_id,label', 'employee:employee_id,firstname,lastname'])
-            ->select('stock_usage_id as id', 'item_id', 'quantity', 'datetime_added', 'purpose as remarks', 'employee_id as performed_by')
-            ->selectRaw("'USAGE' as type")
-            ->selectRaw("CONCAT(firstname, ' ', lastname) as reference")
-            ->orderBy('datetime_added', 'desc')
-            ->limit(50)
-            ->get();
-
-        $movements = $stockInMovements
-            ->concat($stockOutMovements)
-            ->concat($stockUsageMovements)
-            ->sortByDesc('datetime_added')
-            ->take(100);
-
-        // Paginate movements
-        $movementPage = request()->get('movement_page', 1);
-        $movementOffset = ($movementPage - 1) * $this->movementPerPage;
-        
-        $paginatedMovements = new \Illuminate\Pagination\LengthAwarePaginator(
-            $movements->slice($movementOffset, $this->movementPerPage)->all(),
-            $movements->count(),
-            $this->movementPerPage,
-            $movementPage,
-            ['path' => request()->url(), 'query' => request()->query(), 'pageName' => 'movement_page']
-        );
-
-        // Get items with stock for Stock Out and Stock Usage dropdowns - optimized with caching
-        $itemsWithStock = cache()->remember('items_with_stock', 60, function() {
-            return Item::active()
-                ->select('item.item_id', 'item.label')
-                ->selectRaw('(SELECT COALESCE(SUM(quantity), 0) FROM stock_in WHERE stock_in.item_id = item.item_id) as total_in')
-                ->selectRaw('(SELECT COALESCE(SUM(quantity), 0) FROM stock_out WHERE stock_out.item_id = item.item_id) as total_out')
-                ->selectRaw('(SELECT COALESCE(SUM(quantity), 0) FROM stock_usage WHERE stock_usage.item_id = item.item_id) as total_usage')
-                ->whereRaw('((SELECT COALESCE(SUM(quantity), 0) FROM stock_in WHERE stock_in.item_id = item.item_id) - 
-                             (SELECT COALESCE(SUM(quantity), 0) FROM stock_out WHERE stock_out.item_id = item.item_id) - 
-                             (SELECT COALESCE(SUM(quantity), 0) FROM stock_usage WHERE stock_usage.item_id = item.item_id)) > 0')
-                ->orderBy('label')
-                ->get()
-                ->map(function($item) {
-                    $item->current_stock = $item->total_in - $item->total_out - $item->total_usage;
-                    return $item;
-                });
-        });
-
-        return [
-            'items' => Item::active()->select('item_id', 'label')->orderBy('label')->get(),
-            'itemsWithStock' => $itemsWithStock,
-            'employees' => Employee::active()->select('employee_id', 'firstname', 'lastname')->orderBy('firstname')->get(),
-            'sections' => Section::active()->select('section_id', 'label')->orderBy('label')->get(),
-            'inventory' => $paginatedInventory,
-            'movements' => $paginatedMovements,
-        ];
-    }
-}; ?>
+?>
 
 <div class="min-h-screen bg-gray-50 max-w-8xl mx-auto px-4 sm:px-4 lg:px-6 py-8">
     <div class="max-w-8xl  ">
         <!-- Success Message -->
-        @if($flashMessage)
+        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($flashMessage): ?>
             <div class="mb-6 bg-white border-l-4 border-green-500 shadow-sm rounded-lg p-4 flex items-center justify-between">
                 <div class="flex items-center">
                     <svg class="w-5 h-5 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
                         <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
                     </svg>
-                    <span class="text-sm font-medium text-gray-900">{{ $flashMessage }}</span>
+                    <span class="text-sm font-medium text-gray-900"><?php echo e($flashMessage); ?></span>
                 </div>
             </div>
-        @endif
+        <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
 
         <!-- Header -->
         <div class="mb-8">
@@ -459,22 +36,22 @@ new class extends Component
             <div class="border-b border-gray-200">
                 <nav class="-mb-px flex space-x-8">
                     <button wire:click="setTab('stock_in')" 
-                            class="group inline-flex items-center py-4 px-1 border-b-2 font-medium text-sm transition-all {{ $activeTab === 'stock_in' ? 'border-emerald-500 text-emerald-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
-                        <svg class="mr-2 h-5 w-5 {{ $activeTab === 'stock_in' ? 'text-emerald-500' : 'text-gray-400 group-hover:text-gray-500' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            class="group inline-flex items-center py-4 px-1 border-b-2 font-medium text-sm transition-all <?php echo e($activeTab === 'stock_in' ? 'border-emerald-500 text-emerald-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'); ?>">
+                        <svg class="mr-2 h-5 w-5 <?php echo e($activeTab === 'stock_in' ? 'text-emerald-500' : 'text-gray-400 group-hover:text-gray-500'); ?>" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 11l5-5m0 0l5 5m-5-5v12"/>
                         </svg>
                         Stock In
                     </button>
                     <button wire:click="setTab('stock_out')" 
-                            class="group inline-flex items-center py-4 px-1 border-b-2 font-medium text-sm transition-all {{ $activeTab === 'stock_out' ? 'border-rose-500 text-rose-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
-                        <svg class="mr-2 h-5 w-5 {{ $activeTab === 'stock_out' ? 'text-rose-500' : 'text-gray-400 group-hover:text-gray-500' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            class="group inline-flex items-center py-4 px-1 border-b-2 font-medium text-sm transition-all <?php echo e($activeTab === 'stock_out' ? 'border-rose-500 text-rose-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'); ?>">
+                        <svg class="mr-2 h-5 w-5 <?php echo e($activeTab === 'stock_out' ? 'text-rose-500' : 'text-gray-400 group-hover:text-gray-500'); ?>" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 13l-5 5m0 0l-5-5m5 5V6"/>
                         </svg>
                         Stock Out
                     </button>
                     <button wire:click="setTab('stock_usage')" 
-                            class="group inline-flex items-center py-4 px-1 border-b-2 font-medium text-sm transition-all {{ $activeTab === 'stock_usage' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
-                        <svg class="mr-2 h-5 w-5 {{ $activeTab === 'stock_usage' ? 'text-blue-500' : 'text-gray-400 group-hover:text-gray-500' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            class="group inline-flex items-center py-4 px-1 border-b-2 font-medium text-sm transition-all <?php echo e($activeTab === 'stock_usage' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'); ?>">
+                        <svg class="mr-2 h-5 w-5 <?php echo e($activeTab === 'stock_usage' ? 'text-blue-500' : 'text-gray-400 group-hover:text-gray-500'); ?>" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
                         </svg>
                         Stock Usage
@@ -488,7 +65,7 @@ new class extends Component
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <div class="p-8">
                 <!-- Stock In Form -->
-                @if($activeTab === 'stock_in')
+                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($activeTab === 'stock_in'): ?>
                 <form wire:submit.prevent="addStock" class="space-y-6">
                     <!-- Multiple Items Section -->
                     <div class="space-y-4">
@@ -502,7 +79,7 @@ new class extends Component
                             </button>
                         </div>
                         
-                        @foreach($stock_in_items as $index => $item)
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__currentLoopData = $stock_in_items; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $index => $item): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
                         <div class="bg-gray-50 rounded-lg p-4 border-2 border-gray-200">
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div class="space-y-2">
@@ -511,7 +88,7 @@ new class extends Component
                                         open: false,
                                         search: '',
                                         selectedLabel: '',
-                                        items: @js($this->getAvailableItemsForStockIn($index, $items)->map(fn($i) => ['id' => $i->item_id, 'label' => $i->label])->values()),
+                                        items: <?php echo \Illuminate\Support\Js::from($this->getAvailableItemsForStockIn($index, $items)->map(fn($i) => ['id' => $i->item_id, 'label' => $i->label])->values())->toHtml() ?>,
                                         get filtered() {
                                             if (!this.search) return this.items;
                                             return this.items.filter(i => i.label.toLowerCase().includes(this.search.toLowerCase()));
@@ -520,15 +97,15 @@ new class extends Component
                                             this.selectedLabel = item.label;
                                             this.search = '';
                                             this.open = false;
-                                            $wire.set('stock_in_items.{{ $index }}.item_id', item.id);
+                                            $wire.set('stock_in_items.<?php echo e($index); ?>.item_id', item.id);
                                         },
                                         clear() {
                                             this.selectedLabel = '';
                                             this.search = '';
-                                            $wire.set('stock_in_items.{{ $index }}.item_id', '');
+                                            $wire.set('stock_in_items.<?php echo e($index); ?>.item_id', '');
                                         },
                                         init() {
-                                            let currentId = $wire.get('stock_in_items.{{ $index }}.item_id');
+                                            let currentId = $wire.get('stock_in_items.<?php echo e($index); ?>.item_id');
                                             if (currentId) {
                                                 let found = this.items.find(i => i.id == currentId);
                                                 if (found) this.selectedLabel = found.label;
@@ -557,30 +134,51 @@ new class extends Component
                                             </ul>
                                         </div>
                                     </div>
-                                    @error('stock_in_items.'.$index.'.item_id') <span class="text-xs text-rose-600">{{ $message }}</span> @enderror
+                                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__errorArgs = ['stock_in_items.'.$index.'.item_id'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> <span class="text-xs text-rose-600"><?php echo e($message); ?></span> <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                                 </div>
                                 <div class="space-y-2">
                                     <label class="text-sm font-medium text-gray-700">Quantity <span class="text-rose-500">*</span></label>
-                                    <input type="number" wire:model="stock_in_items.{{ $index }}.quantity" min="1" placeholder="0" class="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all">
-                                    @error('stock_in_items.'.$index.'.quantity') <span class="text-xs text-rose-600">{{ $message }}</span> @enderror
+                                    <input type="number" wire:model="stock_in_items.<?php echo e($index); ?>.quantity" min="1" placeholder="0" class="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all">
+                                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__errorArgs = ['stock_in_items.'.$index.'.quantity'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> <span class="text-xs text-rose-600"><?php echo e($message); ?></span> <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                                 </div>
                                 <div class="space-y-2">
                                     <label class="text-sm font-medium text-gray-700">Expiry Date</label>
                                     <div class="flex gap-2">
-                                        <input type="date" wire:model="stock_in_items.{{ $index }}.expiry_date" class="flex-1 px-4 py-2.5 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all">
-                                        @if(count($stock_in_items) > 1)
-                                        <button type="button" wire:click="removeStockInRow({{ $index }})" class="px-3 py-2.5 bg-rose-100 hover:bg-rose-200 text-rose-700 rounded-lg transition-all">
+                                        <input type="date" wire:model="stock_in_items.<?php echo e($index); ?>.expiry_date" class="flex-1 px-4 py-2.5 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all">
+                                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(count($stock_in_items) > 1): ?>
+                                        <button type="button" wire:click="removeStockInRow(<?php echo e($index); ?>)" class="px-3 py-2.5 bg-rose-100 hover:bg-rose-200 text-rose-700 rounded-lg transition-all">
                                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>
                                             </svg>
                                         </button>
-                                        @endif
+                                        <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                                     </div>
-                                    @error('stock_in_items.'.$index.'.expiry_date') <span class="text-xs text-rose-600">{{ $message }}</span> @enderror
+                                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__errorArgs = ['stock_in_items.'.$index.'.expiry_date'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> <span class="text-xs text-rose-600"><?php echo e($message); ?></span> <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                                 </div>
                             </div>
                         </div>
-                        @endforeach
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
                     </div>
                     
                     <!-- Common Fields -->
@@ -588,17 +186,38 @@ new class extends Component
                         <div class="space-y-2">
                             <label class="text-sm font-medium text-gray-700">Supplier</label>
                             <input type="text" wire:model="stock_in_supplier" placeholder="Supplier name" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all">
-                            @error('stock_in_supplier') <span class="text-xs text-rose-600">{{ $message }}</span> @enderror
+                            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__errorArgs = ['stock_in_supplier'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> <span class="text-xs text-rose-600"><?php echo e($message); ?></span> <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                         </div>
                         <div class="space-y-2">
                             <label class="text-sm font-medium text-gray-700">Reference No.</label>
                             <input type="text" wire:model="stock_in_reference" placeholder="Invoice/PO number" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all">
-                            @error('stock_in_reference') <span class="text-xs text-rose-600">{{ $message }}</span> @enderror
+                            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__errorArgs = ['stock_in_reference'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> <span class="text-xs text-rose-600"><?php echo e($message); ?></span> <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                         </div>
                         <div class="space-y-2">
                             <label class="text-sm font-medium text-gray-700">Remarks</label>
                             <input type="text" wire:model="stock_in_remarks" placeholder="Optional notes" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all">
-                            @error('stock_in_remarks') <span class="text-xs text-rose-600">{{ $message }}</span> @enderror
+                            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__errorArgs = ['stock_in_remarks'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> <span class="text-xs text-rose-600"><?php echo e($message); ?></span> <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                         </div>
                     </div>
                     
@@ -611,10 +230,10 @@ new class extends Component
                         </button>
                     </div>
                 </form>
-                @endif
+                <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
 
                 <!-- Stock Out Form -->
-                @if($activeTab === 'stock_out')
+                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($activeTab === 'stock_out'): ?>
                 <form wire:submit.prevent="removeStock" class="space-y-6">
                     <!-- Multiple Items Section -->
                     <div class="space-y-4">
@@ -628,7 +247,7 @@ new class extends Component
                             </button>
                         </div>
                         
-                        @foreach($stock_out_items as $index => $item)
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__currentLoopData = $stock_out_items; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $index => $item): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
                         <div class="bg-gray-50 rounded-lg p-4 border-2 border-gray-200">
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div class="space-y-2">
@@ -637,7 +256,7 @@ new class extends Component
                                         open: false,
                                         search: '',
                                         selectedLabel: '',
-                                        items: @js($this->getAvailableItemsForStockOut($index, $itemsWithStock)->map(fn($i) => ['id' => $i->item_id, 'label' => $i->label, 'stock' => number_format($i->current_stock)])->values()),
+                                        items: <?php echo \Illuminate\Support\Js::from($this->getAvailableItemsForStockOut($index, $itemsWithStock)->map(fn($i) => ['id' => $i->item_id, 'label' => $i->label, 'stock' => number_format($i->current_stock)])->values())->toHtml() ?>,
                                         get filtered() {
                                             if (!this.search) return this.items;
                                             return this.items.filter(i => i.label.toLowerCase().includes(this.search.toLowerCase()));
@@ -646,15 +265,15 @@ new class extends Component
                                             this.selectedLabel = item.label + ' (Available: ' + item.stock + ')';
                                             this.search = '';
                                             this.open = false;
-                                            $wire.set('stock_out_items.{{ $index }}.item_id', item.id);
+                                            $wire.set('stock_out_items.<?php echo e($index); ?>.item_id', item.id);
                                         },
                                         clear() {
                                             this.selectedLabel = '';
                                             this.search = '';
-                                            $wire.set('stock_out_items.{{ $index }}.item_id', '');
+                                            $wire.set('stock_out_items.<?php echo e($index); ?>.item_id', '');
                                         },
                                         init() {
-                                            let currentId = $wire.get('stock_out_items.{{ $index }}.item_id');
+                                            let currentId = $wire.get('stock_out_items.<?php echo e($index); ?>.item_id');
                                             if (currentId) {
                                                 let found = this.items.find(i => i.id == currentId);
                                                 if (found) this.selectedLabel = found.label + ' (Available: ' + found.stock + ')';
@@ -686,25 +305,39 @@ new class extends Component
                                             </ul>
                                         </div>
                                     </div>
-                                    @error('stock_out_items.'.$index.'.item_id') <span class="text-xs text-rose-600">{{ $message }}</span> @enderror
+                                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__errorArgs = ['stock_out_items.'.$index.'.item_id'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> <span class="text-xs text-rose-600"><?php echo e($message); ?></span> <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                                 </div>
                                 <div class="space-y-2">
                                     <label class="text-sm font-medium text-gray-700">Quantity <span class="text-rose-500">*</span></label>
                                     <div class="flex gap-2">
-                                        <input type="number" wire:model="stock_out_items.{{ $index }}.quantity" min="1" placeholder="0" class="flex-1 px-4 py-2.5 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent transition-all">
-                                        @if(count($stock_out_items) > 1)
-                                        <button type="button" wire:click="removeStockOutRow({{ $index }})" class="px-3 py-2.5 bg-rose-100 hover:bg-rose-200 text-rose-700 rounded-lg transition-all">
+                                        <input type="number" wire:model="stock_out_items.<?php echo e($index); ?>.quantity" min="1" placeholder="0" class="flex-1 px-4 py-2.5 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent transition-all">
+                                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(count($stock_out_items) > 1): ?>
+                                        <button type="button" wire:click="removeStockOutRow(<?php echo e($index); ?>)" class="px-3 py-2.5 bg-rose-100 hover:bg-rose-200 text-rose-700 rounded-lg transition-all">
                                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>
                                             </svg>
                                         </button>
-                                        @endif
+                                        <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                                     </div>
-                                    @error('stock_out_items.'.$index.'.quantity') <span class="text-xs text-rose-600">{{ $message }}</span> @enderror
+                                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__errorArgs = ['stock_out_items.'.$index.'.quantity'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> <span class="text-xs text-rose-600"><?php echo e($message); ?></span> <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                                 </div>
                             </div>
                         </div>
-                        @endforeach
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
                     </div>
                     
                     <!-- Common Fields -->
@@ -712,12 +345,26 @@ new class extends Component
                         <div class="space-y-2">
                             <label class="text-sm font-medium text-gray-700">Reference No.</label>
                             <input type="text" wire:model="stock_out_reference" placeholder="Requisition number" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent transition-all">
-                            @error('stock_out_reference') <span class="text-xs text-rose-600">{{ $message }}</span> @enderror
+                            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__errorArgs = ['stock_out_reference'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> <span class="text-xs text-rose-600"><?php echo e($message); ?></span> <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                         </div>
                         <div class="space-y-2">
                             <label class="text-sm font-medium text-gray-700">Remarks</label>
                             <input type="text" wire:model="stock_out_remarks" placeholder="Reason for removal" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent transition-all">
-                            @error('stock_out_remarks') <span class="text-xs text-rose-600">{{ $message }}</span> @enderror
+                            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__errorArgs = ['stock_out_remarks'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> <span class="text-xs text-rose-600"><?php echo e($message); ?></span> <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                         </div>
                     </div>
                     
@@ -730,10 +377,10 @@ new class extends Component
                         </button>
                     </div>
                 </form>
-                @endif
+                <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
 
                 <!-- Stock Usage Form -->
-                @if($activeTab === 'stock_usage')
+                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($activeTab === 'stock_usage'): ?>
                 <form wire:submit.prevent="recordUsage" class="space-y-6">
                     <!-- Multiple Items Section -->
                     <div class="space-y-4">
@@ -747,7 +394,7 @@ new class extends Component
                             </button>
                         </div>
                         
-                        @foreach($stock_usage_items as $index => $item)
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__currentLoopData = $stock_usage_items; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $index => $item): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
                         <div class="bg-gray-50 rounded-lg p-4 border-2 border-gray-200">
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div class="space-y-2">
@@ -756,7 +403,7 @@ new class extends Component
                                         open: false,
                                         search: '',
                                         selectedLabel: '',
-                                        items: @js($this->getAvailableItemsForStockUsage($index, $itemsWithStock)->map(fn($i) => ['id' => $i->item_id, 'label' => $i->label, 'stock' => number_format($i->current_stock)])->values()),
+                                        items: <?php echo \Illuminate\Support\Js::from($this->getAvailableItemsForStockUsage($index, $itemsWithStock)->map(fn($i) => ['id' => $i->item_id, 'label' => $i->label, 'stock' => number_format($i->current_stock)])->values())->toHtml() ?>,
                                         get filtered() {
                                             if (!this.search) return this.items;
                                             return this.items.filter(i => i.label.toLowerCase().includes(this.search.toLowerCase()));
@@ -765,15 +412,15 @@ new class extends Component
                                             this.selectedLabel = item.label + ' (Available: ' + item.stock + ')';
                                             this.search = '';
                                             this.open = false;
-                                            $wire.set('stock_usage_items.{{ $index }}.item_id', item.id);
+                                            $wire.set('stock_usage_items.<?php echo e($index); ?>.item_id', item.id);
                                         },
                                         clear() {
                                             this.selectedLabel = '';
                                             this.search = '';
-                                            $wire.set('stock_usage_items.{{ $index }}.item_id', '');
+                                            $wire.set('stock_usage_items.<?php echo e($index); ?>.item_id', '');
                                         },
                                         init() {
-                                            let currentId = $wire.get('stock_usage_items.{{ $index }}.item_id');
+                                            let currentId = $wire.get('stock_usage_items.<?php echo e($index); ?>.item_id');
                                             if (currentId) {
                                                 let found = this.items.find(i => i.id == currentId);
                                                 if (found) this.selectedLabel = found.label + ' (Available: ' + found.stock + ')';
@@ -805,25 +452,39 @@ new class extends Component
                                             </ul>
                                         </div>
                                     </div>
-                                    @error('stock_usage_items.'.$index.'.item_id') <span class="text-xs text-rose-600">{{ $message }}</span> @enderror
+                                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__errorArgs = ['stock_usage_items.'.$index.'.item_id'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> <span class="text-xs text-rose-600"><?php echo e($message); ?></span> <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                                 </div>
                                 <div class="space-y-2">
                                     <label class="text-sm font-medium text-gray-700">Quantity <span class="text-rose-500">*</span></label>
                                     <div class="flex gap-2">
-                                        <input type="number" wire:model="stock_usage_items.{{ $index }}.quantity" min="1" placeholder="1" class="flex-1 px-4 py-2.5 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
-                                        @if(count($stock_usage_items) > 1)
-                                        <button type="button" wire:click="removeStockUsageRow({{ $index }})" class="px-3 py-2.5 bg-rose-100 hover:bg-rose-200 text-rose-700 rounded-lg transition-all">
+                                        <input type="number" wire:model="stock_usage_items.<?php echo e($index); ?>.quantity" min="1" placeholder="1" class="flex-1 px-4 py-2.5 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+                                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(count($stock_usage_items) > 1): ?>
+                                        <button type="button" wire:click="removeStockUsageRow(<?php echo e($index); ?>)" class="px-3 py-2.5 bg-rose-100 hover:bg-rose-200 text-rose-700 rounded-lg transition-all">
                                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>
                                             </svg>
                                         </button>
-                                        @endif
+                                        <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                                     </div>
-                                    @error('stock_usage_items.'.$index.'.quantity') <span class="text-xs text-rose-600">{{ $message }}</span> @enderror
+                                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__errorArgs = ['stock_usage_items.'.$index.'.quantity'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> <span class="text-xs text-rose-600"><?php echo e($message); ?></span> <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                                 </div>
                             </div>
                         </div>
-                        @endforeach
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
                     </div>
                     
                     <!-- Common Fields -->
@@ -832,21 +493,42 @@ new class extends Component
                             <label class="text-sm font-medium text-gray-700">Employee <span class="text-rose-500">*</span></label>
                             <select wire:model="stock_usage_employee_id" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
                                 <option value="">Select Employee</option>
-                                @foreach($employees as $employee)
-                                    <option value="{{ $employee->employee_id }}">{{ $employee->firstname }} {{ $employee->lastname }}</option>
-                                @endforeach
+                                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__currentLoopData = $employees; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $employee): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
+                                    <option value="<?php echo e($employee->employee_id); ?>"><?php echo e($employee->firstname); ?> <?php echo e($employee->lastname); ?></option>
+                                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
                             </select>
-                            @error('stock_usage_employee_id') <span class="text-xs text-rose-600">{{ $message }}</span> @enderror
+                            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__errorArgs = ['stock_usage_employee_id'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> <span class="text-xs text-rose-600"><?php echo e($message); ?></span> <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                         </div>
                         <div class="space-y-2">
                             <label class="text-sm font-medium text-gray-700">Purpose <span class="text-rose-500">*</span></label>
                             <input type="text" wire:model="stock_usage_purpose" placeholder="Purpose of use" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
-                            @error('stock_usage_purpose') <span class="text-xs text-rose-600">{{ $message }}</span> @enderror
+                            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__errorArgs = ['stock_usage_purpose'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> <span class="text-xs text-rose-600"><?php echo e($message); ?></span> <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                         </div>
                         <div class="space-y-2">
                             <label class="text-sm font-medium text-gray-700">OR Number</label>
                             <input type="text" wire:model="stock_usage_or_number" placeholder="Official receipt number" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
-                            @error('stock_usage_or_number') <span class="text-xs text-rose-600">{{ $message }}</span> @enderror
+                            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__errorArgs = ['stock_usage_or_number'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> <span class="text-xs text-rose-600"><?php echo e($message); ?></span> <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                         </div>
                     </div>
                     
@@ -859,7 +541,7 @@ new class extends Component
                         </button>
                     </div>
                 </form>
-                @endif
+                <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
             </div>
         </div>
 
@@ -883,9 +565,9 @@ new class extends Component
                         <label class="text-xs font-medium text-gray-700 uppercase tracking-wide">Section</label>
                         <select wire:model.live="filterSection" class="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm">
                             <option value="">All Sections</option>
-                            @foreach($sections as $section)
-                                <option value="{{ $section->section_id }}">{{ $section->label }}</option>
-                            @endforeach
+                            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__currentLoopData = $sections; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $section): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
+                                <option value="<?php echo e($section->section_id); ?>"><?php echo e($section->label); ?></option>
+                            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
                         </select>
                     </div>
                     <div class="space-y-2">
@@ -909,7 +591,7 @@ new class extends Component
             </div>
 
             <div class="px-8 py-4 bg-white">
-                <p class="text-sm text-gray-600">Showing {{ $inventory->count() }} of {{ $inventory->total() }} items</p>
+                <p class="text-sm text-gray-600">Showing <?php echo e($inventory->count()); ?> of <?php echo e($inventory->total()); ?> items</p>
             </div>
 
             <!-- Inventory Table -->
@@ -928,59 +610,62 @@ new class extends Component
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100 bg-white">
-                        @forelse($inventory as $item)
-                            @php
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__empty_1 = true; $__currentLoopData = $inventory; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $item): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
+                            <?php
                                 $currentStock = $item->total_in - $item->total_out - $item->total_usage;
                                 $reorderLevel = $item->reorder_level ?? 0;
                                 $isLowStock = $currentStock <= $reorderLevel;
-                            @endphp
-                            <tr class="hover:bg-gray-50 transition-colors {{ $isLowStock ? 'bg-orange-50' : '' }}">
+                            ?>
+                            <tr class="hover:bg-gray-50 transition-colors <?php echo e($isLowStock ? 'bg-orange-50' : ''); ?>">
                                 <td class="px-4 py-3">
-                                    <div class="font-medium text-sm text-gray-900">{{ $item->label }}</div>
+                                    <div class="font-medium text-sm text-gray-900"><?php echo e($item->label); ?></div>
                                 </td>
                                 <td class="px-4 py-3">
-                                    <span class="text-sm text-gray-700">{{ $item->section->label ?? 'N/A' }}</span>
+                                    <span class="text-sm text-gray-700"><?php echo e($item->section->label ?? 'N/A'); ?></span>
                                 </td>
                                 <td class="px-3 py-3 text-center">
-                                    <span class="text-sm text-gray-700">{{ $item->unit ?? 'pcs' }}</span>
+                                    <span class="text-sm text-gray-700"><?php echo e($item->unit ?? 'pcs'); ?></span>
                                 </td>
                                 <td class="px-3 py-3 text-center">
                                     <span class="inline-flex items-center px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 text-xs font-medium">
-                                        {{ number_format($item->total_in) }}
+                                        <?php echo e(number_format($item->total_in)); ?>
+
                                     </span>
                                 </td>
                                 <td class="px-3 py-3 text-center">
                                     <span class="inline-flex items-center px-2 py-0.5 rounded-md bg-gray-100 text-gray-700 text-xs font-medium">
-                                        {{ number_format($item->total_out + $item->total_usage) }}
+                                        <?php echo e(number_format($item->total_out + $item->total_usage)); ?>
+
                                     </span>
                                 </td>
                                 <td class="px-3 py-3 text-center">
-                                    <span class="inline-flex items-center px-2.5 py-1 rounded-md text-sm font-bold {{ $isLowStock ? 'bg-orange-100 text-orange-700' : 'bg-blue-50 text-blue-700' }}">
-                                        {{ number_format($currentStock) }}
+                                    <span class="inline-flex items-center px-2.5 py-1 rounded-md text-sm font-bold <?php echo e($isLowStock ? 'bg-orange-100 text-orange-700' : 'bg-blue-50 text-blue-700'); ?>">
+                                        <?php echo e(number_format($currentStock)); ?>
+
                                     </span>
                                 </td>
                                 <td class="px-3 py-3 text-center">
-                                    <span class="text-sm text-gray-600">{{ number_format($reorderLevel) }}</span>
+                                    <span class="text-sm text-gray-600"><?php echo e(number_format($reorderLevel)); ?></span>
                                 </td>
                                 <td class="px-4 py-3">
-                                    @if($isLowStock)
+                                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($isLowStock): ?>
                                         <span class="inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full bg-orange-100 text-orange-700">
                                             <svg class="w-3 h-3 mr-1.5" fill="currentColor" viewBox="0 0 20 20">
                                                 <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
                                             </svg>
                                             LOW STOCK
                                         </span>
-                                    @else
+                                    <?php else: ?>
                                         <span class="inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-700">
                                             <svg class="w-3 h-3 mr-1.5" fill="currentColor" viewBox="0 0 20 20">
                                                 <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
                                             </svg>
                                             IN STOCK
                                         </span>
-                                    @endif
+                                    <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                                 </td>
                             </tr>
-                        @empty
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
                             <tr>
                                 <td colspan="8" class="px-4 py-8 text-center">
                                     <svg class="mx-auto h-10 w-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -989,14 +674,15 @@ new class extends Component
                                     <p class="mt-2 text-sm text-gray-500">No items found</p>
                                 </td>
                             </tr>
-                        @endforelse
+                        <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                     </tbody>
                 </table>
             </div>
 
             <!-- Pagination -->
             <div class="px-8 py-4 border-t border-gray-200 bg-gray-50">
-                {{ $inventory->links() }}
+                <?php echo e($inventory->links()); ?>
+
             </div>
         </div>
 
@@ -1033,77 +719,80 @@ new class extends Component
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100 bg-white">
-                        @forelse($movements as $movement)
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__empty_1 = true; $__currentLoopData = $movements; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $movement): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
                             <tr class="hover:bg-gray-50 cursor-pointer transition-colors"
                                 @click="openDetails({
-                                    date: '{{ $movement->datetime_added->format('M d, Y') }}',
-                                    time: '{{ $movement->datetime_added->format('h:i A') }}',
-                                    type: '{{ $movement->type }}',
-                                    item: '{{ addslashes($movement->item->label ?? 'N/A') }}',
-                                    section: '{{ addslashes($movement->item->section->label ?? 'N/A') }}',
-                                    quantity: '{{ number_format($movement->quantity) }}',
-                                    reference: '{{ addslashes($movement->reference ?? $movement->reference_number ?? '—') }}',
-                                    supplier: '{{ addslashes($movement->supplier ?? '—') }}',
-                                    performedBy: '{{ $movement->type === 'USAGE' && $movement->employee ? addslashes($movement->employee->firstname . ' ' . $movement->employee->lastname) : ($movement->performedByEmployee ? addslashes($movement->performedByEmployee->firstname . ' ' . $movement->performedByEmployee->lastname) : 'System') }}',
-                                    remarks: '{{ addslashes($movement->remarks ?? '—') }}'
+                                    date: '<?php echo e($movement->datetime_added->format('M d, Y')); ?>',
+                                    time: '<?php echo e($movement->datetime_added->format('h:i A')); ?>',
+                                    type: '<?php echo e($movement->type); ?>',
+                                    item: '<?php echo e(addslashes($movement->item->label ?? 'N/A')); ?>',
+                                    section: '<?php echo e(addslashes($movement->item->section->label ?? 'N/A')); ?>',
+                                    quantity: '<?php echo e(number_format($movement->quantity)); ?>',
+                                    reference: '<?php echo e(addslashes($movement->reference ?? $movement->reference_number ?? '—')); ?>',
+                                    supplier: '<?php echo e(addslashes($movement->supplier ?? '—')); ?>',
+                                    performedBy: '<?php echo e($movement->type === 'USAGE' && $movement->employee ? addslashes($movement->employee->firstname . ' ' . $movement->employee->lastname) : ($movement->performedByEmployee ? addslashes($movement->performedByEmployee->firstname . ' ' . $movement->performedByEmployee->lastname) : 'System')); ?>',
+                                    remarks: '<?php echo e(addslashes($movement->remarks ?? '—')); ?>'
                                 })">
                                 <td class="px-4 py-3 whitespace-nowrap">
-                                    <div class="text-sm font-medium text-gray-900">{{ $movement->datetime_added->format('M d, Y') }}</div>
-                                    <div class="text-xs text-gray-500">{{ $movement->datetime_added->format('h:i A') }}</div>
+                                    <div class="text-sm font-medium text-gray-900"><?php echo e($movement->datetime_added->format('M d, Y')); ?></div>
+                                    <div class="text-xs text-gray-500"><?php echo e($movement->datetime_added->format('h:i A')); ?></div>
                                 </td>
                                 <td class="px-4 py-3 whitespace-nowrap">
-                                    @if($movement->type === 'IN')
+                                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($movement->type === 'IN'): ?>
                                         <span class="inline-flex items-center px-2.5 py-1 rounded-md bg-emerald-100 text-emerald-700 text-xs font-semibold">
                                             <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 11l5-5m0 0l5 5m-5-5v12"/>
                                             </svg>
                                             STOCK IN
                                         </span>
-                                    @elseif($movement->type === 'OUT')
+                                    <?php elseif($movement->type === 'OUT'): ?>
                                         <span class="inline-flex items-center px-2.5 py-1 rounded-md bg-rose-100 text-rose-700 text-xs font-semibold">
                                             <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 13l-5 5m0 0l-5-5m5 5V6"/>
                                             </svg>
                                             STOCK OUT
                                         </span>
-                                    @else
+                                    <?php else: ?>
                                         <span class="inline-flex items-center px-2.5 py-1 rounded-md bg-blue-100 text-blue-700 text-xs font-semibold">
                                             <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
                                             </svg>
                                             USAGE
                                         </span>
-                                    @endif
+                                    <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                                 </td>
                                 <td class="px-4 py-3">
-                                    <div class="font-medium text-sm text-gray-900">{{ $movement->item->label ?? 'N/A' }}</div>
-                                    <div class="text-xs text-gray-500">{{ $movement->item->section->label ?? '' }}</div>
+                                    <div class="font-medium text-sm text-gray-900"><?php echo e($movement->item->label ?? 'N/A'); ?></div>
+                                    <div class="text-xs text-gray-500"><?php echo e($movement->item->section->label ?? ''); ?></div>
                                 </td>
                                 <td class="px-3 py-3 text-center">
                                     <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold
-                                        {{ $movement->type === 'IN' ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-700' }}">
-                                        {{ $movement->type === 'IN' ? '+' : '-' }}{{ number_format($movement->quantity) }}
+                                        <?php echo e($movement->type === 'IN' ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-700'); ?>">
+                                        <?php echo e($movement->type === 'IN' ? '+' : '-'); ?><?php echo e(number_format($movement->quantity)); ?>
+
                                     </span>
                                 </td>
                                 <td class="px-4 py-3">
-                                    <span class="text-sm text-gray-700">{{ $movement->reference ?? '—' }}</span>
+                                    <span class="text-sm text-gray-700"><?php echo e($movement->reference ?? '—'); ?></span>
                                 </td>
                                 <td class="px-4 py-3">
                                     <span class="text-sm text-gray-700">
-                                        @if($movement->type === 'USAGE' && $movement->employee)
-                                            {{ $movement->employee->firstname }} {{ $movement->employee->lastname }}
-                                        @elseif($movement->performedByEmployee)
-                                            {{ $movement->performedByEmployee->firstname }} {{ $movement->performedByEmployee->lastname }}
-                                        @else
+                                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($movement->type === 'USAGE' && $movement->employee): ?>
+                                            <?php echo e($movement->employee->firstname); ?> <?php echo e($movement->employee->lastname); ?>
+
+                                        <?php elseif($movement->performedByEmployee): ?>
+                                            <?php echo e($movement->performedByEmployee->firstname); ?> <?php echo e($movement->performedByEmployee->lastname); ?>
+
+                                        <?php else: ?>
                                             System
-                                        @endif
+                                        <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                                     </span>
                                 </td>
                                 <td class="px-4 py-3">
-                                    <span class="text-sm text-gray-600">{{ Str::limit($movement->remarks ?? '—', 40) }}</span>
+                                    <span class="text-sm text-gray-600"><?php echo e(Str::limit($movement->remarks ?? '—', 40)); ?></span>
                                 </td>
                             </tr>
-                        @empty
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
                             <tr>
                                 <td colspan="7" class="px-4 py-8 text-center">
                                     <svg class="mx-auto h-10 w-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1112,14 +801,15 @@ new class extends Component
                                     <p class="mt-2 text-sm text-gray-500">No stock movements recorded yet</p>
                                 </td>
                             </tr>
-                        @endforelse
+                        <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                     </tbody>
                 </table>
             </div>
 
             <!-- Pagination -->
             <div class="px-8 py-4 border-t border-gray-200 bg-gray-50">
-                {{ $movements->links() }}
+                <?php echo e($movements->links()); ?>
+
             </div>
 
             <!-- Detail Sidebar -->
@@ -1254,4 +944,4 @@ new class extends Component
             </div>
         </div>
     </div>
-</div>
+</div><?php /**PATH C:\xampp\htdocs\dashboard\clinlab_app\storage\framework/views/livewire/views/e0210cab.blade.php ENDPATH**/ ?>

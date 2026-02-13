@@ -1,0 +1,1 @@
+equipment-{{ $item->equipment_id }}
