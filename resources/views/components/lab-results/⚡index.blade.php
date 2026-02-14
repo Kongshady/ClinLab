@@ -24,6 +24,17 @@ new class extends Component
     public $perPage = 10;
     public $flashMessage = '';
 
+    // UPDATED: Delete confirmation modal properties
+    public $showDeleteModal = false;
+    public $deleteMessage = '';
+    public $deleteAction = '';
+    public $labResultsToDelete = [];
+
+    // UPDATED: Web search modal properties (for test search)
+    public $showSearchModal = false;
+    public $searchQuery = '';
+    public $searchResults = null;
+
     // Create Order Modal
     public bool $showCreateModal = false;
     public $orderPatientId = '';
@@ -291,6 +302,45 @@ new class extends Component
         $this->resetPage();
     }
 
+    // UPDATED: Delete selected method (placeholder - no selection in this page)
+    public function deleteSelected()
+    {
+        // This page doesn't have selection, but keeping for consistency
+    }
+
+    // UPDATED: Close delete modal method
+    public function closeDeleteModal()
+    {
+        $this->showDeleteModal = false;
+        $this->deleteMessage = '';
+        $this->deleteAction = '';
+        $this->labResultsToDelete = [];
+    }
+
+    // UPDATED: Web search modal methods (for test search)
+    public function openSearchModal()
+    {
+        $this->showSearchModal = true;
+    }
+
+    public function closeSearchModal()
+    {
+        $this->showSearchModal = false;
+        $this->searchQuery = '';
+        $this->searchResults = null;
+    }
+
+    public function updatedSearchQuery()
+    {
+        if (strlen($this->searchQuery) > 2) {
+            // Your search logic here - placeholder
+            $this->searchResults = collect([
+                (object)['title' => 'Sample Result 1', 'snippet' => 'This is a sample search result for ' . $this->searchQuery],
+                (object)['title' => 'Sample Result 2', 'snippet' => 'Another sample result related to your query']
+            ]);
+        }
+    }
+
     public function with(): array
     {
         $query = LabTestOrder::with(['patient', 'physician', 'orderTests.test', 'orderTests.labResult'])
@@ -334,7 +384,7 @@ new class extends Component
 };
 ?>
 
-<div class="p-6" x-data="{ testSearch: '' }">
+<div class="p-6">
     {{-- Header --}}
     <div class="mb-6">
         <h1 class="text-2xl font-bold text-gray-900 flex items-center">
@@ -347,12 +397,12 @@ new class extends Component
 
     {{-- Flash Message --}}
     @if($flashMessage)
-        <div class="mb-6 p-4 bg-green-50 border-l-4 border-green-500 rounded" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 4000)">
-            <div class="flex items-center justify-between">
-                <p class="text-green-800 font-medium">{{ $flashMessage }}</p>
-                <button @click="show = false" class="text-green-600 hover:text-green-800">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                </button>
+        <div class="mb-6 bg-white border-l-4 border-green-500 shadow-sm rounded-lg p-4 flex items-center justify-between">
+            <div class="flex items-center">
+                <svg class="w-5 h-5 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                </svg>
+                <span class="text-sm font-medium text-gray-900">{{ $flashMessage }}</span>
             </div>
         </div>
     @endif
@@ -593,42 +643,38 @@ new class extends Component
 
                         {{-- Test Selection --}}
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1.5">
-                                Select Tests <span class="text-red-500">*</span>
-                                @if(count($selectedTests) > 0)
-                                    <span class="ml-2 text-blue-600 font-normal">({{ count($selectedTests) }} selected)</span>
-                                @endif
-                            </label>
-                            @error('selectedTests') <span class="text-red-500 text-xs mb-2 block">{{ $message }}</span> @enderror
-
-                            {{-- Test Search --}}
-                            <div class="mb-3">
-                                <input type="text" x-model="testSearch" placeholder="Search tests..."
-                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">
+                            <div class="flex items-center justify-between mb-1.5">
+                                <label class="block text-sm font-medium text-gray-700">
+                                    Select Tests <span class="text-red-500">*</span>
+                                    @if(count($selectedTests) > 0)
+                                        <span class="ml-2 text-blue-600 font-normal">({{ count($selectedTests) }} selected)</span>
+                                    @endif
+                                </label>
+                                <button type="button" wire:click="openSearchModal" 
+                                        class="text-sm text-blue-600 hover:text-blue-800 underline">
+                                    Search Tests
+                                </button>
                             </div>
+                            @error('selectedTests') <span class="text-red-500 text-xs mb-2 block">{{ $message }}</span> @enderror
 
                             <div class="border border-gray-200 rounded-lg max-h-64 overflow-y-auto">
                                 @foreach($sections as $section)
                                     @if($section->tests->count() > 0)
-                                        <div x-data="{ sectionLabel: '{{ strtolower(addslashes($section->label)) }}', testLabels: {{ json_encode($section->tests->pluck('label')->map(fn($l) => strtolower($l))->toArray()) }} }"
-                                             x-show="!testSearch || sectionLabel.includes(testSearch.toLowerCase()) || testLabels.some(t => t.includes(testSearch.toLowerCase()))">
-                                            <div class="px-4 py-2 bg-gray-50 border-b border-gray-200 sticky top-0">
-                                                <h4 class="text-xs font-bold text-gray-600 uppercase tracking-wider">{{ $section->label }}</h4>
-                                            </div>
-                                            @foreach($section->tests as $test)
-                                                <label x-show="!testSearch || '{{ strtolower(addslashes($test->label)) }}'.includes(testSearch.toLowerCase()) || sectionLabel.includes(testSearch.toLowerCase())"
-                                                       class="flex items-center px-4 py-2.5 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-0 transition-colors">
-                                                    <input type="checkbox" wire:model="selectedTests" value="{{ $test->test_id }}" 
-                                                           class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-3">
-                                                    <div class="flex-1">
-                                                        <span class="text-sm text-gray-800">{{ $test->label }}</span>
-                                                    </div>
-                                                    @if($test->current_price)
-                                                        <span class="text-xs text-gray-400 ml-2">&#8369;{{ number_format($test->current_price, 2) }}</span>
-                                                    @endif
-                                                </label>
-                                            @endforeach
+                                        <div class="px-4 py-2 bg-gray-50 border-b border-gray-200 sticky top-0">
+                                            <h4 class="text-xs font-bold text-gray-600 uppercase tracking-wider">{{ $section->label }}</h4>
                                         </div>
+                                        @foreach($section->tests as $test)
+                                            <label class="flex items-center px-4 py-2.5 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-0 transition-colors">
+                                                <input type="checkbox" wire:model="selectedTests" value="{{ $test->test_id }}" 
+                                                       class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-3">
+                                                <div class="flex-1">
+                                                    <span class="text-sm text-gray-800">{{ $test->label }}</span>
+                                                </div>
+                                                @if($test->current_price)
+                                                    <span class="text-xs text-gray-400 ml-2">&#8369;{{ number_format($test->current_price, 2) }}</span>
+                                                @endif
+                                            </label>
+                                        @endforeach
                                     @endif
                                 @endforeach
                             </div>
@@ -1004,6 +1050,46 @@ new class extends Component
                         </button>
                     </div>
                 </form>
+            </div>
+        </div>
+    </div>
+    @endif
+
+    {{-- UPDATED: Web Search Modal --}}
+    @if($showSearchModal)
+    <div class="fixed inset-0 z-50 overflow-y-auto" style="background-color: rgba(0, 0, 0, 0.5);">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-xl font-semibold text-gray-900">Search Tests</h3>
+                        <button type="button" wire:click="closeSearchModal" class="text-gray-400 hover:text-gray-600">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="p-6">
+                    <input type="text" wire:model.live.debounce.500ms="searchQuery" 
+                           placeholder="Enter test name or section..." 
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 mb-4">
+                    
+                    @if($searchResults)
+                    <div class="space-y-3 max-h-96 overflow-y-auto">
+                        @foreach($searchResults as $result)
+                        <div class="p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
+                            <h4 class="font-semibold text-gray-900">{{ $result->title }}</h4>
+                            <p class="text-sm text-gray-600">{{ $result->snippet }}</p>
+                        </div>
+                        @endforeach
+                    </div>
+                    @else
+                    <div class="text-center py-8 text-gray-500">
+                        <p>Start typing to search for tests...</p>
+                    </div>
+                    @endif
+                </div>
             </div>
         </div>
     </div>

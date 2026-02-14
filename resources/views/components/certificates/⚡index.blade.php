@@ -42,6 +42,21 @@ new class extends Component
     public $filterStatus = '';
     public $flashMessage = '';
 
+    // UPDATED: New delete confirmation modal properties
+    public $showDeleteModal = false;
+    public $deleteMessage = '';
+    public $deleteAction = '';
+    public $certificatesToDelete = [];
+
+    // UPDATED: New web search modal properties
+    public $showSearchModal = false;
+    public $searchQuery = '';
+    public $searchResults = null;
+
+    // Selection properties
+    public $selectedCertificates = [];
+    public $selectAll = false;
+
     // Edit Modal Properties
     public $showEditModal = false;
     public $editCertificateId = '';
@@ -167,6 +182,104 @@ new class extends Component
         }
     }
 
+    // UPDATED: New delete selected method
+    public function deleteSelected()
+    {
+        if (empty($this->selectedCertificates)) return;
+        
+        $count = count($this->selectedCertificates);
+        $this->deleteMessage = "Are you sure you want to delete {$count} selected certificate(s)? This action cannot be undone.";
+        $this->deleteAction = 'confirmDeleteSelected';
+        $this->certificatesToDelete = $this->selectedCertificates;
+        $this->showDeleteModal = true;
+    }
+
+    // UPDATED: New confirm delete selected method
+    public function confirmDeleteSelected()
+    {
+        if (empty($this->certificatesToDelete)) return;
+        
+        $count = Certificate::whereIn('certificate_id', $this->certificatesToDelete)->delete();
+        $this->flashMessage = $count . ' certificate(s) deleted successfully!';
+        $this->selectedCertificates = [];
+        $this->selectAll = false;
+        $this->resetPage();
+        $this->closeDeleteModal();
+    }
+
+    // UPDATED: New close delete modal method
+    public function closeDeleteModal()
+    {
+        $this->showDeleteModal = false;
+        $this->deleteMessage = '';
+        $this->deleteAction = '';
+        $this->certificatesToDelete = [];
+    }
+
+    // Selection methods
+    public function updatedSelectAll($value)
+    {
+        if ($value) {
+            $query = Certificate::with(['patient', 'equipment', 'issuedBy', 'verifiedBy'])
+                ->when($this->search, function ($query) {
+                    $query->where('certificate_number', 'like', '%' . $this->search . '%')
+                          ->orWhereHas('patient', function($q) {
+                              $q->where('firstname', 'like', '%' . $this->search . '%')
+                                ->orWhere('lastname', 'like', '%' . $this->search . '%');
+                          });
+                })
+                ->when($this->filterType, function ($query) {
+                    $query->where('certificate_type', $this->filterType);
+                })
+                ->when($this->filterStatus, function ($query) {
+                    $query->where('status', $this->filterStatus);
+                })
+                ->orderBy('issue_date', 'desc');
+
+            $certificates = $this->perPage === 'all' ? $query->get() : $query->paginate((int)$this->perPage);
+            $this->selectedCertificates = $certificates->pluck('certificate_id')
+                ->map(fn($id) => (string)$id)->toArray();
+        } else {
+            $this->selectedCertificates = [];
+        }
+    }
+
+    public function updatedSelectedCertificates()
+    {
+        $this->selectAll = false;
+    }
+
+    public function updatedSearch()
+    {
+        $this->selectedCertificates = [];
+        $this->selectAll = false;
+        $this->resetPage();
+    }
+
+    // UPDATED: New web search modal methods
+    public function openSearchModal()
+    {
+        $this->showSearchModal = true;
+    }
+
+    public function closeSearchModal()
+    {
+        $this->showSearchModal = false;
+        $this->searchQuery = '';
+        $this->searchResults = null;
+    }
+
+    public function updatedSearchQuery()
+    {
+        if (strlen($this->searchQuery) > 2) {
+            // Your search logic here - placeholder
+            $this->searchResults = collect([
+                (object)['title' => 'Sample Result 1', 'snippet' => 'This is a sample search result for ' . $this->searchQuery],
+                (object)['title' => 'Sample Result 2', 'snippet' => 'Another sample result related to your query']
+            ]);
+        }
+    }
+
     public function with(): array
     {
         return [
@@ -206,8 +319,13 @@ new class extends Component
     </div>
 
     @if($flashMessage)
-        <div class="mb-6 p-4 bg-green-50 border-l-4 border-green-500 rounded">
-            <p class="text-green-800">{{ $flashMessage }}</p>
+        <div class="mb-6 bg-white border-l-4 border-green-500 shadow-sm rounded-lg p-4 flex items-center justify-between">
+            <div class="flex items-center">
+                <svg class="w-5 h-5 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                </svg>
+                <span class="text-sm font-medium text-gray-900">{{ $flashMessage }}</span>
+            </div>
         </div>
     @endif
 
@@ -356,13 +474,36 @@ new class extends Component
         <div class="px-6 py-4 border-b border-gray-200">
             <div class="flex items-center justify-between">
                 <h2 class="text-lg font-semibold text-gray-900">Issued Certificates</h2>
-                <span class="text-sm text-gray-600">{{ $certificates->total() }} total</span>
+                <div class="flex items-center gap-3">
+                    {{-- UPDATED: Delete button --}}
+                    @if(count($selectedCertificates) > 0)
+                    <button wire:click="deleteSelected" 
+                            class="inline-flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                        </svg>
+                        Delete Selected ({{ count($selectedCertificates) }})
+                    </button>
+                    @endif
+                    {{-- UPDATED: Web search button --}}
+                    <button wire:click="openSearchModal" 
+                            class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                        </svg>
+                        Search Web
+                    </button>
+                </div>
             </div>
         </div>
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
+                        <th class="px-6 py-3 text-left w-10">
+                            <input type="checkbox" wire:model.live="selectAll"
+                                   class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 h-4 w-4">
+                        </th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Certificate #</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient/Equipment</th>
@@ -374,7 +515,12 @@ new class extends Component
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
                     @forelse($certificates as $cert)
-                        <tr wire:key="certificate-{{ $cert->certificate_id }}" class="hover:bg-gray-50">
+                        <tr wire:key="certificate-{{ $cert->certificate_id }}" 
+                            class="hover:bg-gray-50 {{ in_array((string) $cert->certificate_id, $selectedCertificates) ? 'bg-blue-50' : '' }}">
+                            <td class="px-6 py-4">
+                                <input type="checkbox" wire:model.live="selectedCertificates" value="{{ $cert->certificate_id }}"
+                                       class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 h-4 w-4">
+                            </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                 <div class="font-medium">{{ $cert->certificate_number }}</div>
                                 <div class="text-xs text-gray-500">ID: {{ $cert->certificate_id }}</div>
@@ -439,7 +585,6 @@ new class extends Component
                                 <button type="button" wire:click="openEditModal({{ $cert->certificate_id }})" 
                                         class="px-4 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg transition-colors">Edit</button>
                                 <button type="button" wire:click="delete({{ $cert->certificate_id }})" 
-                                        wire:confirm="Are you sure you want to delete this certificate?"
                                         class="px-4 py-1.5 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors">Delete</button>
                             </td>
                         </tr>
@@ -605,6 +750,89 @@ new class extends Component
                         </button>
                     </div>
                 </form>
+            </div>
+        </div>
+    </div>
+    @endif
+
+    {{-- Delete Confirmation Modal --}}
+    @if($showDeleteModal)
+    <div class="fixed inset-0 z-50 overflow-y-auto" style="background-color: rgba(0, 0, 0, 0.5);">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-lg shadow-xl max-w-md w-full">
+                <!-- Modal Header -->
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-xl font-semibold text-gray-900">Confirm Deletion</h3>
+                        <button type="button" wire:click="closeDeleteModal" class="text-gray-400 hover:text-gray-600">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Modal Body -->
+                <div class="p-6">
+                    <div class="flex items-start space-x-3">
+                        <div class="flex-shrink-0">
+                            <svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+                            </svg>
+                        </div>
+                        <div class="flex-1">
+                            <p class="text-sm text-gray-700">{{ $deleteMessage }}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal Footer -->
+                <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end space-x-3 rounded-b-lg">
+                    <button type="button" wire:click="closeDeleteModal" 
+                            class="px-5 py-2.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                        Cancel
+                    </button>
+                    <button type="button" wire:click="{{ $deleteAction }}" 
+                            class="px-5 py-2.5 bg-red-600 text-white text-sm rounded-md font-medium hover:bg-red-700">
+                        Delete
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+
+    {{-- Web Search Modal --}}
+    @if($showSearchModal)
+    <div class="fixed inset-0 z-50 overflow-y-auto" style="background-color: rgba(0, 0, 0, 0.5);">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-xl font-semibold text-gray-900">Web Search</h3>
+                        <button type="button" wire:click="closeSearchModal" class="text-gray-400 hover:text-gray-600">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="p-6">
+                    <input type="text" wire:model.live.debounce.500ms="searchQuery" 
+                           placeholder="Enter search query..." 
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 mb-4">
+                    
+                    @if($searchResults)
+                    <div class="space-y-3 max-h-96 overflow-y-auto">
+                        @foreach($searchResults as $result)
+                        <div class="p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
+                            <h4 class="font-semibold text-gray-900">{{ $result->title }}</h4>
+                            <p class="text-sm text-gray-600">{{ $result->snippet }}</p>
+                        </div>
+                        @endforeach
+                    </div>
+                    @endif
+                </div>
             </div>
         </div>
     </div>
