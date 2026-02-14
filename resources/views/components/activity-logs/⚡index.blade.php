@@ -148,7 +148,7 @@ new class extends Component
                                 </td>
                                 <td class="px-4 py-3 whitespace-nowrap">
                                     <div class="flex items-center">
-                                        <div class="h-8 w-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-semibold text-sm">
+                                        <div class="h-8 w-8 rounded-full bg-gradient-to-br from-blue-400 to-cyan-500 flex items-center justify-center text-white font-semibold text-sm">
                                             {{ substr($log->employee->firstname ?? 'U', 0, 1) }}{{ substr($log->employee->lastname ?? 'N', 0, 1) }}
                                         </div>
                                         <div class="ml-3">

@@ -1,1 +1,0 @@
-physician-{{ $physician->physician_id }}

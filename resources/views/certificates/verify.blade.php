@@ -5,6 +5,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Verify Certificate - ClinLab</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        blue: {
+                            50: '#fef2f4', 100: '#fde6ea', 200: '#fbd0d8', 300: '#f7a9b6', 400: '#f27d91',
+                            500: '#d1324a', 600: '#c42841', 700: '#a52038', 800: '#891d33', 900: '#7b1d31', 950: '#450a19',
+                        },
+                        cyan: {
+                            50: '#fff5f6', 100: '#ffe0e4', 200: '#ffc7cf', 300: '#ffa3b1', 400: '#e8607a',
+                            500: '#d94863', 600: '#c4354f', 700: '#a52a41', 800: '#8c2539', 900: '#782234', 950: '#430d19',
+                        },
+                    },
+                }
+            }
+        }
+    </script>
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700" rel="stylesheet" />
     <style>
@@ -48,7 +66,7 @@
                                class="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white transition-all"
                                required>
                         <button type="submit"
-                                class="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white font-medium text-sm rounded-xl shadow-sm transition-all">
+                                class="px-6 py-3 bg-gradient-to-r from-blue-600 to-cyan-400 hover:from-blue-700 hover:to-cyan-500 text-white font-medium text-sm rounded-xl shadow-sm transition-all">
                             Verify
                         </button>
                     </form>

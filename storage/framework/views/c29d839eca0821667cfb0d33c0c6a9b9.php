@@ -5,6 +5,7 @@ use App\Models\LabResult;
 use App\Models\LabTestOrder;
 use App\Models\Certificate;
 use App\Models\CertificateIssue;
+use Barryvdh\DomPDF\Facade\Pdf;
 ?>
 
 <div>
@@ -143,122 +144,224 @@ use App\Models\CertificateIssue;
             
             <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($activeTab === 'results'): ?>
             <div>
-                <div class="flex items-center justify-between mb-5">
-                    <div>
-                        <h2 class="text-xl font-bold text-gray-900">Lab Results</h2>
-                        <p class="text-sm text-gray-500 mt-0.5">View your lab test orders and results</p>
+                
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden mb-5">
+                    <div class="bg-gradient-to-r from-blue-600 to-cyan-400 px-6 py-5">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h2 class="text-lg font-bold text-white">Lab Results</h2>
+                                    <p class="text-sm text-white/70">View your lab test orders and results</p>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-2xl font-bold text-white"><?php echo e(count($labOrders)); ?></p>
+                                <p class="text-xs text-white/60">Total Orders</p>
+                            </div>
+                        </div>
                     </div>
+
+                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(count($labOrders) > 0): ?>
+                    
+                    <div class="grid grid-cols-3 divide-x divide-gray-100">
+                        <div class="px-5 py-4 text-center">
+                            <div class="flex items-center justify-center gap-2">
+                                <div class="w-2.5 h-2.5 rounded-full bg-amber-400"></div>
+                                <span class="text-xl font-bold text-gray-900"><?php echo e(collect($labOrders)->where('status', 'pending')->count()); ?></span>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-0.5">Pending</p>
+                        </div>
+                        <div class="px-5 py-4 text-center">
+                            <div class="flex items-center justify-center gap-2">
+                                <div class="w-2.5 h-2.5 rounded-full bg-blue-400"></div>
+                                <span class="text-xl font-bold text-gray-900"><?php echo e(collect($labOrders)->filter(fn($o) => !in_array($o->status, ['completed','cancelled','pending']))->count()); ?></span>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-0.5">In Progress</p>
+                        </div>
+                        <div class="px-5 py-4 text-center">
+                            <div class="flex items-center justify-center gap-2">
+                                <div class="w-2.5 h-2.5 rounded-full bg-emerald-400"></div>
+                                <span class="text-xl font-bold text-gray-900"><?php echo e(collect($labOrders)->where('status', 'completed')->count()); ?></span>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-0.5">Completed</p>
+                        </div>
+                    </div>
+                    <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                 </div>
 
                 <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(count($labOrders) > 0): ?>
                     
-                    <div class="grid grid-cols-3 gap-3 mb-5">
-                        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 text-center">
-                            <p class="text-2xl font-bold text-amber-500"><?php echo e(collect($labOrders)->where('status', 'pending')->count()); ?></p>
-                            <p class="text-xs text-gray-500 mt-0.5">Pending</p>
-                        </div>
-                        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 text-center">
-                            <p class="text-2xl font-bold text-blue-500"><?php echo e(collect($labOrders)->filter(fn($o) => !in_array($o->status, ['completed','cancelled','pending']))->count()); ?></p>
-                            <p class="text-xs text-gray-500 mt-0.5">In Progress</p>
-                        </div>
-                        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 text-center">
-                            <p class="text-2xl font-bold text-emerald-500"><?php echo e(collect($labOrders)->where('status', 'completed')->count()); ?></p>
-                            <p class="text-xs text-gray-500 mt-0.5">Completed</p>
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 mb-4">
+                        <div class="flex flex-col sm:flex-row gap-3">
+                            <div class="flex-1 relative">
+                                <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                                </svg>
+                                <input type="text" wire:model.live.debounce.300ms="orderSearch"
+                                       placeholder="Search by order #, physician, or test name..."
+                                       class="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white transition-all">
+                            </div>
+                            <select wire:model.live="orderStatusFilter"
+                                    class="px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white transition-all min-w-[150px]">
+                                <option value="">All Statuses</option>
+                                <option value="pending">Pending</option>
+                                <option value="in_progress">In Progress</option>
+                                <option value="completed">Completed</option>
+                                <option value="cancelled">Cancelled</option>
+                            </select>
                         </div>
                     </div>
 
                     
-                    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-                        <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-gray-50">
-                                <tr>
-                                    <th class="px-5 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Order #</th>
-                                    <th class="px-5 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Date Requested</th>
-                                    <th class="px-5 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Date Released</th>
-                                    <th class="px-5 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Status</th>
-                                    <th class="px-5 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Physician</th>
-                                    <th class="px-5 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Tests</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-100">
-                                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__currentLoopData = $labOrders; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $order): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
-                                <?php
-                                    $totalTests = $order->orderTests->count();
-                                    $completedTests = $order->orderTests->where('status', 'completed')->count();
-                                    // Find the latest result date among completed tests as "released" date
-                                    $releasedDate = $order->orderTests
-                                        ->filter(fn($ot) => $ot->labResult && $ot->labResult->result_date)
-                                        ->map(fn($ot) => $ot->labResult->result_date)
-                                        ->sortDesc()
-                                        ->first();
-                                ?>
-                                <tr wire:click="viewOrder(<?php echo e($order->lab_test_order_id); ?>)" class="hover:bg-blue-50/40 transition-colors cursor-pointer">
-                                    <td class="px-5 py-3.5">
-                                        <span class="text-sm font-semibold text-gray-900">#<?php echo e($order->lab_test_order_id); ?></span>
-                                    </td>
-                                    <td class="px-5 py-3.5">
-                                        <span class="text-sm text-gray-700"><?php echo e($order->order_date ? $order->order_date->format('M d, Y') : '—'); ?></span>
-                                        <p class="text-xs text-gray-400"><?php echo e($order->order_date ? $order->order_date->format('h:i A') : ''); ?></p>
-                                    </td>
-                                    <td class="px-5 py-3.5">
-                                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($releasedDate): ?>
-                                            <span class="text-sm text-gray-700"><?php echo e($releasedDate->format('M d, Y')); ?></span>
-                                            <p class="text-xs text-gray-400"><?php echo e($releasedDate->format('h:i A')); ?></p>
-                                        <?php else: ?>
-                                            <span class="text-xs text-gray-400 italic">Not yet released</span>
-                                        <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
-                                    </td>
-                                    <td class="px-5 py-3.5">
-                                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($order->status === 'completed'): ?>
-                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-700">
-                                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                                                Completed
-                                            </span>
-                                        <?php elseif($order->status === 'cancelled'): ?>
-                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-700">
-                                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                                                Cancelled
-                                            </span>
-                                        <?php elseif($order->status === 'pending'): ?>
-                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-full bg-amber-100 text-amber-700">
-                                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                                                Pending
-                                            </span>
-                                        <?php else: ?>
-                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-700">
-                                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                                                In Progress
-                                            </span>
-                                        <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
-                                    </td>
-                                    <td class="px-5 py-3.5">
-                                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($order->physician): ?>
-                                            <span class="text-sm text-gray-700">Dr. <?php echo e($order->physician->physician_name); ?></span>
-                                        <?php else: ?>
-                                            <span class="text-xs text-gray-400">—</span>
-                                        <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
-                                    </td>
-                                    <td class="px-5 py-3.5">
-                                        <div class="flex items-center gap-1.5">
-                                            <span class="text-sm font-medium text-gray-700"><?php echo e($completedTests); ?>/<?php echo e($totalTests); ?></span>
-                                            <div class="w-12 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                                                <div class="h-full rounded-full <?php echo e($completedTests >= $totalTests ? 'bg-emerald-500' : 'bg-blue-500'); ?>" 
-                                                     style="width: <?php echo e($totalTests > 0 ? round($completedTests/$totalTests*100) : 0); ?>%"></div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                </tr>
-                                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                <?php else: ?>
-                    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-12 text-center">
-                        <div class="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
-                            <svg class="w-8 h-8 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                    <?php
+                        $filtered = collect($labOrders)->filter(function($order) {
+                            // Status filter
+                            if ($this->orderStatusFilter) {
+                                if ($this->orderStatusFilter === 'in_progress') {
+                                    if (in_array($order->status, ['completed', 'cancelled', 'pending'])) return false;
+                                } else {
+                                    if ($order->status !== $this->orderStatusFilter) return false;
+                                }
+                            }
+                            // Search filter
+                            if ($this->orderSearch) {
+                                $search = strtolower($this->orderSearch);
+                                $haystack = strtolower(
+                                    $order->lab_test_order_id . ' ' .
+                                    ($order->physician->physician_name ?? '') . ' ' .
+                                    $order->orderTests->map(fn($ot) => $ot->test->label ?? '')->implode(' ')
+                                );
+                                if (!str_contains($haystack, $search)) return false;
+                            }
+                            return true;
+                        });
+                    ?>
+
+                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($filtered->isEmpty()): ?>
+                        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-10 text-center">
+                            <div class="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3">
+                                <svg class="w-7 h-7 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                            </div>
+                            <h3 class="text-gray-600 font-semibold mb-1">No matching orders</h3>
+                            <p class="text-gray-400 text-sm">Try adjusting your search or filter criteria.</p>
                         </div>
-                        <h3 class="text-gray-600 font-semibold mb-1">No Lab Results Yet</h3>
-                        <p class="text-gray-400 text-sm">Your lab results will appear here once they are processed.</p>
+                    <?php else: ?>
+                    <div class="space-y-3">
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__currentLoopData = $filtered; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $order): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
+                        <?php
+                            $totalTests = $order->orderTests->count();
+                            $completedTests = $order->orderTests->where('status', 'completed')->count();
+                            $pctComplete = $totalTests > 0 ? round($completedTests/$totalTests*100) : 0;
+                            $releasedDate = $order->orderTests
+                                ->filter(fn($ot) => $ot->labResult && $ot->labResult->result_date)
+                                ->map(fn($ot) => $ot->labResult->result_date)
+                                ->sortDesc()
+                                ->first();
+                            $testNames = $order->orderTests->map(fn($ot) => $ot->test->label ?? 'Unknown')->take(3);
+                            $extraTests = $totalTests - 3;
+                            $statusProps = match($order->status) {
+                                'completed' => ['class' => 'bg-emerald-50 text-emerald-700 border-emerald-200', 'icon' => 'M5 13l4 4L19 7', 'dot' => 'bg-emerald-400', 'label' => 'Completed', 'accent' => 'border-l-emerald-400'],
+                                'cancelled' => ['class' => 'bg-red-50 text-red-700 border-red-200', 'icon' => 'M6 18L18 6M6 6l12 12', 'dot' => 'bg-red-400', 'label' => 'Cancelled', 'accent' => 'border-l-red-400'],
+                                'pending' => ['class' => 'bg-amber-50 text-amber-700 border-amber-200', 'icon' => 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z', 'dot' => 'bg-amber-400', 'label' => 'Pending', 'accent' => 'border-l-amber-400'],
+                                default => ['class' => 'bg-blue-50 text-blue-700 border-blue-200', 'icon' => 'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15', 'dot' => 'bg-blue-400', 'label' => 'In Progress', 'accent' => 'border-l-blue-400'],
+                            };
+                        ?>
+                        <div wire:click="viewOrder(<?php echo e($order->lab_test_order_id); ?>)"
+                             class="bg-white rounded-2xl shadow-sm border border-gray-200 border-l-4 <?php echo e($statusProps['accent']); ?> hover:shadow-md hover:border-gray-300 transition-all cursor-pointer group">
+
+                            
+                            <div class="px-5 pt-4 pb-3 flex items-start justify-between gap-4">
+                                <div class="flex items-start gap-3.5 min-w-0">
+                                    
+                                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center flex-shrink-0 shadow-sm shadow-blue-500/20 group-hover:shadow-md group-hover:shadow-blue-500/30 transition-shadow">
+                                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                                        </svg>
+                                    </div>
+                                    <div class="min-w-0">
+                                        <div class="flex items-center gap-2 flex-wrap">
+                                            <h3 class="text-sm font-bold text-gray-900">Order #<?php echo e($order->lab_test_order_id); ?></h3>
+                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-semibold rounded-full border <?php echo e($statusProps['class']); ?>">
+                                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="<?php echo e($statusProps['icon']); ?>"/></svg>
+                                                <?php echo e($statusProps['label']); ?>
+
+                                            </span>
+                                        </div>
+                                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($order->physician): ?>
+                                            <p class="text-xs text-gray-500 mt-0.5">
+                                                <span class="text-gray-400">Physician:</span>
+                                                Dr. <?php echo e($order->physician->physician_name); ?>
+
+                                            </p>
+                                        <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+                                    </div>
+                                </div>
+                                
+                                <svg class="w-5 h-5 text-gray-300 group-hover:text-blue-400 group-hover:translate-x-0.5 transition-all flex-shrink-0 mt-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                </svg>
+                            </div>
+
+                            
+                            <div class="px-5 pb-3">
+                                <div class="flex flex-wrap gap-1.5">
+                                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__currentLoopData = $testNames; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $name): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
+                                        <span class="inline-flex items-center px-2.5 py-1 bg-gray-50 border border-gray-100 rounded-lg text-xs text-gray-600 font-medium">
+                                            <svg class="w-3 h-3 text-gray-400 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>
+                                            <?php echo e($name); ?>
+
+                                        </span>
+                                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
+                                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($extraTests > 0): ?>
+                                        <span class="inline-flex items-center px-2.5 py-1 bg-blue-50 border border-blue-100 rounded-lg text-xs text-blue-600 font-medium">
+                                            +<?php echo e($extraTests); ?> more
+                                        </span>
+                                    <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+                                </div>
+                            </div>
+
+                            
+                            <div class="px-5 py-3 bg-gray-50/50 border-t border-gray-100 rounded-b-2xl flex items-center justify-between gap-4">
+                                <div class="flex items-center gap-4 text-xs text-gray-500">
+                                    <div class="flex items-center gap-1.5">
+                                        <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                                        <span><?php echo e($order->order_date ? $order->order_date->format('M d, Y') : '—'); ?></span>
+                                    </div>
+                                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($releasedDate): ?>
+                                    <div class="flex items-center gap-1.5">
+                                        <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                        <span class="text-emerald-600 font-medium">Released <?php echo e($releasedDate->format('M d, Y')); ?></span>
+                                    </div>
+                                    <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+                                </div>
+                                
+                                <div class="flex items-center gap-2">
+                                    <span class="text-xs font-semibold <?php echo e($pctComplete === 100 ? 'text-emerald-600' : 'text-gray-500'); ?>"><?php echo e($completedTests); ?>/<?php echo e($totalTests); ?></span>
+                                    <div class="w-20 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                                        <div class="h-full rounded-full transition-all duration-500 <?php echo e($pctComplete === 100 ? 'bg-emerald-400' : 'bg-gradient-to-r from-blue-500 to-cyan-400'); ?>" 
+                                             style="width: <?php echo e($pctComplete); ?>%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
+                    </div>
+                    <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+                <?php else: ?>
+                    
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-16 text-center">
+                        <div class="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-50 to-cyan-50 flex items-center justify-center mx-auto mb-5">
+                            <svg class="w-10 h-10 text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
+                            </svg>
+                        </div>
+                        <h3 class="text-lg font-bold text-gray-900 mb-2">No Lab Results Yet</h3>
+                        <p class="text-gray-500 text-sm leading-relaxed max-w-sm mx-auto">Your lab test orders and results will appear here once they are processed by the laboratory team.</p>
                     </div>
                 <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
             </div>
@@ -424,7 +527,7 @@ use App\Models\CertificateIssue;
                                            class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white transition-all">
                                 </div>
                                 <button wire:click="verifyCertificate"
-                                        class="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white font-medium text-sm rounded-xl shadow-sm shadow-blue-500/25 transition-all flex items-center gap-2">
+                                        class="px-6 py-3 bg-gradient-to-r from-blue-600 to-cyan-400 hover:from-blue-700 hover:to-cyan-500 text-white font-medium text-sm rounded-xl shadow-sm shadow-blue-500/25 transition-all flex items-center gap-2">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                                     Verify
                                 </button>
@@ -712,7 +815,7 @@ unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendB
                                     Cancel
                                 </button>
                                 <button type="submit"
-                                        class="px-5 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 rounded-xl shadow-sm shadow-blue-500/25 transition-all">
+                                        class="px-5 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-cyan-400 hover:from-blue-700 hover:to-cyan-500 rounded-xl shadow-sm shadow-blue-500/25 transition-all">
                                     Save Changes
                                 </button>
                             </div>
@@ -784,7 +887,7 @@ unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendB
     <div class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4" wire:click.self="closeOrder">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col" id="printable-result">
             
-            <div class="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-5 text-white">
+            <div class="bg-gradient-to-r from-blue-600 to-cyan-400 px-6 py-5 text-white">
                 <div class="flex items-center justify-between">
                     <div>
                         <h3 class="text-lg font-bold">Lab Test Order #<?php echo e($selectedOrder->lab_test_order_id); ?></h3>
@@ -985,19 +1088,17 @@ unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendB
                     Close
                 </button>
                 <div class="flex items-center gap-2">
-                    <button onclick="printResult()"
-                            class="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 rounded-xl shadow-sm shadow-blue-500/25 transition-all">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
-                        Print Result
+                    <button wire:click="downloadOrderPdf"
+                            class="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-cyan-400 hover:from-blue-700 hover:to-cyan-500 rounded-xl shadow-sm shadow-blue-500/25 transition-all">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                        </svg>
+                        Download PDF
                     </button>
                 </div>
             </div>
         </div>
     </div>
-
-    
-
-    
     <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
 
     
@@ -1005,7 +1106,7 @@ unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendB
     <div class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4" wire:click.self="closeCertificate">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden">
             
-            <div class="px-6 py-4 bg-gradient-to-r from-blue-600 to-blue-500 flex items-center justify-between">
+            <div class="px-6 py-4 bg-gradient-to-r from-blue-600 to-cyan-400 flex items-center justify-between">
                 <div class="flex items-center gap-3">
                     <div class="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
                         <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1138,7 +1239,7 @@ unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendB
                     <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($selectedCertificate['pdf_path'] || $selectedCertificate['source'] === 'certificate'): ?>
                     <a href="<?php echo e(route('patient.certificate.download', ['source' => $selectedCertificate['source'], 'id' => $selectedCertificate['id']])); ?>"
                        target="_blank"
-                       class="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 rounded-xl shadow-sm shadow-blue-500/25 transition-all">
+                       class="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-cyan-400 hover:from-blue-700 hover:to-cyan-500 rounded-xl shadow-sm shadow-blue-500/25 transition-all">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                         Download PDF
                     </a>

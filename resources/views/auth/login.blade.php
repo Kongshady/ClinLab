@@ -6,6 +6,45 @@
     <title>Login - ClinLab</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Poppins', 'system-ui', 'sans-serif'],
+                    },
+                    colors: {
+                        blue: {
+                            50: '#fef2f4',
+                            100: '#fde6ea',
+                            200: '#fbd0d8',
+                            300: '#f7a9b6',
+                            400: '#f27d91',
+                            500: '#d1324a',
+                            600: '#c42841',
+                            700: '#a52038',
+                            800: '#891d33',
+                            900: '#7b1d31',
+                            950: '#450a19',
+                        },
+                        cyan: {
+                            50: '#fff5f6',
+                            100: '#ffe0e4',
+                            200: '#ffc7cf',
+                            300: '#ffa3b1',
+                            400: '#e8607a',
+                            500: '#d94863',
+                            600: '#c4354f',
+                            700: '#a52a41',
+                            800: '#8c2539',
+                            900: '#782234',
+                            950: '#430d19',
+                        },
+                    },
+                }
+            }
+        }
+    </script>
     <style>
         * { font-family: 'Poppins', sans-serif; }
         .tab-active { border-bottom: 3px solid; }
@@ -104,8 +143,8 @@
                 <!-- Employee Panel -->
                 <div id="panel-employee" class="card-slide p-8 hidden">
                     <div class="text-center mb-6">
-                        <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-emerald-100 mb-3">
-                            <svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-blue-100 mb-3">
+                            <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
                             </svg>
                         </div>
@@ -127,7 +166,7 @@
                                 </div>
                                 <input id="email" type="email" name="email" value="{{ old('email') }}" required autocomplete="username"
                                        placeholder="you@clinlab.test"
-                                       class="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent focus:bg-white transition-all">
+                                       class="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white transition-all">
                             </div>
                             @error('email')
                                 <p class="mt-1.5 text-sm text-red-600">{{ $message }}</p>
@@ -145,7 +184,7 @@
                                 </div>
                                 <input id="password" type="password" name="password" required autocomplete="current-password"
                                        placeholder="Enter your password"
-                                       class="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent focus:bg-white transition-all">
+                                       class="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white transition-all">
                             </div>
                             @error('password')
                                 <p class="mt-1.5 text-sm text-red-600">{{ $message }}</p>
@@ -156,11 +195,11 @@
                         <div class="flex items-center justify-between">
                             <label for="remember_me" class="flex items-center cursor-pointer">
                                 <input id="remember_me" type="checkbox" name="remember"
-                                       class="w-4 h-4 rounded border-gray-300 text-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-0">
+                                       class="w-4 h-4 rounded border-gray-300 text-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0">
                                 <span class="ml-2 text-sm text-gray-600">Remember me</span>
                             </label>
                             @if (Route::has('password.request'))
-                                <a href="{{ route('password.request') }}" class="text-sm text-emerald-600 hover:text-emerald-700 transition-colors">
+                                <a href="{{ route('password.request') }}" class="text-sm text-blue-600 hover:text-blue-700 transition-colors">
                                     Forgot password?
                                 </a>
                             @endif
@@ -168,7 +207,7 @@
 
                         <!-- Submit -->
                         <button type="submit"
-                                class="w-full px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold rounded-xl shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 hover:scale-[1.02] active:scale-[0.98] transition-all">
+                                class="w-full px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-400 text-white font-semibold rounded-xl shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 hover:scale-[1.02] active:scale-[0.98] transition-all">
                             Sign In
                         </button>
                     </form>
@@ -194,7 +233,7 @@
                 studentPanel.classList.remove('hidden');
                 employeePanel.classList.add('hidden');
             } else {
-                employeeTab.className = 'flex-1 py-4 text-sm font-semibold text-center transition-all tab-active border-emerald-500 text-emerald-600 bg-emerald-50/50';
+                employeeTab.className = 'flex-1 py-4 text-sm font-semibold text-center transition-all tab-active border-blue-500 text-blue-600 bg-blue-50/50';
                 studentTab.className = 'flex-1 py-4 text-sm font-semibold text-center transition-all border-b-3 border-transparent text-gray-400 hover:text-gray-600';
                 employeePanel.classList.remove('hidden');
                 studentPanel.classList.add('hidden');

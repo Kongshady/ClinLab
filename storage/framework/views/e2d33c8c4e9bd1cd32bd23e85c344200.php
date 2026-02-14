@@ -1,1 +1,0 @@
-patient-<?php echo e($patient->patient_id); ?><?php /**PATH C:\xampp\htdocs\dashboard\clinlab_app\storage\framework\views/b9440939e1d8079aeb1d36af6fd10188.blade.php ENDPATH**/ ?>

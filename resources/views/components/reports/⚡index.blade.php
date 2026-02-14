@@ -10,6 +10,9 @@ use App\Models\StockOut;
 use App\Models\Item;
 use App\Models\Section;
 use App\Models\Test;
+use App\Exports\ReportExport;
+use Maatwebsite\Excel\Facades\Excel;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 
 new class extends Component
@@ -39,7 +42,134 @@ new class extends Component
             session()->flash('error', 'Please select a report type first.');
             return;
         }
-        session()->flash('success', 'Report exported successfully.');
+
+        if (!$this->startDate || !$this->endDate) {
+            session()->flash('error', 'Please select a date range first.');
+            return;
+        }
+
+        $typeName = match ($this->reportType) {
+            'equipment_maintenance' => 'Equipment_Maintenance',
+            'calibration_records' => 'Calibration_Records',
+            'inventory_movement' => 'Inventory_Movement',
+            'low_stock_alert' => 'Low_Stock_Alert',
+            'laboratory_results' => 'Laboratory_Results',
+            default => 'Report',
+        };
+
+        $filename = $typeName . '_' . $this->startDate . '_to_' . $this->endDate . '.xlsx';
+
+        return Excel::download(
+            new ReportExport($this->reportType, $this->startDate, $this->endDate, $this->sectionId ?: null),
+            $filename
+        );
+    }
+
+    public function downloadPdf()
+    {
+        if (!$this->reportType) {
+            session()->flash('error', 'Please select a report type first.');
+            return;
+        }
+
+        if (!$this->startDate || !$this->endDate) {
+            session()->flash('error', 'Please select a date range first.');
+            return;
+        }
+
+        $sectionName = $this->sectionId 
+            ? Section::find($this->sectionId)?->label ?? 'Unknown' 
+            : 'All Sections';
+
+        $typeName = match ($this->reportType) {
+            'equipment_maintenance' => 'Equipment_Maintenance',
+            'calibration_records' => 'Calibration_Records',
+            'inventory_movement' => 'Inventory_Movement',
+            'low_stock_alert' => 'Low_Stock_Alert',
+            'laboratory_results' => 'Laboratory_Results',
+            default => 'Report',
+        };
+
+        $reportTitle = str_replace('_', ' ', $typeName) . ' Report';
+
+        // Build data for PDF (unpaginated)
+        $data = collect();
+        switch ($this->reportType) {
+            case 'equipment_maintenance':
+                $data = Equipment::with(['section'])
+                    ->when($this->sectionId, fn($q) => $q->where('section_id', $this->sectionId))
+                    ->whereBetween('created_at', [$this->startDate, $this->endDate])
+                    ->orderBy('created_at', 'desc')
+                    ->get();
+                $pdfView = 'pdf.maintenance-report';
+                break;
+
+            case 'calibration_records':
+                $data = CalibrationRecord::with(['equipment', 'equipment.section', 'performedBy'])
+                    ->when($this->sectionId, fn($q) => $q->whereHas('equipment', fn($r) => $r->where('section_id', $this->sectionId)))
+                    ->whereBetween('calibration_date', [$this->startDate, $this->endDate])
+                    ->orderBy('calibration_date', 'desc')
+                    ->get();
+                $pdfView = 'pdf.maintenance-report';
+                break;
+
+            case 'inventory_movement':
+                $ins = StockIn::with(['item', 'item.section'])
+                    ->when($this->sectionId, fn($q) => $q->whereHas('item', fn($r) => $r->where('section_id', $this->sectionId)))
+                    ->whereBetween('datetime_added', [$this->startDate, $this->endDate . ' 23:59:59'])
+                    ->get()
+                    ->map(fn($s) => (object)['date' => $s->datetime_added, 'item' => $s->item, 'type' => 'Stock In', 'quantity' => $s->quantity, 'supplier' => $s->supplier, 'reference_number' => $s->reference_number, 'remarks' => $s->remarks]);
+
+                $outs = StockOut::with(['item', 'item.section'])
+                    ->when($this->sectionId, fn($q) => $q->whereHas('item', fn($r) => $r->where('section_id', $this->sectionId)))
+                    ->whereBetween('datetime_added', [$this->startDate, $this->endDate . ' 23:59:59'])
+                    ->get()
+                    ->map(fn($s) => (object)['date' => $s->datetime_added, 'item' => $s->item, 'type' => 'Stock Out', 'quantity' => $s->quantity, 'supplier' => null, 'reference_number' => $s->reference_number, 'remarks' => $s->remarks]);
+
+                $data = $ins->merge($outs)->sortByDesc('date');
+                $pdfView = 'pdf.inventory-report';
+                break;
+
+            case 'low_stock_alert':
+                $data = Item::with(['section'])
+                    ->leftJoin('stock_in', 'item.item_id', '=', 'stock_in.item_id')
+                    ->leftJoin('stock_out', 'item.item_id', '=', 'stock_out.item_id')
+                    ->select('item.*', \DB::raw('COALESCE(SUM(stock_in.quantity), 0) - COALESCE(SUM(stock_out.quantity), 0) as current_stock'))
+                    ->groupBy('item.item_id', 'item.section_id', 'item.item_type_id', 'item.label', 'item.status_code', 'item.unit', 'item.reorder_level', 'item.is_deleted', 'item.deleted_at', 'item.deleted_by')
+                    ->when($this->sectionId, fn($q) => $q->where('item.section_id', $this->sectionId))
+                    ->where('item.is_deleted', 0)
+                    ->havingRaw('(COALESCE(SUM(stock_in.quantity), 0) - COALESCE(SUM(stock_out.quantity), 0)) <= item.reorder_level')
+                    ->orderByRaw('(COALESCE(SUM(stock_in.quantity), 0) - COALESCE(SUM(stock_out.quantity), 0)) ASC')
+                    ->get();
+                $pdfView = 'pdf.inventory-report';
+                break;
+
+            case 'laboratory_results':
+                $data = LabResult::with(['patient', 'test', 'performedBy'])
+                    ->whereBetween('result_date', [$this->startDate, $this->endDate])
+                    ->orderBy('result_date', 'desc')
+                    ->get();
+                $pdfView = 'pdf.maintenance-report';
+                break;
+
+            default:
+                return;
+        }
+
+        $pdf = Pdf::loadView($pdfView, [
+            'data' => $data,
+            'reportType' => $this->reportType,
+            'reportTitle' => $reportTitle,
+            'startDate' => $this->startDate,
+            'endDate' => $this->endDate,
+            'sectionName' => $sectionName,
+        ])->setPaper('a4', $data->count() > 20 ? 'landscape' : 'portrait');
+
+        $filename = $typeName . '_' . $this->startDate . '_to_' . $this->endDate . '.pdf';
+
+        return response()->streamDownload(function () use ($pdf) {
+            echo $pdf->output();
+        }, $filename);
     }
 
     public function updatedReportType()
@@ -91,33 +221,68 @@ new class extends Component
                     break;
                     
                 case 'inventory_movement':
-                    $stockIns = StockIn::with(['item', 'item.section'])
+                    $ins = StockIn::with(['item', 'item.section'])
                         ->when($this->sectionId, function ($query) {
                             $query->whereHas('item', function($q) {
                                 $q->where('section_id', $this->sectionId);
                             });
                         })
-                        ->whereBetween('stock_date', [$this->startDate, $this->endDate]);
+                        ->whereBetween('datetime_added', [$this->startDate, $this->endDate . ' 23:59:59'])
+                        ->get()
+                        ->map(fn($s) => (object)[
+                            'date' => $s->datetime_added,
+                            'item' => $s->item,
+                            'type' => 'Stock In',
+                            'quantity' => $s->quantity,
+                            'supplier' => $s->supplier,
+                            'reference_number' => $s->reference_number,
+                            'remarks' => $s->remarks,
+                        ]);
                     
-                    $stockOuts = StockOut::with(['item', 'item.section'])
+                    $outs = StockOut::with(['item', 'item.section'])
                         ->when($this->sectionId, function ($query) {
                             $query->whereHas('item', function($q) {
                                 $q->where('section_id', $this->sectionId);
                             });
                         })
-                        ->whereBetween('stock_date', [$this->startDate, $this->endDate]);
+                        ->whereBetween('datetime_added', [$this->startDate, $this->endDate . ' 23:59:59'])
+                        ->get()
+                        ->map(fn($s) => (object)[
+                            'date' => $s->datetime_added,
+                            'item' => $s->item,
+                            'type' => 'Stock Out',
+                            'quantity' => $s->quantity,
+                            'supplier' => null,
+                            'reference_number' => $s->reference_number,
+                            'remarks' => $s->remarks,
+                        ]);
                     
-                    // Combine and paginate
-                    $reportData = $stockIns->union($stockOuts)->orderBy('stock_date', 'desc')->paginate(20);
+                    $merged = $ins->merge($outs)->sortByDesc('date');
+                    // Simple manual pagination
+                    $page = request()->get('page', 1);
+                    $perPage = 20;
+                    $reportData = new \Illuminate\Pagination\LengthAwarePaginator(
+                        $merged->forPage($page, $perPage)->values(),
+                        $merged->count(),
+                        $perPage,
+                        $page,
+                        ['path' => request()->url(), 'query' => request()->query()]
+                    );
                     break;
                     
                 case 'low_stock_alert':
                     $reportData = Item::with(['section'])
+                        ->leftJoin('stock_in', 'item.item_id', '=', 'stock_in.item_id')
+                        ->leftJoin('stock_out', 'item.item_id', '=', 'stock_out.item_id')
+                        ->select('item.*',
+                            \DB::raw('COALESCE(SUM(stock_in.quantity), 0) - COALESCE(SUM(stock_out.quantity), 0) as current_stock'))
+                        ->groupBy('item.item_id', 'item.section_id', 'item.item_type_id', 'item.label', 'item.status_code', 'item.unit', 'item.reorder_level', 'item.is_deleted', 'item.deleted_at', 'item.deleted_by')
                         ->when($this->sectionId, function ($query) {
-                            $query->where('section_id', $this->sectionId);
+                            $query->where('item.section_id', $this->sectionId);
                         })
-                        ->whereRaw('quantity <= reorder_level')
-                        ->orderBy('quantity', 'asc')
+                        ->where('item.is_deleted', 0)
+                        ->havingRaw('(COALESCE(SUM(stock_in.quantity), 0) - COALESCE(SUM(stock_out.quantity), 0)) <= item.reorder_level')
+                        ->orderByRaw('(COALESCE(SUM(stock_in.quantity), 0) - COALESCE(SUM(stock_out.quantity), 0)) ASC')
                         ->paginate(20);
                     break;
                     
@@ -218,7 +383,15 @@ new class extends Component
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                     </svg>
-                    Export Report
+                    Export Excel
+                </button>
+                <button wire:click="downloadPdf" 
+                        class="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center"
+                        {{ !$reportType ? 'disabled' : '' }}>
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                    </svg>
+                    Download PDF
                 </button>
             </div>
         </div>
@@ -340,30 +513,28 @@ new class extends Component
                                     <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Item</th>
                                     <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Type</th>
                                     <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Quantity</th>
-                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Unit Price</th>
-                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Total</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Supplier / Reference</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Remarks</th>
                                 </tr>
                             </thead>
                             <tbody class="bg-white divide-y divide-gray-200">
                                 @forelse($reportData as $movement)
                                     <tr class="hover:bg-gray-50">
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                                            {{ $movement->stock_date ? \Carbon\Carbon::parse($movement->stock_date)->format('M d, Y') : 'N/A' }}
+                                            {{ $movement->date ? \Carbon\Carbon::parse($movement->date)->format('M d, Y') : 'N/A' }}
                                         </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $movement->item->item_name ?? 'N/A' }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $movement->item->label ?? 'N/A' }}</td>
                                         <td class="px-6 py-4 whitespace-nowrap">
                                             <span class="px-3 py-1 text-xs font-medium rounded-full 
-                                                @if(isset($movement->quantity_in)) bg-green-100 text-green-800
-                                                @else bg-red-100 text-red-800
-                                                @endif">
-                                                {{ isset($movement->quantity_in) ? 'Stock In' : 'Stock Out' }}
+                                                {{ $movement->type === 'Stock In' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">
+                                                {{ $movement->type }}
                                             </span>
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                                            {{ $movement->quantity_in ?? $movement->quantity_out ?? 0 }}
+                                            {{ $movement->quantity ?? 0 }}
                                         </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">₱{{ number_format($movement->unit_price ?? 0, 2) }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">₱{{ number_format(($movement->quantity_in ?? $movement->quantity_out ?? 0) * ($movement->unit_price ?? 0), 2) }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $movement->supplier ?? $movement->reference_number ?? 'N/A' }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $movement->remarks ?? '—' }}</td>
                                     </tr>
                                 @empty
                                     <tr><td colspan="6" class="text-center py-8 text-gray-500">No inventory movements found</td></tr>
@@ -387,8 +558,8 @@ new class extends Component
                             <tbody class="bg-white divide-y divide-gray-200">
                                 @forelse($reportData as $item)
                                     <tr class="hover:bg-gray-50">
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $item->item_name }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-red-600 font-semibold">{{ $item->quantity ?? 0 }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $item->label }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-red-600 font-semibold">{{ $item->current_stock ?? 0 }}</td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $item->reorder_level ?? 0 }}</td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $item->unit ?? 'N/A' }}</td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $item->section->label ?? 'N/A' }}</td>

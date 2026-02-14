@@ -1,145 +1,10 @@
 <?php
-
 use Livewire\Component;
 use Livewire\WithPagination;
 use Livewire\Attributes\Validate;
 use App\Models\CertificateTemplate;
 use App\Traits\LogsActivity;
-
-new class extends Component
-{
-    use WithPagination, LogsActivity;
-
-    // Search and filters
-    public $search = '';
-    public $filterType = '';
-    public $perPage = 10;
-
-    // Modal state
-    public $showModal = false;
-    public $editMode = false;
-    
-    // Form fields
-    public $templateId;
-    #[Validate('required|string|max:255')]
-    public $name = '';
-    
-    #[Validate('required|in:calibration,maintenance,safety,test')]
-    public $type = 'calibration';
-    
-    #[Validate('required|string')]
-    public $body_html = '';
-    
-    #[Validate('required|string|max:50')]
-    public $version = '1.0';
-    
-    public $is_active = true;
-
-    public $flashMessage = '';
-
-    public function updatingSearch()
-    {
-        $this->resetPage();
-    }
-
-    public function updatingFilterType()
-    {
-        $this->resetPage();
-    }
-
-    public function openModal()
-    {
-        $this->resetForm();
-        $this->editMode = false;
-        $this->showModal = true;
-    }
-
-    public function edit($id)
-    {
-        $template = CertificateTemplate::findOrFail($id);
-        
-        $this->templateId = $template->id;
-        $this->name = $template->name;
-        $this->type = $template->type;
-        $this->body_html = $template->body_html;
-        $this->version = $template->version;
-        $this->is_active = $template->is_active;
-        
-        $this->editMode = true;
-        $this->showModal = true;
-    }
-
-    public function save()
-    {
-        $this->validate();
-
-        if ($this->editMode) {
-            $template = CertificateTemplate::findOrFail($this->templateId);
-            $template->update([
-                'name' => $this->name,
-                'type' => $this->type,
-                'body_html' => $this->body_html,
-                'version' => $this->version,
-                'is_active' => $this->is_active,
-            ]);
-            $this->logActivity("Updated certificate template ID {$this->templateId}: {$this->name}");
-            $this->flashMessage = 'Template updated successfully!';
-        } else {
-            CertificateTemplate::create([
-                'name' => $this->name,
-                'type' => $this->type,
-                'body_html' => $this->body_html,
-                'version' => $this->version,
-                'is_active' => $this->is_active,
-                'created_by' => auth()->id(),
-            ]);
-            $this->logActivity("Created certificate template: {$this->name}");
-            $this->flashMessage = 'Template created successfully!';
-        }
-
-        $this->showModal = false;
-        $this->resetForm();
-    }
-
-    public function toggleActive($id)
-    {
-        $template = CertificateTemplate::findOrFail($id);
-        $template->update(['is_active' => !$template->is_active]);
-        $this->logActivity("Toggled status for certificate template ID {$id}: {$template->name}");
-        $this->flashMessage = 'Template status updated!';
-    }
-
-    public function delete($id)
-    {
-        CertificateTemplate::findOrFail($id)->delete();
-        $this->logActivity("Deleted certificate template ID {$id}");
-        $this->flashMessage = 'Template deleted successfully!';
-    }
-
-    public function resetForm()
-    {
-        $this->reset(['templateId', 'name', 'type', 'body_html', 'version', 'is_active']);
-        $this->version = '1.0';
-        $this->is_active = true;
-        $this->resetValidation();
-    }
-
-    public function with(): array
-    {
-        $query = CertificateTemplate::with('creator:id,name')
-            ->when($this->search, function($q) {
-                $q->where('name', 'like', '%' . $this->search . '%');
-            })
-            ->when($this->filterType, function($q) {
-                $q->where('type', $this->filterType);
-            })
-            ->orderBy('created_at', 'desc');
-
-        return [
-            'templates' => $query->paginate($this->perPage),
-        ];
-    }
-}; ?>
+?>
 
 <div class="p-6">
     <div class="max-w-7xl mx-auto">
@@ -151,11 +16,12 @@ new class extends Component
             <p class="text-slate-600 mt-1">Manage certificate templates for calibration, maintenance, and safety compliance</p>
         </div>
 
-        @if($flashMessage)
+        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($flashMessage): ?>
             <div class="mb-4 p-4 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl">
-                {{ $flashMessage }}
+                <?php echo e($flashMessage); ?>
+
             </div>
-        @endif
+        <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
 
         <!-- Controls -->
         <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mb-6">
@@ -199,44 +65,50 @@ new class extends Component
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-200">
-                        @forelse($templates as $template)
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__empty_1 = true; $__currentLoopData = $templates; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $template): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
                             <tr class="hover:bg-slate-50 transition-colors">
-                                <td class="px-4 py-3 text-sm font-medium text-slate-900">{{ $template->name }}</td>
+                                <td class="px-4 py-3 text-sm font-medium text-slate-900"><?php echo e($template->name); ?></td>
                                 <td class="px-4 py-3 text-sm">
                                     <span class="px-2 py-1 rounded-full text-xs font-medium
-                                        {{ $template->type === 'calibration' ? 'bg-blue-100 text-blue-700' : '' }}
-                                        {{ $template->type === 'maintenance' ? 'bg-emerald-100 text-emerald-700' : '' }}
-                                        {{ $template->type === 'safety' ? 'bg-amber-100 text-amber-700' : '' }}
-                                        {{ $template->type === 'test' ? 'bg-purple-100 text-purple-700' : '' }}
+                                        <?php echo e($template->type === 'calibration' ? 'bg-blue-100 text-blue-700' : ''); ?>
+
+                                        <?php echo e($template->type === 'maintenance' ? 'bg-emerald-100 text-emerald-700' : ''); ?>
+
+                                        <?php echo e($template->type === 'safety' ? 'bg-amber-100 text-amber-700' : ''); ?>
+
+                                        <?php echo e($template->type === 'test' ? 'bg-purple-100 text-purple-700' : ''); ?>
+
                                     ">
-                                        {{ ucfirst($template->type) }}
+                                        <?php echo e(ucfirst($template->type)); ?>
+
                                     </span>
                                 </td>
-                                <td class="px-4 py-3 text-sm text-slate-600">{{ $template->version }}</td>
+                                <td class="px-4 py-3 text-sm text-slate-600"><?php echo e($template->version); ?></td>
                                 <td class="px-4 py-3 text-sm">
-                                    @if($template->is_active)
+                                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($template->is_active): ?>
                                         <span class="px-2 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-medium">Active</span>
-                                    @else
+                                    <?php else: ?>
                                         <span class="px-2 py-1 bg-slate-100 text-slate-600 rounded-full text-xs font-medium">Inactive</span>
-                                    @endif
+                                    <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                                 </td>
-                                <td class="px-4 py-3 text-sm text-slate-600">{{ $template->creator->name ?? 'N/A' }}</td>
+                                <td class="px-4 py-3 text-sm text-slate-600"><?php echo e($template->creator->name ?? 'N/A'); ?></td>
                                 <td class="px-4 py-3 text-sm">
                                     <div class="flex gap-2">
                                         <button 
-                                            wire:click="edit({{ $template->id }})"
+                                            wire:click="edit(<?php echo e($template->id); ?>)"
                                             class="px-3 py-1 bg-blue-50 text-blue-600 rounded hover:bg-blue-100 transition-colors"
                                         >
                                             Edit
                                         </button>
                                         <button 
-                                            wire:click="toggleActive({{ $template->id }})"
+                                            wire:click="toggleActive(<?php echo e($template->id); ?>)"
                                             class="px-3 py-1 bg-amber-50 text-amber-600 rounded hover:bg-amber-100 transition-colors"
                                         >
-                                            {{ $template->is_active ? 'Deactivate' : 'Activate' }}
+                                            <?php echo e($template->is_active ? 'Deactivate' : 'Activate'); ?>
+
                                         </button>
                                         <button 
-                                            wire:click="delete({{ $template->id }})" 
+                                            wire:click="delete(<?php echo e($template->id); ?>)" 
                                             wire:confirm="Are you sure you want to delete this template?"
                                             class="px-3 py-1 bg-rose-50 text-rose-600 rounded hover:bg-rose-100 transition-colors"
                                         >
@@ -245,7 +117,7 @@ new class extends Component
                                     </div>
                                 </td>
                             </tr>
-                        @empty
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
                             <tr>
                                 <td colspan="6" class="px-4 py-8 text-center text-slate-500">
                                     <div class="flex flex-col items-center">
@@ -256,25 +128,27 @@ new class extends Component
                                     </div>
                                 </td>
                             </tr>
-                        @endforelse
+                        <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                     </tbody>
                 </table>
             </div>
 
             <div class="px-4 py-3 border-t border-slate-200">
-                {{ $templates->links() }}
+                <?php echo e($templates->links()); ?>
+
             </div>
         </div>
     </div>
 
     <!-- Modal -->
-    @if($showModal)
+    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($showModal): ?>
         <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
             <div class="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
                 <div class="p-6">
                     <div class="flex justify-between items-center mb-6">
                         <h2 class="text-2xl font-bold text-slate-900">
-                            {{ $editMode ? 'Edit Template' : 'New Template' }}
+                            <?php echo e($editMode ? 'Edit Template' : 'New Template'); ?>
+
                         </h2>
                         <button wire:click="$set('showModal', false)" class="text-slate-400 hover:text-slate-600">
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -292,7 +166,14 @@ new class extends Component
                                 class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                 placeholder="e.g., Standard Calibration Certificate"
                             >
-                            @error('name') <span class="text-rose-500 text-sm">{{ $message }}</span> @enderror
+                            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__errorArgs = ['name'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> <span class="text-rose-500 text-sm"><?php echo e($message); ?></span> <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                         </div>
 
                         <div class="grid grid-cols-2 gap-4">
@@ -304,7 +185,14 @@ new class extends Component
                                     <option value="safety">Safety</option>
                                     <option value="test">Test</option>
                                 </select>
-                                @error('type') <span class="text-rose-500 text-sm">{{ $message }}</span> @enderror
+                                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__errorArgs = ['type'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> <span class="text-rose-500 text-sm"><?php echo e($message); ?></span> <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                             </div>
 
                             <div>
@@ -315,7 +203,14 @@ new class extends Component
                                     class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                                     placeholder="1.0"
                                 >
-                                @error('version') <span class="text-rose-500 text-sm">{{ $message }}</span> @enderror
+                                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__errorArgs = ['version'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> <span class="text-rose-500 text-sm"><?php echo e($message); ?></span> <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                             </div>
                         </div>
 
@@ -328,14 +223,21 @@ new class extends Component
 
                         <div>
                             <label class="block text-sm font-medium text-slate-700 mb-1">Template HTML</label>
-                            <p class="text-xs text-slate-500 mb-2">Use placeholders like @{{equipment_name}}, @{{calibration_date}}, @{{certificate_no}}, etc.</p>
+                            <p class="text-xs text-slate-500 mb-2">Use placeholders like {{equipment_name}}, {{calibration_date}}, {{certificate_no}}, etc.</p>
                             <textarea 
                                 wire:model="body_html"
                                 rows="12"
                                 class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 font-mono text-sm"
                                 placeholder="Enter HTML template..."
                             ></textarea>
-                            @error('body_html') <span class="text-rose-500 text-sm">{{ $message }}</span> @enderror
+                            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__errorArgs = ['body_html'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> <span class="text-rose-500 text-sm"><?php echo e($message); ?></span> <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                         </div>
 
                         <div class="flex justify-end gap-3 pt-4">
@@ -350,12 +252,12 @@ new class extends Component
                                 type="submit"
                                 class="px-6 py-2 bg-gradient-to-r from-blue-600 to-cyan-400 text-white rounded-lg hover:from-blue-700 hover:to-cyan-500 transition-all shadow-md"
                             >
-                                {{ $editMode ? 'Update' : 'Create' }} Template
+                                <?php echo e($editMode ? 'Update' : 'Create'); ?> Template
                             </button>
                         </div>
                     </form>
                 </div>
             </div>
         </div>
-    @endif
-</div>
+    <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+</div><?php /**PATH C:\xampp\htdocs\dashboard\clinlab_app\storage\framework/views/livewire/views/78108169.blade.php ENDPATH**/ ?>

@@ -1,5 +1,4 @@
 <?php
-
 use Livewire\Component;
 use Livewire\WithPagination;
 use App\Models\CertificateIssue;
@@ -7,255 +6,7 @@ use App\Models\Certificate;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Traits\LogsActivity;
 use Illuminate\Pagination\LengthAwarePaginator;
-
-new class extends Component
-{
-    use WithPagination, LogsActivity;
-
-    // Search and filters
-    public $search = '';
-    public $filterStatus = '';
-    public $filterType = '';
-    public $dateFrom = '';
-    public $dateTo = '';
-    public $perPage = 25;
-
-    public $flashMessage = '';
-
-    public function updatingSearch()
-    {
-        $this->resetPage();
-    }
-
-    public function updatingFilterStatus()
-    {
-        $this->resetPage();
-    }
-
-    public function updatingFilterType()
-    {
-        $this->resetPage();
-    }
-
-    public function downloadPdf($id)
-    {
-        $certificate = CertificateIssue::with(['template', 'equipment', 'calibration.performedBy', 'generator'])->findOrFail($id);
-
-        // Generate placeholders data
-        $data = $this->prepareCertificateData($certificate);
-
-        // Replace placeholders in template
-        $html = $certificate->template->body_html;
-        foreach ($data as $key => $value) {
-            $html = str_replace('{{' . $key . '}}', $value, $html);
-        }
-
-        // Generate PDF
-        $pdf = Pdf::loadHTML($html)
-            ->setPaper('a4', 'portrait');
-
-        return response()->streamDownload(function() use ($pdf) {
-            echo $pdf->output();
-        }, $certificate->certificate_no . '.pdf');
-    }
-
-    public function revoke($id, $source = 'generated')
-    {
-        if ($source === 'legacy') {
-            $certificate = Certificate::findOrFail($id);
-            $certificate->update(['status' => 'revoked']);
-            $this->logActivity("Revoked certificate ID {$id}: {$certificate->certificate_number}");
-        } else {
-            $certificate = CertificateIssue::findOrFail($id);
-            $certificate->update(['status' => 'Revoked']);
-            $this->logActivity("Revoked certificate ID {$id}: {$certificate->certificate_no}");
-        }
-        $this->flashMessage = 'Certificate revoked successfully!';
-    }
-
-    public function approve($id)
-    {
-        $certificate = CertificateIssue::findOrFail($id);
-        if ($certificate->status !== 'Pending') {
-            $this->flashMessage = 'Only pending certificates can be approved.';
-            return;
-        }
-        $certificate->update([
-            'status' => 'Issued',
-            'approved_by' => auth()->id(),
-            'approved_at' => now(),
-        ]);
-        $this->logActivity("Approved certificate ID {$id}: {$certificate->certificate_no}");
-        $this->flashMessage = 'Certificate approved successfully!';
-    }
-
-    public function reject($id)
-    {
-        $certificate = CertificateIssue::findOrFail($id);
-        if ($certificate->status !== 'Pending') {
-            $this->flashMessage = 'Only pending certificates can be rejected.';
-            return;
-        }
-        $certificate->update(['status' => 'Revoked']);
-        $this->logActivity("Rejected certificate ID {$id}: {$certificate->certificate_no}");
-        $this->flashMessage = 'Certificate rejected.';
-    }
-
-    public function markIssued($id)
-    {
-        $certificate = Certificate::findOrFail($id);
-        if ($certificate->status !== 'draft') {
-            $this->flashMessage = 'Only draft certificates can be marked as issued.';
-            return;
-        }
-        $certificate->update(['status' => 'issued']);
-        $this->logActivity("Marked certificate ID {$id} as issued: {$certificate->certificate_number}");
-        $this->flashMessage = 'Certificate marked as issued!';
-    }
-
-    private function prepareCertificateData($certificate)
-    {
-        $data = [
-            'certificate_no' => $certificate->certificate_no,
-            'verification_code' => $certificate->verification_code,
-            'issue_date' => $certificate->issued_at->format('F d, Y'),
-            'valid_until' => $certificate->valid_until ? $certificate->valid_until->format('F d, Y') : 'N/A',
-        ];
-
-        // Equipment data
-        if ($certificate->equipment) {
-            $data['equipment_name'] = $certificate->equipment->name ?? 'N/A';
-            $data['equipment_model'] = $certificate->equipment->model ?? 'N/A';
-            $data['serial_no'] = $certificate->equipment->serial_no ?? 'N/A';
-        }
-
-        // Calibration data
-        if ($certificate->calibration) {
-            $data['calibration_date'] = $certificate->calibration->calibration_date ? date('F d, Y', strtotime($certificate->calibration->calibration_date)) : 'N/A';
-            $data['due_date'] = $certificate->calibration->next_calibration_date ? date('F d, Y', strtotime($certificate->calibration->next_calibration_date)) : 'N/A';
-            $data['result'] = strtoupper($certificate->calibration->result_status ?? 'PASSED');
-            $data['performed_by'] = $certificate->calibration->performedBy ? ($certificate->calibration->performedBy->firstname . ' ' . $certificate->calibration->performedBy->lastname) : 'N/A';
-        }
-
-        return $data;
-    }
-
-    /**
-     * Normalize status: legacy uses lowercase (draft, issued, revoked),
-     * generated uses capitalized (Pending, Issued, Revoked, Expired).
-     * We normalize everything to capitalized form for display.
-     */
-    private function normalizeStatus($status)
-    {
-        return ucfirst(strtolower($status));
-    }
-
-    public function with(): array
-    {
-        $search = $this->search;
-        $filterStatus = $this->filterStatus;
-        $filterType = $this->filterType;
-        $dateFrom = $this->dateFrom;
-        $dateTo = $this->dateTo;
-
-        // --- Auto-generated certificates (certificate_issues table) ---
-        $generatedQuery = CertificateIssue::with(['template', 'equipment', 'generator'])
-            ->when($search, function($q) use ($search) {
-                $q->where('certificate_no', 'like', "%{$search}%")
-                  ->orWhere('verification_code', 'like', "%{$search}%");
-            })
-            ->when($filterStatus, function($q) use ($filterStatus) {
-                $q->where('status', $filterStatus);
-            })
-            ->when($filterType, function($q) use ($filterType) {
-                $q->whereHas('template', function($query) use ($filterType) {
-                    $query->where('type', $filterType);
-                });
-            })
-            ->when($dateFrom, function($q) use ($dateFrom) {
-                $q->where('issued_at', '>=', $dateFrom);
-            })
-            ->when($dateTo, function($q) use ($dateTo) {
-                $q->where('issued_at', '<=', $dateTo . ' 23:59:59');
-            });
-
-        $generated = collect($generatedQuery->get()->map(function($cert) {
-            return (object) [
-                'id' => $cert->id,
-                'source' => 'generated',
-                'certificate_no' => $cert->certificate_no,
-                'type' => $cert->template->type ?? 'N/A',
-                'equipment_name' => $cert->equipment->name ?? 'N/A',
-                'issued_at' => $cert->issued_at,
-                'status' => $cert->status,
-                'generated_by' => $cert->generator->name ?? 'N/A',
-                'verification_code' => $cert->verification_code ?? null,
-            ];
-        })->all());
-
-        // --- Legacy/manual certificates (certificate table) ---
-        $legacyQuery = Certificate::with(['equipment', 'issuedBy', 'patient'])
-            ->when($search, function($q) use ($search) {
-                $q->where('certificate_number', 'like', "%{$search}%");
-            })
-            ->when($filterStatus, function($q) use ($filterStatus) {
-                // Map display status back to legacy status
-                $q->where('status', strtolower($filterStatus));
-            })
-            ->when($filterType, function($q) use ($filterType) {
-                $q->where('certificate_type', $filterType);
-            })
-            ->when($dateFrom, function($q) use ($dateFrom) {
-                $q->where('issue_date', '>=', $dateFrom);
-            })
-            ->when($dateTo, function($q) use ($dateTo) {
-                $q->where('issue_date', '<=', $dateTo);
-            });
-
-        $legacy = collect($legacyQuery->get()->map(function($cert) {
-            return (object) [
-                'id' => $cert->certificate_id,
-                'source' => 'legacy',
-                'certificate_no' => $cert->certificate_number,
-                'type' => $cert->certificate_type,
-                'equipment_name' => $cert->equipment->name ?? 'N/A',
-                'issued_at' => $cert->issue_date,
-                'status' => ucfirst($cert->status),
-                'generated_by' => $cert->issuedBy ? ($cert->issuedBy->firstname . ' ' . $cert->issuedBy->lastname) : 'N/A',
-                'verification_code' => null,
-            ];
-        })->all());
-
-        // Combine, sort by date desc
-        $all = $generated->merge($legacy)->sortByDesc(function($cert) {
-            return $cert->issued_at ? $cert->issued_at->timestamp : 0;
-        })->values();
-
-        // Manual pagination
-        $page = LengthAwarePaginator::resolveCurrentPage();
-        $items = $all->slice(($page - 1) * $this->perPage, $this->perPage)->values();
-        $paginator = new LengthAwarePaginator($items, $all->count(), $this->perPage, $page, [
-            'path' => request()->url(),
-            'query' => request()->query(),
-        ]);
-
-        // Combined stats
-        $generatedTotal = CertificateIssue::count();
-        $legacyTotal = Certificate::count();
-
-        return [
-            'certificates' => $paginator,
-            'stats' => [
-                'total' => $generatedTotal + $legacyTotal,
-                'pending' => CertificateIssue::where('status', 'Pending')->count(),
-                'draft' => Certificate::where('status', 'draft')->count(),
-                'issued' => CertificateIssue::where('status', 'Issued')->count() + Certificate::where('status', 'issued')->count(),
-                'revoked' => CertificateIssue::where('status', 'Revoked')->count() + Certificate::where('status', 'revoked')->count(),
-                'expired' => CertificateIssue::where('status', 'Expired')->count(),
-            ],
-        ];
-    }
-}; ?>
+?>
 
 <div class="p-6">
     <div class="max-w-7xl mx-auto">
@@ -267,11 +18,12 @@ new class extends Component
             <p class="text-slate-600 mt-1">View, download, and manage all issued certificates</p>
         </div>
 
-        @if($flashMessage)
+        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($flashMessage): ?>
             <div class="mb-4 p-4 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl">
-                {{ $flashMessage }}
+                <?php echo e($flashMessage); ?>
+
             </div>
-        @endif
+        <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
 
         <!-- Stats Cards -->
         <div class="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6">
@@ -279,7 +31,7 @@ new class extends Component
                 <div class="flex items-center justify-between">
                     <div>
                         <p class="text-sm text-slate-600">Total</p>
-                        <p class="text-2xl font-bold text-slate-900">{{ $stats['total'] }}</p>
+                        <p class="text-2xl font-bold text-slate-900"><?php echo e($stats['total']); ?></p>
                     </div>
                     <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
                         <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -293,7 +45,7 @@ new class extends Component
                 <div class="flex items-center justify-between">
                     <div>
                         <p class="text-sm text-slate-600">Draft</p>
-                        <p class="text-2xl font-bold text-slate-500">{{ $stats['draft'] }}</p>
+                        <p class="text-2xl font-bold text-slate-500"><?php echo e($stats['draft']); ?></p>
                     </div>
                     <div class="w-12 h-12 bg-slate-100 rounded-lg flex items-center justify-center">
                         <svg class="w-6 h-6 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -307,7 +59,7 @@ new class extends Component
                 <div class="flex items-center justify-between">
                     <div>
                         <p class="text-sm text-slate-600">Pending</p>
-                        <p class="text-2xl font-bold text-orange-600">{{ $stats['pending'] }}</p>
+                        <p class="text-2xl font-bold text-orange-600"><?php echo e($stats['pending']); ?></p>
                     </div>
                     <div class="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
                         <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -321,7 +73,7 @@ new class extends Component
                 <div class="flex items-center justify-between">
                     <div>
                         <p class="text-sm text-slate-600">Issued</p>
-                        <p class="text-2xl font-bold text-emerald-600">{{ $stats['issued'] }}</p>
+                        <p class="text-2xl font-bold text-emerald-600"><?php echo e($stats['issued']); ?></p>
                     </div>
                     <div class="w-12 h-12 bg-emerald-100 rounded-lg flex items-center justify-center">
                         <svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -335,7 +87,7 @@ new class extends Component
                 <div class="flex items-center justify-between">
                     <div>
                         <p class="text-sm text-slate-600">Revoked</p>
-                        <p class="text-2xl font-bold text-rose-600">{{ $stats['revoked'] }}</p>
+                        <p class="text-2xl font-bold text-rose-600"><?php echo e($stats['revoked']); ?></p>
                     </div>
                     <div class="w-12 h-12 bg-rose-100 rounded-lg flex items-center justify-center">
                         <svg class="w-6 h-6 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -349,7 +101,7 @@ new class extends Component
                 <div class="flex items-center justify-between">
                     <div>
                         <p class="text-sm text-slate-600">Expired</p>
-                        <p class="text-2xl font-bold text-amber-600">{{ $stats['expired'] }}</p>
+                        <p class="text-2xl font-bold text-amber-600"><?php echo e($stats['expired']); ?></p>
                     </div>
                     <div class="w-12 h-12 bg-amber-100 rounded-lg flex items-center justify-center">
                         <svg class="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -418,104 +170,111 @@ new class extends Component
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-200">
-                        @forelse($certificates as $certificate)
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__empty_1 = true; $__currentLoopData = $certificates; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $certificate): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
                             <tr class="hover:bg-slate-50 transition-colors">
-                                <td class="px-4 py-3 text-sm font-mono text-slate-900">{{ $certificate->certificate_no }}</td>
+                                <td class="px-4 py-3 text-sm font-mono text-slate-900"><?php echo e($certificate->certificate_no); ?></td>
                                 <td class="px-4 py-3 text-sm">
                                     <span class="px-2 py-1 rounded-full text-xs font-medium
-                                        {{ $certificate->type === 'calibration' ? 'bg-blue-100 text-blue-700' : '' }}
-                                        {{ $certificate->type === 'maintenance' ? 'bg-emerald-100 text-emerald-700' : '' }}
-                                        {{ $certificate->type === 'safety' ? 'bg-amber-100 text-amber-700' : '' }}
-                                        {{ $certificate->type === 'lab_result' ? 'bg-purple-100 text-purple-700' : '' }}
-                                        {{ $certificate->type === 'compliance' ? 'bg-cyan-100 text-cyan-700' : '' }}
-                                        {{ $certificate->type === 'other' ? 'bg-slate-100 text-slate-700' : '' }}
+                                        <?php echo e($certificate->type === 'calibration' ? 'bg-blue-100 text-blue-700' : ''); ?>
+
+                                        <?php echo e($certificate->type === 'maintenance' ? 'bg-emerald-100 text-emerald-700' : ''); ?>
+
+                                        <?php echo e($certificate->type === 'safety' ? 'bg-amber-100 text-amber-700' : ''); ?>
+
+                                        <?php echo e($certificate->type === 'lab_result' ? 'bg-purple-100 text-purple-700' : ''); ?>
+
+                                        <?php echo e($certificate->type === 'compliance' ? 'bg-cyan-100 text-cyan-700' : ''); ?>
+
+                                        <?php echo e($certificate->type === 'other' ? 'bg-slate-100 text-slate-700' : ''); ?>
+
                                     ">
-                                        {{ ucfirst(str_replace('_', ' ', $certificate->type)) }}
+                                        <?php echo e(ucfirst(str_replace('_', ' ', $certificate->type))); ?>
+
                                     </span>
                                 </td>
-                                <td class="px-4 py-3 text-sm text-slate-600">{{ $certificate->equipment_name }}</td>
-                                <td class="px-4 py-3 text-sm text-slate-600">{{ $certificate->issued_at ? $certificate->issued_at->format('M d, Y') : 'N/A' }}</td>
+                                <td class="px-4 py-3 text-sm text-slate-600"><?php echo e($certificate->equipment_name); ?></td>
+                                <td class="px-4 py-3 text-sm text-slate-600"><?php echo e($certificate->issued_at ? $certificate->issued_at->format('M d, Y') : 'N/A'); ?></td>
                                 <td class="px-4 py-3 text-sm">
-                                    @if($certificate->status === 'Draft')
+                                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($certificate->status === 'Draft'): ?>
                                         <span class="px-2 py-1 bg-slate-100 text-slate-700 rounded-full text-xs font-medium">Draft</span>
-                                    @elseif($certificate->status === 'Pending')
+                                    <?php elseif($certificate->status === 'Pending'): ?>
                                         <span class="px-2 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-medium">Pending</span>
-                                    @elseif($certificate->status === 'Issued')
+                                    <?php elseif($certificate->status === 'Issued'): ?>
                                         <span class="px-2 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-medium">Issued</span>
-                                    @elseif($certificate->status === 'Revoked')
+                                    <?php elseif($certificate->status === 'Revoked'): ?>
                                         <span class="px-2 py-1 bg-rose-100 text-rose-700 rounded-full text-xs font-medium">Revoked</span>
-                                    @else
+                                    <?php else: ?>
                                         <span class="px-2 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-medium">Expired</span>
-                                    @endif
+                                    <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                                 </td>
                                 <td class="px-4 py-3 text-sm">
-                                    @if($certificate->source === 'generated')
+                                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($certificate->source === 'generated'): ?>
                                         <span class="px-2 py-1 bg-blue-50 text-blue-600 rounded-full text-xs font-medium">Auto-Generated</span>
-                                    @else
+                                    <?php else: ?>
                                         <span class="px-2 py-1 bg-slate-50 text-slate-600 rounded-full text-xs font-medium">Manual</span>
-                                    @endif
+                                    <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                                 </td>
-                                <td class="px-4 py-3 text-sm text-slate-600">{{ $certificate->generated_by }}</td>
+                                <td class="px-4 py-3 text-sm text-slate-600"><?php echo e($certificate->generated_by); ?></td>
                                 <td class="px-4 py-3 text-sm">
                                     <div class="flex gap-2">
-                                        @if($certificate->source === 'generated')
-                                            {{-- Auto-generated certificate actions --}}
+                                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($certificate->source === 'generated'): ?>
+                                            
                                             <button
-                                                wire:click="downloadPdf({{ $certificate->id }})"
+                                                wire:click="downloadPdf(<?php echo e($certificate->id); ?>)"
                                                 class="px-3 py-1 bg-blue-50 text-blue-600 rounded hover:bg-blue-100 transition-colors"
                                             >
                                                 Download
                                             </button>
-                                            @if($certificate->status === 'Pending')
+                                            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($certificate->status === 'Pending'): ?>
                                                 <button
-                                                    wire:click="approve({{ $certificate->id }})"
+                                                    wire:click="approve(<?php echo e($certificate->id); ?>)"
                                                     wire:confirm="Approve this certificate?"
                                                     class="px-3 py-1 bg-emerald-50 text-emerald-600 rounded hover:bg-emerald-100 transition-colors"
                                                 >
                                                     Approve
                                                 </button>
                                                 <button
-                                                    wire:click="reject({{ $certificate->id }})"
+                                                    wire:click="reject(<?php echo e($certificate->id); ?>)"
                                                     wire:confirm="Are you sure you want to reject this certificate?"
                                                     class="px-3 py-1 bg-rose-50 text-rose-600 rounded hover:bg-rose-100 transition-colors"
                                                 >
                                                     Reject
                                                 </button>
-                                            @endif
-                                            @if($certificate->status === 'Issued')
+                                            <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+                                            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($certificate->status === 'Issued'): ?>
                                                 <button
-                                                    wire:click="revoke({{ $certificate->id }}, 'generated')"
+                                                    wire:click="revoke(<?php echo e($certificate->id); ?>, 'generated')"
                                                     wire:confirm="Are you sure you want to revoke this certificate?"
                                                     class="px-3 py-1 bg-rose-50 text-rose-600 rounded hover:bg-rose-100 transition-colors"
                                                 >
                                                     Revoke
                                                 </button>
-                                            @endif
-                                        @else
-                                            {{-- Legacy/manual certificate actions --}}
-                                            @if($certificate->status === 'Draft')
+                                            <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+                                        <?php else: ?>
+                                            
+                                            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($certificate->status === 'Draft'): ?>
                                                 <button
-                                                    wire:click="markIssued({{ $certificate->id }})"
+                                                    wire:click="markIssued(<?php echo e($certificate->id); ?>)"
                                                     wire:confirm="Mark this certificate as issued?"
                                                     class="px-3 py-1 bg-emerald-50 text-emerald-600 rounded hover:bg-emerald-100 transition-colors"
                                                 >
                                                     Mark Issued
                                                 </button>
-                                            @endif
-                                            @if($certificate->status === 'Issued')
+                                            <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+                                            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($certificate->status === 'Issued'): ?>
                                                 <button
-                                                    wire:click="revoke({{ $certificate->id }}, 'legacy')"
+                                                    wire:click="revoke(<?php echo e($certificate->id); ?>, 'legacy')"
                                                     wire:confirm="Are you sure you want to revoke this certificate?"
                                                     class="px-3 py-1 bg-rose-50 text-rose-600 rounded hover:bg-rose-100 transition-colors"
                                                 >
                                                     Revoke
                                                 </button>
-                                            @endif
-                                        @endif
+                                            <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+                                        <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                                     </div>
                                 </td>
                             </tr>
-                        @empty
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
                             <tr>
                                 <td colspan="8" class="px-4 py-8 text-center text-slate-500">
                                     <div class="flex flex-col items-center">
@@ -526,14 +285,15 @@ new class extends Component
                                     </div>
                                 </td>
                             </tr>
-                        @endforelse
+                        <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                     </tbody>
                 </table>
             </div>
 
             <div class="px-4 py-3 border-t border-slate-200">
-                {{ $certificates->links() }}
+                <?php echo e($certificates->links()); ?>
+
             </div>
         </div>
     </div>
-</div>
+</div><?php /**PATH C:\xampp\htdocs\dashboard\clinlab_app\storage\framework/views/livewire/views/735d135a.blade.php ENDPATH**/ ?>

@@ -349,7 +349,7 @@ new class extends Component
 <div class="p-6">
     <div class="mb-6 flex items-center justify-between">
         <h1 class="text-2xl font-bold text-gray-900 flex items-center">
-            <svg class="w-7 h-7 mr-2 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-7 h-7 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/>
             </svg>
             Equipment Management
@@ -360,7 +360,7 @@ new class extends Component
                 Record Equipment Usage
             </button>
             <button type="button" wire:click="openEquipmentModal" 
-                    class="px-4 py-2 rounded-md text-sm font-medium transition-colors bg-indigo-600 text-white hover:bg-indigo-700">
+                    class="px-4 py-2 rounded-md text-sm font-medium transition-colors bg-blue-600 text-white hover:bg-blue-700">
                 Add Equipment
             </button>
         </div>
@@ -404,7 +404,7 @@ new class extends Component
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Filter by Section</label>
-                    <select wire:model.live="filterSection" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                    <select wire:model.live="filterSection" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                         <option value="">All Sections</option>
                         @foreach($sections as $section)
                             <option value="{{ $section->section_id }}">{{ $section->label }}</option>
@@ -413,7 +413,7 @@ new class extends Component
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Filter by Status</label>
-                    <select wire:model.live="filterStatus" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                    <select wire:model.live="filterStatus" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                         <option value="">All Statuses</option>
                         <option value="Overdue">Overdue</option>
                         <option value="Due Soon">Due Soon</option>
@@ -422,7 +422,7 @@ new class extends Component
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Rows per page</label>
-                    <select wire:model.live="alertsPerPage" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                    <select wire:model.live="alertsPerPage" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                         <option value="10">10</option>
                         <option value="25">25</option>
                         <option value="50">50</option>
@@ -478,11 +478,11 @@ new class extends Component
         <div class="border-b border-gray-200 bg-gray-50">
             <nav class="-mb-px flex">
                 <button wire:click="setTab('equipment_usage')" 
-                        class="flex-1 py-4 px-6 text-center border-b-2 font-medium text-sm transition-all {{ $activeTab === 'equipment_usage' ? 'border-emerald-500 text-emerald-600 bg-white' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
+                        class="flex-1 py-4 px-6 text-center border-b-2 font-medium text-sm transition-all {{ $activeTab === 'equipment_usage' ? 'border-blue-500 text-blue-600 bg-white' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
                     Equipment Usage Records
                 </button>
                 <button wire:click="setTab('equipment')" 
-                        class="flex-1 py-4 px-6 text-center border-b-2 font-medium text-sm transition-all {{ $activeTab === 'equipment' ? 'border-indigo-500 text-indigo-600 bg-white' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
+                        class="flex-1 py-4 px-6 text-center border-b-2 font-medium text-sm transition-all {{ $activeTab === 'equipment' ? 'border-blue-500 text-blue-600 bg-white' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
                     Equipment Management
                 </button>
             </nav>
@@ -495,7 +495,7 @@ new class extends Component
                 <!-- Equipment Usage Table -->
                 <div class="mb-4">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Rows per page</label>
-                    <select wire:model.live="usagePerPage" class="w-48 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500">
+                    <select wire:model.live="usagePerPage" class="w-48 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                         <option value="10">10</option>
                         <option value="25">25</option>
                         <option value="50">50</option>
@@ -550,11 +550,11 @@ new class extends Component
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Search Equipment</label>
-                        <input type="text" wire:model.live="search" placeholder="Search equipment..." class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                        <input type="text" wire:model.live="search" placeholder="Search equipment..." class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Rows per page</label>
-                        <select wire:model.live="perPage" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                        <select wire:model.live="perPage" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                             <option value="10">10</option>
                             <option value="25">25</option>
                             <option value="50">50</option>
@@ -636,7 +636,7 @@ new class extends Component
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Equipment *</label>
-                            <select wire:model="usage_equipment_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+                            <select wire:model="usage_equipment_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                                 <option value="">Select Equipment</option>
                                 @foreach($allEquipment as $eq)
                                     <option value="{{ $eq->equipment_id }}">{{ $eq->name }}</option>
@@ -646,43 +646,43 @@ new class extends Component
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Date Used *</label>
-                            <input type="date" wire:model="usage_date_used" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+                            <input type="date" wire:model="usage_date_used" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                             @error('usage_date_used') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
                         </div>
                     </div>
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">User's Name *</label>
-                            <input type="text" wire:model="usage_user_name" placeholder="Name of person using the equipment" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+                            <input type="text" wire:model="usage_user_name" placeholder="Name of person using the equipment" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                             @error('usage_user_name') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Item Name *</label>
-                            <input type="text" wire:model="usage_item_name" placeholder="Name of item/equipment being used" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+                            <input type="text" wire:model="usage_item_name" placeholder="Name of item/equipment being used" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                             @error('usage_item_name') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
                         </div>
                     </div>
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Quantity (Number of Uses) *</label>
-                            <input type="number" wire:model="usage_quantity" min="1" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+                            <input type="number" wire:model="usage_quantity" min="1" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                             @error('usage_quantity') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">OR Number</label>
-                            <input type="text" wire:model="usage_or_number" placeholder="Official Receipt Number" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+                            <input type="text" wire:model="usage_or_number" placeholder="Official Receipt Number" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                             @error('usage_or_number') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
                         </div>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Purpose *</label>
-                        <textarea wire:model="usage_purpose" rows="2" placeholder="Describe the purpose of equipment usage" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"></textarea>
+                        <textarea wire:model="usage_purpose" rows="2" placeholder="Describe the purpose of equipment usage" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"></textarea>
                         @error('usage_purpose') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
                     </div>
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Status *</label>
-                            <select wire:model="usage_status" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+                            <select wire:model="usage_status" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                                 <option value="functional">Functional</option>
                                 <option value="not_functional">Not Functional</option>
                             </select>
@@ -690,7 +690,7 @@ new class extends Component
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Remarks</label>
-                            <textarea wire:model="usage_remarks" rows="2" placeholder="Additional notes or observations" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"></textarea>
+                            <textarea wire:model="usage_remarks" rows="2" placeholder="Additional notes or observations" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"></textarea>
                             @error('usage_remarks') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
                         </div>
                     </div>
@@ -725,25 +725,25 @@ new class extends Component
                 <div class="grid grid-cols-1 gap-6">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Equipment Name *</label>
-                        <input type="text" wire:model="name" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent" required>
+                        <input type="text" wire:model="name" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" required>
                         @error('name') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
                     </div>
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Model</label>
-                            <input type="text" wire:model="model" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                            <input type="text" wire:model="model" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                             @error('model') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Serial Number</label>
-                            <input type="text" wire:model="serial_no" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                            <input type="text" wire:model="serial_no" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                             @error('serial_no') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
                         </div>
                     </div>
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Section *</label>
-                            <select wire:model="section_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent" required>
+                            <select wire:model="section_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" required>
                                 <option value="">Select Section</option>
                                 @foreach($sections as $section)
                                     <option value="{{ $section->section_id }}">{{ $section->label }}</option>
@@ -753,7 +753,7 @@ new class extends Component
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                            <select wire:model="status" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                            <select wire:model="status" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                                 <option value="Operational">Operational</option>
                                 <option value="Under Maintenance">Under Maintenance</option>
                                 <option value="Broken">Broken</option>
@@ -764,23 +764,23 @@ new class extends Component
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Purchase Date</label>
-                            <input type="date" wire:model="purchase_date" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                            <input type="date" wire:model="purchase_date" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Supplier</label>
-                            <input type="text" wire:model="supplier" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                            <input type="text" wire:model="supplier" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                         </div>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Remarks</label>
-                        <textarea wire:model="remarks" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"></textarea>
+                        <textarea wire:model="remarks" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"></textarea>
                     </div>
                 </div>
                 <div class="flex justify-end space-x-3 pt-4 border-t mt-6">
                     <button type="button" wire:click="closeEquipmentModal" class="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
                         Cancel
                     </button>
-                    <button type="submit" class="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
+                    <button type="submit" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
                         Add Equipment
                     </button>
                 </div>

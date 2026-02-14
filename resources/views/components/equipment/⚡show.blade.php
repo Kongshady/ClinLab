@@ -388,7 +388,7 @@ new class extends Component
     <div class="border-b border-gray-200">
         <nav class="flex space-x-8" aria-label="Tabs">
             <button wire:click="switchTab('maintenance')"
-                class="py-3 px-1 border-b-2 font-medium text-sm transition-colors {{ $activeTab === 'maintenance' ? 'border-emerald-500 text-emerald-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
+                class="py-3 px-1 border-b-2 font-medium text-sm transition-colors {{ $activeTab === 'maintenance' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
                 <svg class="w-4 h-4 inline-block mr-1.5 -mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
@@ -396,7 +396,7 @@ new class extends Component
                 Maintenance
             </button>
             <button wire:click="switchTab('calibration')"
-                class="py-3 px-1 border-b-2 font-medium text-sm transition-colors {{ $activeTab === 'calibration' ? 'border-emerald-500 text-emerald-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
+                class="py-3 px-1 border-b-2 font-medium text-sm transition-colors {{ $activeTab === 'calibration' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
                 <svg class="w-4 h-4 inline-block mr-1.5 -mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                 </svg>
@@ -412,7 +412,7 @@ new class extends Component
     <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
         <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
             <h2 class="text-base font-semibold text-gray-900">Maintenance Schedule</h2>
-            <button wire:click="openScheduleModal" class="inline-flex items-center px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg transition-colors">
+            <button wire:click="openScheduleModal" class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">
                 <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                 </svg>
@@ -469,7 +469,7 @@ new class extends Component
     <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
         <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
             <h2 class="text-base font-semibold text-gray-900">Maintenance History</h2>
-            <button wire:click="openMaintenanceModal" class="inline-flex items-center px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg transition-colors">
+            <button wire:click="openMaintenanceModal" class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">
                 <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                 </svg>
@@ -531,7 +531,7 @@ new class extends Component
     <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
         <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
             <h2 class="text-base font-semibold text-gray-900">Calibration Records</h2>
-            <button wire:click="openCalibrationModal" class="inline-flex items-center px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg transition-colors">
+            <button wire:click="openCalibrationModal" class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">
                 <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                 </svg>
@@ -674,7 +674,7 @@ new class extends Component
             <form wire:submit.prevent="saveSchedule" class="space-y-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Frequency *</label>
-                    <select wire:model="schedule_frequency" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm">
+                    <select wire:model="schedule_frequency" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">
                         <option value="Weekly">Weekly</option>
                         <option value="Bi-Weekly">Bi-Weekly</option>
                         <option value="Monthly">Monthly</option>
@@ -687,13 +687,13 @@ new class extends Component
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Next Due Date *</label>
-                    <input type="date" wire:model="schedule_next_due_date" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm">
+                    <input type="date" wire:model="schedule_next_due_date" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">
                     @error('schedule_next_due_date') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                 </div>
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Responsible Employee</label>
-                    <select wire:model="schedule_employee_id" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm">
+                    <select wire:model="schedule_employee_id" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">
                         <option value="">Select Employee</option>
                         @foreach($employees as $emp)
                             <option value="{{ $emp->employee_id }}">{{ $emp->full_name }}</option>
@@ -704,7 +704,7 @@ new class extends Component
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Responsible Section</label>
-                    <select wire:model="schedule_section_id" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm">
+                    <select wire:model="schedule_section_id" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">
                         <option value="">Select Section</option>
                         @foreach($sections as $sec)
                             <option value="{{ $sec->section_id }}">{{ $sec->label }}</option>
@@ -714,7 +714,7 @@ new class extends Component
                 </div>
 
                 <div class="flex items-center space-x-3 pt-2">
-                    <button type="submit" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg transition-colors">
+                    <button type="submit" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">
                         Add Schedule
                     </button>
                     <button type="button" wire:click="closeScheduleModal" class="px-5 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors">
@@ -735,13 +735,13 @@ new class extends Component
             <form wire:submit.prevent="saveMaintenance" class="space-y-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Maintenance Date *</label>
-                    <input type="date" wire:model="maintenance_date" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm">
+                    <input type="date" wire:model="maintenance_date" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">
                     @error('maintenance_date') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                 </div>
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Performed By *</label>
-                    <select wire:model="maintenance_performed_by" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm">
+                    <select wire:model="maintenance_performed_by" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">
                         <option value="">Select Employee</option>
                         @foreach($employees as $emp)
                             <option value="{{ $emp->employee_id }}">{{ $emp->full_name }}</option>
@@ -752,7 +752,7 @@ new class extends Component
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Maintenance Type *</label>
-                    <select wire:model="maintenance_type" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm">
+                    <select wire:model="maintenance_type" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">
                         <option value="Preventive">Preventive</option>
                         <option value="Corrective">Corrective</option>
                         <option value="Emergency">Emergency</option>
@@ -763,18 +763,18 @@ new class extends Component
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-                    <textarea wire:model="maintenance_notes" rows="3" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm resize-y" placeholder="Enter maintenance notes..."></textarea>
+                    <textarea wire:model="maintenance_notes" rows="3" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm resize-y" placeholder="Enter maintenance notes..."></textarea>
                     @error('maintenance_notes') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                 </div>
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Next Maintenance Date</label>
-                    <input type="date" wire:model="maintenance_next_date" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm">
+                    <input type="date" wire:model="maintenance_next_date" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">
                     @error('maintenance_next_date') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                 </div>
 
                 <div class="flex items-center space-x-3 pt-2">
-                    <button type="submit" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg transition-colors">
+                    <button type="submit" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">
                         Record Maintenance
                     </button>
                     <button type="button" wire:click="closeMaintenanceModal" class="px-5 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors">
@@ -795,7 +795,7 @@ new class extends Component
             <form wire:submit.prevent="saveCalibration" class="space-y-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Calibration Procedure *</label>
-                    <select wire:model="cal_procedure_id" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm">
+                    <select wire:model="cal_procedure_id" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">
                         <option value="">Select Procedure</option>
                         @foreach($procedures as $proc)
                             <option value="{{ $proc->procedure_id }}">{{ $proc->procedure_name }}</option>
@@ -806,13 +806,13 @@ new class extends Component
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Calibration Date *</label>
-                    <input type="date" wire:model="cal_date" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm">
+                    <input type="date" wire:model="cal_date" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">
                     @error('cal_date') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                 </div>
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Performed By *</label>
-                    <select wire:model="cal_performed_by" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm">
+                    <select wire:model="cal_performed_by" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">
                         <option value="">Select Employee</option>
                         @foreach($employees as $emp)
                             <option value="{{ $emp->employee_id }}">{{ $emp->firstname }} {{ $emp->lastname }}</option>
@@ -823,7 +823,7 @@ new class extends Component
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Result *</label>
-                    <select wire:model="cal_result_status" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm">
+                    <select wire:model="cal_result_status" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">
                         <option value="pass">Pass</option>
                         <option value="fail">Fail</option>
                         <option value="conditional">Conditional</option>
@@ -833,18 +833,18 @@ new class extends Component
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Next Calibration Due Date</label>
-                    <input type="date" wire:model="cal_next_date" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm">
+                    <input type="date" wire:model="cal_next_date" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">
                     @error('cal_next_date') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                 </div>
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Remarks</label>
-                    <textarea wire:model="cal_notes" rows="3" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm resize-y" placeholder="Enter calibration remarks..."></textarea>
+                    <textarea wire:model="cal_notes" rows="3" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm resize-y" placeholder="Enter calibration remarks..."></textarea>
                     @error('cal_notes') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                 </div>
 
                 <div class="flex items-center space-x-3 pt-2">
-                    <button type="submit" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg transition-colors">
+                    <button type="submit" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">
                         Save Calibration
                     </button>
                     <button type="button" wire:click="closeCalibrationModal" class="px-5 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors">
