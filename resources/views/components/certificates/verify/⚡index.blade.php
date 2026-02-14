@@ -48,7 +48,7 @@ new class extends Component
     <div class="max-w-4xl mx-auto">
         <!-- Header -->
         <div class="text-center mb-8">
-            <h1 class="text-4xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent mb-2">
+            <h1 class="text-4xl font-bold bg-gradient-to-r from-blue-600 to-cyan-400 bg-clip-text text-transparent mb-2">
                 Certificate Verification
             </h1>
             <p class="text-slate-600">Enter certificate number or verification code to validate authenticity</p>
@@ -69,7 +69,7 @@ new class extends Component
                 </div>
                 <button 
                     type="submit"
-                    class="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all shadow-md hover:shadow-lg text-lg font-medium"
+                    class="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-cyan-400 text-white rounded-lg hover:from-blue-700 hover:to-cyan-500 transition-all shadow-md hover:shadow-lg text-lg font-medium"
                 >
                     Verify Certificate
                 </button>

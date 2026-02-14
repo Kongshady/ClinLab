@@ -12,6 +12,7 @@ use App\Models\Physician;
 use App\Models\Employee;
 use Carbon\Carbon;
 use App\Traits\LogsActivity;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 new class extends Component
 {
@@ -151,6 +152,30 @@ new class extends Component
     {
         $this->showOrderDetail = false;
         $this->viewingOrder = null;
+    }
+
+    public function downloadOrderPdf()
+    {
+        if (!$this->viewingOrder) return;
+
+        $order = LabTestOrder::with([
+            'patient',
+            'physician',
+            'orderTests.test.section',
+            'orderTests.labResult.performedBy',
+            'orderTests.labResult.verifiedBy',
+        ])->find($this->viewingOrder->lab_test_order_id);
+
+        if (!$order) return;
+
+        $pdf = Pdf::loadView('pdf.lab-result', ['order' => $order])
+            ->setPaper('a4', 'portrait');
+
+        $filename = 'LabResult_Order_' . $order->lab_test_order_id . '_' . now()->format('Ymd') . '.pdf';
+
+        return response()->streamDownload(function () use ($pdf) {
+            echo $pdf->output();
+        }, $filename);
     }
 
     // Cancel Order
@@ -510,7 +535,6 @@ new class extends Component
                         <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Order Date</th>
                         <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Tests</th>
                         <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
-                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
@@ -519,7 +543,7 @@ new class extends Component
                             $totalTests = $order->orderTests->count();
                             $completedTests = $order->orderTests->where('status', 'completed')->count();
                         @endphp
-                        <tr wire:key="order-{{ $order->lab_test_order_id }}" class="hover:bg-gray-50 transition-colors">
+                        <tr wire:key="order-{{ $order->lab_test_order_id }}" wire:click="viewOrder({{ $order->lab_test_order_id }})" class="hover:bg-blue-50/50 transition-colors cursor-pointer">
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <span class="text-sm font-semibold text-blue-600">#{{ $order->lab_test_order_id }}</span>
                             </td>
@@ -552,23 +576,10 @@ new class extends Component
                                     {{ ucfirst($order->status) }}
                                 </span>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm space-x-1.5">
-                                <button wire:click="viewOrder({{ $order->lab_test_order_id }})" 
-                                        class="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium rounded-lg transition-colors">
-                                    View
-                                </button>
-                                @if($order->status === 'pending')
-                                    <button wire:click="cancelOrder({{ $order->lab_test_order_id }})" 
-                                            wire:confirm="Are you sure you want to cancel this order?"
-                                            class="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white text-xs font-medium rounded-lg transition-colors">
-                                        Cancel
-                                    </button>
-                                @endif
-                            </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="px-6 py-12 text-center">
+                            <td colspan="6" class="px-6 py-12 text-center">
                                 <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                                 </svg>
@@ -858,10 +869,17 @@ new class extends Component
                 </div>
 
                 {{-- Footer --}}
-                <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end rounded-b-xl flex-shrink-0">
+                <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-between rounded-b-xl flex-shrink-0">
                     <button wire:click="closeOrderDetail" 
                             class="px-5 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
                         Close
+                    </button>
+                    <button wire:click="downloadOrderPdf"
+                            class="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-cyan-400 hover:from-blue-700 hover:to-cyan-500 rounded-lg shadow-sm transition-all">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                        </svg>
+                        Download PDF
                     </button>
                 </div>
             </div>

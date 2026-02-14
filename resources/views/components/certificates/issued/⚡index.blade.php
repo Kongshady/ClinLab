@@ -261,7 +261,7 @@ new class extends Component
     <div class="max-w-7xl mx-auto">
         <!-- Header -->
         <div class="mb-6">
-            <h1 class="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+            <h1 class="text-3xl font-bold bg-gradient-to-r from-blue-600 to-cyan-400 bg-clip-text text-transparent">
                 Issued Certificates
             </h1>
             <p class="text-slate-600 mt-1">View, download, and manage all issued certificates</p>
@@ -450,7 +450,7 @@ new class extends Component
                                 </td>
                                 <td class="px-4 py-3 text-sm">
                                     @if($certificate->source === 'generated')
-                                        <span class="px-2 py-1 bg-indigo-50 text-indigo-600 rounded-full text-xs font-medium">Auto-Generated</span>
+                                        <span class="px-2 py-1 bg-blue-50 text-blue-600 rounded-full text-xs font-medium">Auto-Generated</span>
                                     @else
                                         <span class="px-2 py-1 bg-slate-50 text-slate-600 rounded-full text-xs font-medium">Manual</span>
                                     @endif

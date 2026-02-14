@@ -467,7 +467,7 @@ new class extends Component
                                         </button>
                                         <button wire:click="openSetPriceModal({{ $test->test_id }})"
                                                 type="button"
-                                                class="px-4 py-1.5 bg-teal-500 hover:bg-teal-600 text-white text-sm font-medium rounded-lg transition-colors">
+                                                class="px-4 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors">
                                             Set Price
                                         </button>
                                         <button wire:click="viewHistory({{ $test->test_id }})"
@@ -588,7 +588,7 @@ new class extends Component
                                step="0.01"
                                wire:model="new_price" 
                                placeholder="0.00"
-                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                         @error('new_price') <span class="text-red-600 text-xs mt-1">{{ $message }}</span> @enderror
                     </div>
                 </div>
@@ -599,7 +599,7 @@ new class extends Component
                         Cancel
                     </button>
                     <button type="submit"
-                            class="px-4 py-2 bg-teal-500 hover:bg-teal-600 text-white font-medium rounded-lg transition-colors">
+                            class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-lg transition-colors">
                         Update Price
                     </button>
                 </div>

@@ -112,7 +112,7 @@ $transactionsCount = $stats['transactions'];
             <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">Overview</h2>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 <!-- Patients Card -->
-                <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white transform hover:scale-105 transition-transform duration-200">
+                <div class="bg-gradient-to-br from-blue-500 to-cyan-400 rounded-xl shadow-lg p-6 text-white transform hover:scale-105 transition-transform duration-200">
                     <div class="flex items-center justify-between mb-4">
                         <div>
                             <p class="text-blue-100 text-sm font-medium mb-1">Total Patients</p>

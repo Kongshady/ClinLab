@@ -459,15 +459,15 @@ new class extends Component
             <div class="border-b border-gray-200">
                 <nav class="-mb-px flex space-x-8">
                     <button wire:click="setTab('stock_in')" 
-                            class="group inline-flex items-center py-4 px-1 border-b-2 font-medium text-sm transition-all {{ $activeTab === 'stock_in' ? 'border-emerald-500 text-emerald-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
-                        <svg class="mr-2 h-5 w-5 {{ $activeTab === 'stock_in' ? 'text-emerald-500' : 'text-gray-400 group-hover:text-gray-500' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            class="group inline-flex items-center py-4 px-1 border-b-2 font-medium text-sm transition-all {{ $activeTab === 'stock_in' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
+                        <svg class="mr-2 h-5 w-5 {{ $activeTab === 'stock_in' ? 'text-blue-500' : 'text-gray-400 group-hover:text-gray-500' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 11l5-5m0 0l5 5m-5-5v12"/>
                         </svg>
                         Stock In
                     </button>
                     <button wire:click="setTab('stock_out')" 
-                            class="group inline-flex items-center py-4 px-1 border-b-2 font-medium text-sm transition-all {{ $activeTab === 'stock_out' ? 'border-rose-500 text-rose-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
-                        <svg class="mr-2 h-5 w-5 {{ $activeTab === 'stock_out' ? 'text-rose-500' : 'text-gray-400 group-hover:text-gray-500' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            class="group inline-flex items-center py-4 px-1 border-b-2 font-medium text-sm transition-all {{ $activeTab === 'stock_out' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
+                        <svg class="mr-2 h-5 w-5 {{ $activeTab === 'stock_out' ? 'text-blue-500' : 'text-gray-400 group-hover:text-gray-500' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 13l-5 5m0 0l-5-5m5 5V6"/>
                         </svg>
                         Stock Out
@@ -494,7 +494,7 @@ new class extends Component
                     <div class="space-y-4">
                         <div class="flex items-center justify-between">
                             <label class="text-sm font-semibold text-gray-700">Items to Add</label>
-                            <button type="button" wire:click="addStockInRow" class="px-3 py-1.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 text-sm font-medium rounded-lg transition-all flex items-center">
+                            <button type="button" wire:click="addStockInRow" class="px-3 py-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 text-sm font-medium rounded-lg transition-all flex items-center">
                                 <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
                                 </svg>
@@ -506,33 +506,77 @@ new class extends Component
                         <div class="bg-gray-50 rounded-lg p-4 border-2 border-gray-200">
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div class="space-y-2">
-                                    <label class="text-sm font-medium text-gray-700">Item <span class="text-rose-500">*</span></label>
-                                    <select wire:model.live="stock_in_items.{{ $index }}.item_id" class="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all">
-                                        <option value="">Select Item</option>
-                                        @foreach($this->getAvailableItemsForStockIn($index, $items) as $itemOption)
-                                            <option value="{{ $itemOption->item_id }}">{{ $itemOption->label }}</option>
-                                        @endforeach
-                                    </select>
-                                    @error('stock_in_items.'.$index.'.item_id') <span class="text-xs text-rose-600">{{ $message }}</span> @enderror
+                                    <label class="text-sm font-medium text-gray-700">Item <span class="text-blue-500">*</span></label>
+                                    <div x-data="{
+                                        open: false,
+                                        search: '',
+                                        selectedLabel: '',
+                                        items: @js($this->getAvailableItemsForStockIn($index, $items)->map(fn($i) => ['id' => $i->item_id, 'label' => $i->label])->values()),
+                                        get filtered() {
+                                            if (!this.search) return this.items;
+                                            return this.items.filter(i => i.label.toLowerCase().includes(this.search.toLowerCase()));
+                                        },
+                                        select(item) {
+                                            this.selectedLabel = item.label;
+                                            this.search = '';
+                                            this.open = false;
+                                            $wire.set('stock_in_items.{{ $index }}.item_id', item.id);
+                                        },
+                                        clear() {
+                                            this.selectedLabel = '';
+                                            this.search = '';
+                                            $wire.set('stock_in_items.{{ $index }}.item_id', '');
+                                        },
+                                        init() {
+                                            let currentId = $wire.get('stock_in_items.{{ $index }}.item_id');
+                                            if (currentId) {
+                                                let found = this.items.find(i => i.id == currentId);
+                                                if (found) this.selectedLabel = found.label;
+                                            }
+                                        }
+                                    }" class="relative" @click.away="open = false">
+                                        <div @click="open = !open" class="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg cursor-pointer flex items-center justify-between hover:border-blue-400 transition-all" :class="open ? 'ring-2 ring-blue-500 border-transparent' : ''">
+                                            <span x-show="selectedLabel" x-text="selectedLabel" class="text-gray-900 truncate"></span>
+                                            <span x-show="!selectedLabel" class="text-gray-400">Select Item</span>
+                                            <div class="flex items-center space-x-1">
+                                                <button x-show="selectedLabel" @click.stop="clear()" type="button" class="text-gray-400 hover:text-blue-500">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                                </button>
+                                                <svg class="w-4 h-4 text-gray-400 transition-transform" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                            </div>
+                                        </div>
+                                        <div x-show="open" x-transition.opacity class="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
+                                            <div class="p-2 border-b border-gray-100">
+                                                <input x-ref="searchInput" x-model="search" @keydown.escape="open = false" type="text" placeholder="Search items..." class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent" @click.stop>
+                                            </div>
+                                            <ul class="max-h-48 overflow-y-auto">
+                                                <template x-for="item in filtered" :key="item.id">
+                                                    <li @click="select(item)" class="px-4 py-2.5 text-sm cursor-pointer hover:bg-blue-50 text-gray-700 hover:text-blue-700 transition-colors" x-text="item.label"></li>
+                                                </template>
+                                                <li x-show="filtered.length === 0" class="px-4 py-3 text-sm text-gray-400 text-center">No items found</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    @error('stock_in_items.'.$index.'.item_id') <span class="text-xs text-blue-600">{{ $message }}</span> @enderror
                                 </div>
                                 <div class="space-y-2">
-                                    <label class="text-sm font-medium text-gray-700">Quantity <span class="text-rose-500">*</span></label>
-                                    <input type="number" wire:model="stock_in_items.{{ $index }}.quantity" min="1" placeholder="0" class="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all">
-                                    @error('stock_in_items.'.$index.'.quantity') <span class="text-xs text-rose-600">{{ $message }}</span> @enderror
+                                    <label class="text-sm font-medium text-gray-700">Quantity <span class="text-blue-500">*</span></label>
+                                    <input type="number" wire:model="stock_in_items.{{ $index }}.quantity" min="1" placeholder="0" class="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+                                    @error('stock_in_items.'.$index.'.quantity') <span class="text-xs text-blue-600">{{ $message }}</span> @enderror
                                 </div>
                                 <div class="space-y-2">
                                     <label class="text-sm font-medium text-gray-700">Expiry Date</label>
                                     <div class="flex gap-2">
-                                        <input type="date" wire:model="stock_in_items.{{ $index }}.expiry_date" class="flex-1 px-4 py-2.5 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all">
+                                        <input type="date" wire:model="stock_in_items.{{ $index }}.expiry_date" class="flex-1 px-4 py-2.5 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
                                         @if(count($stock_in_items) > 1)
-                                        <button type="button" wire:click="removeStockInRow({{ $index }})" class="px-3 py-2.5 bg-rose-100 hover:bg-rose-200 text-rose-700 rounded-lg transition-all">
+                                        <button type="button" wire:click="removeStockInRow({{ $index }})" class="px-3 py-2.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg transition-all">
                                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>
                                             </svg>
                                         </button>
                                         @endif
                                     </div>
-                                    @error('stock_in_items.'.$index.'.expiry_date') <span class="text-xs text-rose-600">{{ $message }}</span> @enderror
+                                    @error('stock_in_items.'.$index.'.expiry_date') <span class="text-xs text-blue-600">{{ $message }}</span> @enderror
                                 </div>
                             </div>
                         </div>
@@ -543,23 +587,23 @@ new class extends Component
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t border-gray-200">
                         <div class="space-y-2">
                             <label class="text-sm font-medium text-gray-700">Supplier</label>
-                            <input type="text" wire:model="stock_in_supplier" placeholder="Supplier name" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all">
-                            @error('stock_in_supplier') <span class="text-xs text-rose-600">{{ $message }}</span> @enderror
+                            <input type="text" wire:model="stock_in_supplier" placeholder="Supplier name" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+                            @error('stock_in_supplier') <span class="text-xs text-blue-600">{{ $message }}</span> @enderror
                         </div>
                         <div class="space-y-2">
                             <label class="text-sm font-medium text-gray-700">Reference No.</label>
-                            <input type="text" wire:model="stock_in_reference" placeholder="Invoice/PO number" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all">
-                            @error('stock_in_reference') <span class="text-xs text-rose-600">{{ $message }}</span> @enderror
+                            <input type="text" wire:model="stock_in_reference" placeholder="Invoice/PO number" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+                            @error('stock_in_reference') <span class="text-xs text-blue-600">{{ $message }}</span> @enderror
                         </div>
                         <div class="space-y-2">
                             <label class="text-sm font-medium text-gray-700">Remarks</label>
-                            <input type="text" wire:model="stock_in_remarks" placeholder="Optional notes" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all">
-                            @error('stock_in_remarks') <span class="text-xs text-rose-600">{{ $message }}</span> @enderror
+                            <input type="text" wire:model="stock_in_remarks" placeholder="Optional notes" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+                            @error('stock_in_remarks') <span class="text-xs text-blue-600">{{ $message }}</span> @enderror
                         </div>
                     </div>
                     
                     <div class="flex justify-end pt-4 border-t border-gray-100">
-                        <button type="submit" class="px-8 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg transition-all shadow-sm hover:shadow flex items-center">
+                        <button type="submit" class="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-all shadow-sm hover:shadow flex items-center">
                             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
                             </svg>
@@ -576,7 +620,7 @@ new class extends Component
                     <div class="space-y-4">
                         <div class="flex items-center justify-between">
                             <label class="text-sm font-semibold text-gray-700">Items to Remove</label>
-                            <button type="button" wire:click="addStockOutRow" class="px-3 py-1.5 bg-rose-100 hover:bg-rose-200 text-rose-700 text-sm font-medium rounded-lg transition-all flex items-center">
+                            <button type="button" wire:click="addStockOutRow" class="px-3 py-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 text-sm font-medium rounded-lg transition-all flex items-center">
                                 <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
                                 </svg>
@@ -588,28 +632,75 @@ new class extends Component
                         <div class="bg-gray-50 rounded-lg p-4 border-2 border-gray-200">
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div class="space-y-2">
-                                    <label class="text-sm font-medium text-gray-700">Item <span class="text-rose-500">*</span></label>
-                                    <select wire:model.live="stock_out_items.{{ $index }}.item_id" class="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent transition-all">
-                                        <option value="">Select Item</option>
-                                        @foreach($this->getAvailableItemsForStockOut($index, $itemsWithStock) as $itemOption)
-                                            <option value="{{ $itemOption->item_id }}">{{ $itemOption->label }} (Available: {{ number_format($itemOption->current_stock) }})</option>
-                                        @endforeach
-                                    </select>
-                                    @error('stock_out_items.'.$index.'.item_id') <span class="text-xs text-rose-600">{{ $message }}</span> @enderror
+                                    <label class="text-sm font-medium text-gray-700">Item <span class="text-blue-500">*</span></label>
+                                    <div x-data="{
+                                        open: false,
+                                        search: '',
+                                        selectedLabel: '',
+                                        items: @js($this->getAvailableItemsForStockOut($index, $itemsWithStock)->map(fn($i) => ['id' => $i->item_id, 'label' => $i->label, 'stock' => number_format($i->current_stock)])->values()),
+                                        get filtered() {
+                                            if (!this.search) return this.items;
+                                            return this.items.filter(i => i.label.toLowerCase().includes(this.search.toLowerCase()));
+                                        },
+                                        select(item) {
+                                            this.selectedLabel = item.label + ' (Available: ' + item.stock + ')';
+                                            this.search = '';
+                                            this.open = false;
+                                            $wire.set('stock_out_items.{{ $index }}.item_id', item.id);
+                                        },
+                                        clear() {
+                                            this.selectedLabel = '';
+                                            this.search = '';
+                                            $wire.set('stock_out_items.{{ $index }}.item_id', '');
+                                        },
+                                        init() {
+                                            let currentId = $wire.get('stock_out_items.{{ $index }}.item_id');
+                                            if (currentId) {
+                                                let found = this.items.find(i => i.id == currentId);
+                                                if (found) this.selectedLabel = found.label + ' (Available: ' + found.stock + ')';
+                                            }
+                                        }
+                                    }" class="relative" @click.away="open = false">
+                                        <div @click="open = !open" class="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg cursor-pointer flex items-center justify-between hover:border-blue-400 transition-all" :class="open ? 'ring-2 ring-blue-500 border-transparent' : ''">
+                                            <span x-show="selectedLabel" x-text="selectedLabel" class="text-gray-900 truncate"></span>
+                                            <span x-show="!selectedLabel" class="text-gray-400">Select Item</span>
+                                            <div class="flex items-center space-x-1">
+                                                <button x-show="selectedLabel" @click.stop="clear()" type="button" class="text-gray-400 hover:text-blue-500">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                                </button>
+                                                <svg class="w-4 h-4 text-gray-400 transition-transform" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                            </div>
+                                        </div>
+                                        <div x-show="open" x-transition.opacity class="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
+                                            <div class="p-2 border-b border-gray-100">
+                                                <input x-ref="searchInput" x-model="search" @keydown.escape="open = false" type="text" placeholder="Search items..." class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent" @click.stop>
+                                            </div>
+                                            <ul class="max-h-48 overflow-y-auto">
+                                                <template x-for="item in filtered" :key="item.id">
+                                                    <li @click="select(item)" class="px-4 py-2.5 text-sm cursor-pointer hover:bg-blue-50 text-gray-700 hover:text-blue-700 transition-colors">
+                                                        <span x-text="item.label"></span>
+                                                        <span class="text-xs text-gray-400 ml-1" x-text="'(Available: ' + item.stock + ')'"></span>
+                                                    </li>
+                                                </template>
+                                                <li x-show="filtered.length === 0" class="px-4 py-3 text-sm text-gray-400 text-center">No items found</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    @error('stock_out_items.'.$index.'.item_id') <span class="text-xs text-blue-600">{{ $message }}</span> @enderror
                                 </div>
                                 <div class="space-y-2">
-                                    <label class="text-sm font-medium text-gray-700">Quantity <span class="text-rose-500">*</span></label>
+                                    <label class="text-sm font-medium text-gray-700">Quantity <span class="text-blue-500">*</span></label>
                                     <div class="flex gap-2">
-                                        <input type="number" wire:model="stock_out_items.{{ $index }}.quantity" min="1" placeholder="0" class="flex-1 px-4 py-2.5 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent transition-all">
+                                        <input type="number" wire:model="stock_out_items.{{ $index }}.quantity" min="1" placeholder="0" class="flex-1 px-4 py-2.5 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
                                         @if(count($stock_out_items) > 1)
-                                        <button type="button" wire:click="removeStockOutRow({{ $index }})" class="px-3 py-2.5 bg-rose-100 hover:bg-rose-200 text-rose-700 rounded-lg transition-all">
+                                        <button type="button" wire:click="removeStockOutRow({{ $index }})" class="px-3 py-2.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg transition-all">
                                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>
                                             </svg>
                                         </button>
                                         @endif
                                     </div>
-                                    @error('stock_out_items.'.$index.'.quantity') <span class="text-xs text-rose-600">{{ $message }}</span> @enderror
+                                    @error('stock_out_items.'.$index.'.quantity') <span class="text-xs text-blue-600">{{ $message }}</span> @enderror
                                 </div>
                             </div>
                         </div>
@@ -620,18 +711,18 @@ new class extends Component
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-gray-200">
                         <div class="space-y-2">
                             <label class="text-sm font-medium text-gray-700">Reference No.</label>
-                            <input type="text" wire:model="stock_out_reference" placeholder="Requisition number" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent transition-all">
-                            @error('stock_out_reference') <span class="text-xs text-rose-600">{{ $message }}</span> @enderror
+                            <input type="text" wire:model="stock_out_reference" placeholder="Requisition number" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+                            @error('stock_out_reference') <span class="text-xs text-blue-600">{{ $message }}</span> @enderror
                         </div>
                         <div class="space-y-2">
                             <label class="text-sm font-medium text-gray-700">Remarks</label>
-                            <input type="text" wire:model="stock_out_remarks" placeholder="Reason for removal" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-transparent transition-all">
-                            @error('stock_out_remarks') <span class="text-xs text-rose-600">{{ $message }}</span> @enderror
+                            <input type="text" wire:model="stock_out_remarks" placeholder="Reason for removal" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+                            @error('stock_out_remarks') <span class="text-xs text-blue-600">{{ $message }}</span> @enderror
                         </div>
                     </div>
                     
                     <div class="flex justify-end pt-4 border-t border-gray-100">
-                        <button type="submit" class="px-8 py-3 bg-rose-600 hover:bg-rose-700 text-white font-medium rounded-lg transition-all shadow-sm hover:shadow flex items-center">
+                        <button type="submit" class="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-all shadow-sm hover:shadow flex items-center">
                             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>
                             </svg>
@@ -660,28 +751,75 @@ new class extends Component
                         <div class="bg-gray-50 rounded-lg p-4 border-2 border-gray-200">
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div class="space-y-2">
-                                    <label class="text-sm font-medium text-gray-700">Item <span class="text-rose-500">*</span></label>
-                                    <select wire:model.live="stock_usage_items.{{ $index }}.item_id" class="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
-                                        <option value="">Select Item</option>
-                                        @foreach($this->getAvailableItemsForStockUsage($index, $itemsWithStock) as $itemOption)
-                                            <option value="{{ $itemOption->item_id }}">{{ $itemOption->label }} (Available: {{ number_format($itemOption->current_stock) }})</option>
-                                        @endforeach
-                                    </select>
-                                    @error('stock_usage_items.'.$index.'.item_id') <span class="text-xs text-rose-600">{{ $message }}</span> @enderror
+                                    <label class="text-sm font-medium text-gray-700">Item <span class="text-blue-500">*</span></label>
+                                    <div x-data="{
+                                        open: false,
+                                        search: '',
+                                        selectedLabel: '',
+                                        items: @js($this->getAvailableItemsForStockUsage($index, $itemsWithStock)->map(fn($i) => ['id' => $i->item_id, 'label' => $i->label, 'stock' => number_format($i->current_stock)])->values()),
+                                        get filtered() {
+                                            if (!this.search) return this.items;
+                                            return this.items.filter(i => i.label.toLowerCase().includes(this.search.toLowerCase()));
+                                        },
+                                        select(item) {
+                                            this.selectedLabel = item.label + ' (Available: ' + item.stock + ')';
+                                            this.search = '';
+                                            this.open = false;
+                                            $wire.set('stock_usage_items.{{ $index }}.item_id', item.id);
+                                        },
+                                        clear() {
+                                            this.selectedLabel = '';
+                                            this.search = '';
+                                            $wire.set('stock_usage_items.{{ $index }}.item_id', '');
+                                        },
+                                        init() {
+                                            let currentId = $wire.get('stock_usage_items.{{ $index }}.item_id');
+                                            if (currentId) {
+                                                let found = this.items.find(i => i.id == currentId);
+                                                if (found) this.selectedLabel = found.label + ' (Available: ' + found.stock + ')';
+                                            }
+                                        }
+                                    }" class="relative" @click.away="open = false">
+                                        <div @click="open = !open" class="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg cursor-pointer flex items-center justify-between hover:border-blue-400 transition-all" :class="open ? 'ring-2 ring-blue-500 border-transparent' : ''">
+                                            <span x-show="selectedLabel" x-text="selectedLabel" class="text-gray-900 truncate"></span>
+                                            <span x-show="!selectedLabel" class="text-gray-400">Select Item</span>
+                                            <div class="flex items-center space-x-1">
+                                                <button x-show="selectedLabel" @click.stop="clear()" type="button" class="text-gray-400 hover:text-blue-500">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                                </button>
+                                                <svg class="w-4 h-4 text-gray-400 transition-transform" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                            </div>
+                                        </div>
+                                        <div x-show="open" x-transition.opacity class="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
+                                            <div class="p-2 border-b border-gray-100">
+                                                <input x-ref="searchInput" x-model="search" @keydown.escape="open = false" type="text" placeholder="Search items..." class="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent" @click.stop>
+                                            </div>
+                                            <ul class="max-h-48 overflow-y-auto">
+                                                <template x-for="item in filtered" :key="item.id">
+                                                    <li @click="select(item)" class="px-4 py-2.5 text-sm cursor-pointer hover:bg-blue-50 text-gray-700 hover:text-blue-700 transition-colors">
+                                                        <span x-text="item.label"></span>
+                                                        <span class="text-xs text-gray-400 ml-1" x-text="'(Available: ' + item.stock + ')'"></span>
+                                                    </li>
+                                                </template>
+                                                <li x-show="filtered.length === 0" class="px-4 py-3 text-sm text-gray-400 text-center">No items found</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    @error('stock_usage_items.'.$index.'.item_id') <span class="text-xs text-blue-600">{{ $message }}</span> @enderror
                                 </div>
                                 <div class="space-y-2">
-                                    <label class="text-sm font-medium text-gray-700">Quantity <span class="text-rose-500">*</span></label>
+                                    <label class="text-sm font-medium text-gray-700">Quantity <span class="text-blue-500">*</span></label>
                                     <div class="flex gap-2">
                                         <input type="number" wire:model="stock_usage_items.{{ $index }}.quantity" min="1" placeholder="1" class="flex-1 px-4 py-2.5 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
                                         @if(count($stock_usage_items) > 1)
-                                        <button type="button" wire:click="removeStockUsageRow({{ $index }})" class="px-3 py-2.5 bg-rose-100 hover:bg-rose-200 text-rose-700 rounded-lg transition-all">
+                                        <button type="button" wire:click="removeStockUsageRow({{ $index }})" class="px-3 py-2.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg transition-all">
                                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>
                                             </svg>
                                         </button>
                                         @endif
                                     </div>
-                                    @error('stock_usage_items.'.$index.'.quantity') <span class="text-xs text-rose-600">{{ $message }}</span> @enderror
+                                    @error('stock_usage_items.'.$index.'.quantity') <span class="text-xs text-blue-600">{{ $message }}</span> @enderror
                                 </div>
                             </div>
                         </div>
@@ -691,24 +829,24 @@ new class extends Component
                     <!-- Common Fields -->
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t border-gray-200">
                         <div class="space-y-2">
-                            <label class="text-sm font-medium text-gray-700">Employee <span class="text-rose-500">*</span></label>
+                            <label class="text-sm font-medium text-gray-700">Employee <span class="text-blue-500">*</span></label>
                             <select wire:model="stock_usage_employee_id" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
                                 <option value="">Select Employee</option>
                                 @foreach($employees as $employee)
                                     <option value="{{ $employee->employee_id }}">{{ $employee->firstname }} {{ $employee->lastname }}</option>
                                 @endforeach
                             </select>
-                            @error('stock_usage_employee_id') <span class="text-xs text-rose-600">{{ $message }}</span> @enderror
+                            @error('stock_usage_employee_id') <span class="text-xs text-blue-600">{{ $message }}</span> @enderror
                         </div>
                         <div class="space-y-2">
-                            <label class="text-sm font-medium text-gray-700">Purpose <span class="text-rose-500">*</span></label>
+                            <label class="text-sm font-medium text-gray-700">Purpose <span class="text-blue-500">*</span></label>
                             <input type="text" wire:model="stock_usage_purpose" placeholder="Purpose of use" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
-                            @error('stock_usage_purpose') <span class="text-xs text-rose-600">{{ $message }}</span> @enderror
+                            @error('stock_usage_purpose') <span class="text-xs text-blue-600">{{ $message }}</span> @enderror
                         </div>
                         <div class="space-y-2">
                             <label class="text-sm font-medium text-gray-700">OR Number</label>
                             <input type="text" wire:model="stock_usage_or_number" placeholder="Official receipt number" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
-                            @error('stock_usage_or_number') <span class="text-xs text-rose-600">{{ $message }}</span> @enderror
+                            @error('stock_usage_or_number') <span class="text-xs text-blue-600">{{ $message }}</span> @enderror
                         </div>
                     </div>
                     

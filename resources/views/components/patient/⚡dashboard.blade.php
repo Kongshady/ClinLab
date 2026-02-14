@@ -6,6 +6,7 @@ use App\Models\LabResult;
 use App\Models\LabTestOrder;
 use App\Models\Certificate;
 use App\Models\CertificateIssue;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 new class extends Component
 {
@@ -14,6 +15,10 @@ new class extends Component
     public $labOrders = [];
     public $activeTab = 'results';
     public $selectedOrder = null;
+
+    // Lab results search/filter
+    public $orderSearch = '';
+    public $orderStatusFilter = '';
 
     // Profile edit fields
     public $editMode = false;
@@ -324,6 +329,33 @@ new class extends Component
         $this->selectedOrder = null;
     }
 
+    public function downloadOrderPdf()
+    {
+        if (!$this->selectedOrder) return;
+
+        $order = LabTestOrder::with([
+            'patient',
+            'physician',
+            'orderTests.test.section',
+            'orderTests.labResult.performedBy',
+            'orderTests.labResult.verifiedBy',
+        ])
+        ->where('lab_test_order_id', $this->selectedOrder->lab_test_order_id)
+        ->where('patient_id', $this->patient->patient_id)
+        ->first();
+
+        if (!$order) return;
+
+        $pdf = Pdf::loadView('pdf.lab-result', ['order' => $order])
+            ->setPaper('a4', 'portrait');
+
+        $filename = 'LabResult_Order_' . $order->lab_test_order_id . '_' . now()->format('Ymd') . '.pdf';
+
+        return response()->streamDownload(function () use ($pdf) {
+            echo $pdf->output();
+        }, $filename);
+    }
+
     public function startEdit()
     {
         $this->editFirstname = $this->patient->firstname;
@@ -511,130 +543,221 @@ new class extends Component
             {{-- ===== LAB RESULTS TAB ===== --}}
             @if($activeTab === 'results')
             <div>
-                <div class="flex items-center justify-between mb-5">
-                    <div>
-                        <h2 class="text-xl font-bold text-gray-900">Lab Results</h2>
-                        <p class="text-sm text-gray-500 mt-0.5">View your lab test orders and results</p>
+                {{-- Page Header --}}
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden mb-5">
+                    <div class="bg-gradient-to-r from-blue-600 to-cyan-400 px-6 py-5">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h2 class="text-lg font-bold text-white">Lab Results</h2>
+                                    <p class="text-sm text-white/70">View your lab test orders and results</p>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-2xl font-bold text-white">{{ count($labOrders) }}</p>
+                                <p class="text-xs text-white/60">Total Orders</p>
+                            </div>
+                        </div>
                     </div>
-                </div>
 
-                @if(count($labOrders) > 0)
-                    {{-- Summary Stats --}}
-                    <div class="grid grid-cols-3 gap-3 mb-5">
-                        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 text-center">
-                            <p class="text-2xl font-bold text-amber-500">{{ collect($labOrders)->where('status', 'pending')->count() }}</p>
+                    @if(count($labOrders) > 0)
+                    {{-- Summary Stats Row --}}
+                    <div class="grid grid-cols-3 divide-x divide-gray-100">
+                        <div class="px-5 py-4 text-center">
+                            <div class="flex items-center justify-center gap-2">
+                                <div class="w-2.5 h-2.5 rounded-full bg-amber-400"></div>
+                                <span class="text-xl font-bold text-gray-900">{{ collect($labOrders)->where('status', 'pending')->count() }}</span>
+                            </div>
                             <p class="text-xs text-gray-500 mt-0.5">Pending</p>
                         </div>
-                        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 text-center">
-                            <p class="text-2xl font-bold text-blue-500">{{ collect($labOrders)->filter(fn($o) => !in_array($o->status, ['completed','cancelled','pending']))->count() }}</p>
+                        <div class="px-5 py-4 text-center">
+                            <div class="flex items-center justify-center gap-2">
+                                <div class="w-2.5 h-2.5 rounded-full bg-blue-400"></div>
+                                <span class="text-xl font-bold text-gray-900">{{ collect($labOrders)->filter(fn($o) => !in_array($o->status, ['completed','cancelled','pending']))->count() }}</span>
+                            </div>
                             <p class="text-xs text-gray-500 mt-0.5">In Progress</p>
                         </div>
-                        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 text-center">
-                            <p class="text-2xl font-bold text-emerald-500">{{ collect($labOrders)->where('status', 'completed')->count() }}</p>
+                        <div class="px-5 py-4 text-center">
+                            <div class="flex items-center justify-center gap-2">
+                                <div class="w-2.5 h-2.5 rounded-full bg-emerald-400"></div>
+                                <span class="text-xl font-bold text-gray-900">{{ collect($labOrders)->where('status', 'completed')->count() }}</span>
+                            </div>
                             <p class="text-xs text-gray-500 mt-0.5">Completed</p>
                         </div>
                     </div>
+                    @endif
+                </div>
 
-                    {{-- Orders List --}}
-                    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-                        <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-gray-50">
-                                <tr>
-                                    <th class="px-5 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Order #</th>
-                                    <th class="px-5 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Date Requested</th>
-                                    <th class="px-5 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Date Released</th>
-                                    <th class="px-5 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Status</th>
-                                    <th class="px-5 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Physician</th>
-                                    <th class="px-5 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Tests</th>
-                                    <th class="px-5 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wide">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-100">
-                                @foreach($labOrders as $order)
-                                @php
-                                    $totalTests = $order->orderTests->count();
-                                    $completedTests = $order->orderTests->where('status', 'completed')->count();
-                                    // Find the latest result date among completed tests as "released" date
-                                    $releasedDate = $order->orderTests
-                                        ->filter(fn($ot) => $ot->labResult && $ot->labResult->result_date)
-                                        ->map(fn($ot) => $ot->labResult->result_date)
-                                        ->sortDesc()
-                                        ->first();
-                                @endphp
-                                <tr class="hover:bg-blue-50/40 transition-colors">
-                                    <td class="px-5 py-3.5">
-                                        <span class="text-sm font-semibold text-gray-900">#{{ $order->lab_test_order_id }}</span>
-                                    </td>
-                                    <td class="px-5 py-3.5">
-                                        <span class="text-sm text-gray-700">{{ $order->order_date ? $order->order_date->format('M d, Y') : '—' }}</span>
-                                        <p class="text-xs text-gray-400">{{ $order->order_date ? $order->order_date->format('h:i A') : '' }}</p>
-                                    </td>
-                                    <td class="px-5 py-3.5">
-                                        @if($releasedDate)
-                                            <span class="text-sm text-gray-700">{{ $releasedDate->format('M d, Y') }}</span>
-                                            <p class="text-xs text-gray-400">{{ $releasedDate->format('h:i A') }}</p>
-                                        @else
-                                            <span class="text-xs text-gray-400 italic">Not yet released</span>
-                                        @endif
-                                    </td>
-                                    <td class="px-5 py-3.5">
-                                        @if($order->status === 'completed')
-                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-700">
-                                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                                                Completed
-                                            </span>
-                                        @elseif($order->status === 'cancelled')
-                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-700">
-                                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                                                Cancelled
-                                            </span>
-                                        @elseif($order->status === 'pending')
-                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-full bg-amber-100 text-amber-700">
-                                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                                                Pending
-                                            </span>
-                                        @else
-                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-700">
-                                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                                                In Progress
-                                            </span>
-                                        @endif
-                                    </td>
-                                    <td class="px-5 py-3.5">
-                                        @if($order->physician)
-                                            <span class="text-sm text-gray-700">Dr. {{ $order->physician->physician_name }}</span>
-                                        @else
-                                            <span class="text-xs text-gray-400">—</span>
-                                        @endif
-                                    </td>
-                                    <td class="px-5 py-3.5">
-                                        <div class="flex items-center gap-1.5">
-                                            <span class="text-sm font-medium text-gray-700">{{ $completedTests }}/{{ $totalTests }}</span>
-                                            <div class="w-12 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                                                <div class="h-full rounded-full {{ $completedTests >= $totalTests ? 'bg-emerald-500' : 'bg-blue-500' }}" 
-                                                     style="width: {{ $totalTests > 0 ? round($completedTests/$totalTests*100) : 0 }}%"></div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td class="px-5 py-3.5 text-center">
-                                        <button wire:click="viewOrder({{ $order->lab_test_order_id }})"
-                                                class="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors">
-                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                                            View
-                                        </button>
-                                    </td>
-                                </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
-                @else
-                    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-12 text-center">
-                        <div class="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
-                            <svg class="w-8 h-8 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                @if(count($labOrders) > 0)
+                    {{-- Search & Filter Bar --}}
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 mb-4">
+                        <div class="flex flex-col sm:flex-row gap-3">
+                            <div class="flex-1 relative">
+                                <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                                </svg>
+                                <input type="text" wire:model.live.debounce.300ms="orderSearch"
+                                       placeholder="Search by order #, physician, or test name..."
+                                       class="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white transition-all">
+                            </div>
+                            <select wire:model.live="orderStatusFilter"
+                                    class="px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white transition-all min-w-[150px]">
+                                <option value="">All Statuses</option>
+                                <option value="pending">Pending</option>
+                                <option value="in_progress">In Progress</option>
+                                <option value="completed">Completed</option>
+                                <option value="cancelled">Cancelled</option>
+                            </select>
                         </div>
-                        <h3 class="text-gray-600 font-semibold mb-1">No Lab Results Yet</h3>
-                        <p class="text-gray-400 text-sm">Your lab results will appear here once they are processed.</p>
+                    </div>
+
+                    {{-- Orders List as Cards --}}
+                    @php
+                        $filtered = collect($labOrders)->filter(function($order) {
+                            // Status filter
+                            if ($this->orderStatusFilter) {
+                                if ($this->orderStatusFilter === 'in_progress') {
+                                    if (in_array($order->status, ['completed', 'cancelled', 'pending'])) return false;
+                                } else {
+                                    if ($order->status !== $this->orderStatusFilter) return false;
+                                }
+                            }
+                            // Search filter
+                            if ($this->orderSearch) {
+                                $search = strtolower($this->orderSearch);
+                                $haystack = strtolower(
+                                    $order->lab_test_order_id . ' ' .
+                                    ($order->physician->physician_name ?? '') . ' ' .
+                                    $order->orderTests->map(fn($ot) => $ot->test->label ?? '')->implode(' ')
+                                );
+                                if (!str_contains($haystack, $search)) return false;
+                            }
+                            return true;
+                        });
+                    @endphp
+
+                    @if($filtered->isEmpty())
+                        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-10 text-center">
+                            <div class="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3">
+                                <svg class="w-7 h-7 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                            </div>
+                            <h3 class="text-gray-600 font-semibold mb-1">No matching orders</h3>
+                            <p class="text-gray-400 text-sm">Try adjusting your search or filter criteria.</p>
+                        </div>
+                    @else
+                    <div class="space-y-3">
+                        @foreach($filtered as $order)
+                        @php
+                            $totalTests = $order->orderTests->count();
+                            $completedTests = $order->orderTests->where('status', 'completed')->count();
+                            $pctComplete = $totalTests > 0 ? round($completedTests/$totalTests*100) : 0;
+                            $releasedDate = $order->orderTests
+                                ->filter(fn($ot) => $ot->labResult && $ot->labResult->result_date)
+                                ->map(fn($ot) => $ot->labResult->result_date)
+                                ->sortDesc()
+                                ->first();
+                            $testNames = $order->orderTests->map(fn($ot) => $ot->test->label ?? 'Unknown')->take(3);
+                            $extraTests = $totalTests - 3;
+                            $statusProps = match($order->status) {
+                                'completed' => ['class' => 'bg-emerald-50 text-emerald-700 border-emerald-200', 'icon' => 'M5 13l4 4L19 7', 'dot' => 'bg-emerald-400', 'label' => 'Completed', 'accent' => 'border-l-emerald-400'],
+                                'cancelled' => ['class' => 'bg-red-50 text-red-700 border-red-200', 'icon' => 'M6 18L18 6M6 6l12 12', 'dot' => 'bg-red-400', 'label' => 'Cancelled', 'accent' => 'border-l-red-400'],
+                                'pending' => ['class' => 'bg-amber-50 text-amber-700 border-amber-200', 'icon' => 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z', 'dot' => 'bg-amber-400', 'label' => 'Pending', 'accent' => 'border-l-amber-400'],
+                                default => ['class' => 'bg-blue-50 text-blue-700 border-blue-200', 'icon' => 'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15', 'dot' => 'bg-blue-400', 'label' => 'In Progress', 'accent' => 'border-l-blue-400'],
+                            };
+                        @endphp
+                        <div wire:click="viewOrder({{ $order->lab_test_order_id }})"
+                             class="bg-white rounded-2xl shadow-sm border border-gray-200 border-l-4 {{ $statusProps['accent'] }} hover:shadow-md hover:border-gray-300 transition-all cursor-pointer group">
+
+                            {{-- Card Top Row --}}
+                            <div class="px-5 pt-4 pb-3 flex items-start justify-between gap-4">
+                                <div class="flex items-start gap-3.5 min-w-0">
+                                    {{-- Order Icon --}}
+                                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center flex-shrink-0 shadow-sm shadow-blue-500/20 group-hover:shadow-md group-hover:shadow-blue-500/30 transition-shadow">
+                                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                                        </svg>
+                                    </div>
+                                    <div class="min-w-0">
+                                        <div class="flex items-center gap-2 flex-wrap">
+                                            <h3 class="text-sm font-bold text-gray-900">Order #{{ $order->lab_test_order_id }}</h3>
+                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-semibold rounded-full border {{ $statusProps['class'] }}">
+                                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $statusProps['icon'] }}"/></svg>
+                                                {{ $statusProps['label'] }}
+                                            </span>
+                                        </div>
+                                        @if($order->physician)
+                                            <p class="text-xs text-gray-500 mt-0.5">
+                                                <span class="text-gray-400">Physician:</span>
+                                                Dr. {{ $order->physician->physician_name }}
+                                            </p>
+                                        @endif
+                                    </div>
+                                </div>
+                                {{-- Arrow indicator --}}
+                                <svg class="w-5 h-5 text-gray-300 group-hover:text-blue-400 group-hover:translate-x-0.5 transition-all flex-shrink-0 mt-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                </svg>
+                            </div>
+
+                            {{-- Test Names --}}
+                            <div class="px-5 pb-3">
+                                <div class="flex flex-wrap gap-1.5">
+                                    @foreach($testNames as $name)
+                                        <span class="inline-flex items-center px-2.5 py-1 bg-gray-50 border border-gray-100 rounded-lg text-xs text-gray-600 font-medium">
+                                            <svg class="w-3 h-3 text-gray-400 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>
+                                            {{ $name }}
+                                        </span>
+                                    @endforeach
+                                    @if($extraTests > 0)
+                                        <span class="inline-flex items-center px-2.5 py-1 bg-blue-50 border border-blue-100 rounded-lg text-xs text-blue-600 font-medium">
+                                            +{{ $extraTests }} more
+                                        </span>
+                                    @endif
+                                </div>
+                            </div>
+
+                            {{-- Card Bottom Row --}}
+                            <div class="px-5 py-3 bg-gray-50/50 border-t border-gray-100 rounded-b-2xl flex items-center justify-between gap-4">
+                                <div class="flex items-center gap-4 text-xs text-gray-500">
+                                    <div class="flex items-center gap-1.5">
+                                        <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                                        <span>{{ $order->order_date ? $order->order_date->format('M d, Y') : '—' }}</span>
+                                    </div>
+                                    @if($releasedDate)
+                                    <div class="flex items-center gap-1.5">
+                                        <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                        <span class="text-emerald-600 font-medium">Released {{ $releasedDate->format('M d, Y') }}</span>
+                                    </div>
+                                    @endif
+                                </div>
+                                {{-- Progress --}}
+                                <div class="flex items-center gap-2">
+                                    <span class="text-xs font-semibold {{ $pctComplete === 100 ? 'text-emerald-600' : 'text-gray-500' }}">{{ $completedTests }}/{{ $totalTests }}</span>
+                                    <div class="w-20 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                                        <div class="h-full rounded-full transition-all duration-500 {{ $pctComplete === 100 ? 'bg-emerald-400' : 'bg-gradient-to-r from-blue-500 to-cyan-400' }}" 
+                                             style="width: {{ $pctComplete }}%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        @endforeach
+                    </div>
+                    @endif
+                @else
+                    {{-- Empty State --}}
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-16 text-center">
+                        <div class="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-50 to-cyan-50 flex items-center justify-center mx-auto mb-5">
+                            <svg class="w-10 h-10 text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
+                            </svg>
+                        </div>
+                        <h3 class="text-lg font-bold text-gray-900 mb-2">No Lab Results Yet</h3>
+                        <p class="text-gray-500 text-sm leading-relaxed max-w-sm mx-auto">Your lab test orders and results will appear here once they are processed by the laboratory team.</p>
                     </div>
                 @endif
             </div>
@@ -796,7 +919,7 @@ new class extends Component
                                            class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white transition-all">
                                 </div>
                                 <button wire:click="verifyCertificate"
-                                        class="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white font-medium text-sm rounded-xl shadow-sm shadow-blue-500/25 transition-all flex items-center gap-2">
+                                        class="px-6 py-3 bg-gradient-to-r from-blue-600 to-cyan-400 hover:from-blue-700 hover:to-cyan-500 text-white font-medium text-sm rounded-xl shadow-sm shadow-blue-500/25 transition-all flex items-center gap-2">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                                     Verify
                                 </button>
@@ -1034,7 +1157,7 @@ new class extends Component
                                     Cancel
                                 </button>
                                 <button type="submit"
-                                        class="px-5 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 rounded-xl shadow-sm shadow-blue-500/25 transition-all">
+                                        class="px-5 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-cyan-400 hover:from-blue-700 hover:to-cyan-500 rounded-xl shadow-sm shadow-blue-500/25 transition-all">
                                     Save Changes
                                 </button>
                             </div>
@@ -1106,7 +1229,7 @@ new class extends Component
     <div class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4" wire:click.self="closeOrder">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col" id="printable-result">
             {{-- Header --}}
-            <div class="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-5 text-white">
+            <div class="bg-gradient-to-r from-blue-600 to-cyan-400 px-6 py-5 text-white">
                 <div class="flex items-center justify-between">
                     <div>
                         <h3 class="text-lg font-bold">Lab Test Order #{{ $selectedOrder->lab_test_order_id }}</h3>
@@ -1304,30 +1427,17 @@ new class extends Component
                     Close
                 </button>
                 <div class="flex items-center gap-2">
-                    <button onclick="printResult()"
-                            class="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 rounded-xl shadow-sm shadow-blue-500/25 transition-all">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
-                        Print Result
+                    <button wire:click="downloadOrderPdf"
+                            class="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-cyan-400 hover:from-blue-700 hover:to-cyan-500 rounded-xl shadow-sm shadow-blue-500/25 transition-all">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                        </svg>
+                        Download PDF
                     </button>
                 </div>
             </div>
         </div>
     </div>
-
-    <script>
-        function printResult() {
-            window.print();
-        }
-    </script>
-
-    <style>
-        @media print {
-            body * { visibility: hidden; }
-            #printable-result, #printable-result * { visibility: visible; }
-            #printable-result { position: fixed; left: 0; top: 0; width: 100%; max-height: none; overflow: visible; box-shadow: none; border-radius: 0; }
-            .print\\:hidden { display: none !important; }
-        }
-    </style>
     @endif
 
     {{-- ===== CERTIFICATE DETAIL MODAL ===== --}}
@@ -1335,7 +1445,7 @@ new class extends Component
     <div class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4" wire:click.self="closeCertificate">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden">
             {{-- Header --}}
-            <div class="px-6 py-4 bg-gradient-to-r from-blue-600 to-blue-500 flex items-center justify-between">
+            <div class="px-6 py-4 bg-gradient-to-r from-blue-600 to-cyan-400 flex items-center justify-between">
                 <div class="flex items-center gap-3">
                     <div class="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
                         <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1467,7 +1577,7 @@ new class extends Component
                     @if($selectedCertificate['pdf_path'] || $selectedCertificate['source'] === 'certificate')
                     <a href="{{ route('patient.certificate.download', ['source' => $selectedCertificate['source'], 'id' => $selectedCertificate['id']]) }}"
                        target="_blank"
-                       class="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 rounded-xl shadow-sm shadow-blue-500/25 transition-all">
+                       class="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-cyan-400 hover:from-blue-700 hover:to-cyan-500 rounded-xl shadow-sm shadow-blue-500/25 transition-all">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                         Download PDF
                     </a>
