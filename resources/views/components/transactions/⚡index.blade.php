@@ -479,7 +479,8 @@ public function updatedSelectAll($value)
                             Cancel
                         </button>
                         <button type="submit" 
-                                class="px-5 py-2.5 bg-purple-600 text-white text-sm rounded-md font-medium hover:bg-purple-700">
+                                style="background-color: #DC143C;"
+                                class="px-5 py-2.5 text-white text-sm rounded-md font-medium hover:opacity-90 transition-opacity">
                             Update Transaction
                         </button>
                     </div>
@@ -510,7 +511,8 @@ public function updatedSelectAll($value)
                         Close
                     </button>
                     <button type="button" wire:click="enableEdit" 
-                            class="px-5 py-2.5 bg-orange-500 text-white text-sm rounded-md font-medium hover:bg-orange-600">
+                            style="background-color: #DC143C;"
+                            class="px-5 py-2.5 text-white text-sm rounded-md font-medium hover:opacity-90 transition-opacity">
                         Edit
                     </button>
                 </div>

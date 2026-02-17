@@ -477,7 +477,8 @@ new class extends Component
                             Cancel
                         </button>
                         <button type="submit" 
-                                class="px-5 py-2.5 bg-orange-500 text-white text-sm rounded-md font-medium hover:bg-orange-600 focus:outline-none">
+                                style="background-color: #DC143C;"
+                                class="px-5 py-2.5 text-white text-sm rounded-md font-medium hover:opacity-90 transition-opacity focus:outline-none">
                             Update Item
                         </button>
                     </div>
@@ -536,4 +537,3 @@ new class extends Component
     </div>
     @endif
 </div>
-

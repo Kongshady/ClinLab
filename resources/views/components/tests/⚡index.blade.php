@@ -543,7 +543,7 @@ new class extends Component
                         Cancel
                     </button>
                     <button type="submit"
-                            class="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-medium rounded-lg transition-colors">
+                            class="px-4 py-2 bg-[#DC143C] hover:bg-[#C41E3A] text-white font-medium rounded-lg transition-colors">
                         Update Test
                     </button>
                 </div>

@@ -213,7 +213,8 @@ new class extends Component
                                     <div class="flex items-center space-x-2">
                                         <button wire:click="editSection({{ $section->section_id }})"
                                                 type="button"
-                                                class="px-4 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg transition-colors">
+                                                style="background-color: #DC143C;"
+                                                class="px-4 py-1.5 text-white text-sm font-medium rounded-lg hover:opacity-90 transition-opacity">
                                             Edit
                                         </button>
                                         <button wire:click="delete({{ $section->section_id }})" 
@@ -271,7 +272,8 @@ new class extends Component
                         Cancel
                     </button>
                     <button type="submit"
-                            class="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-medium rounded-lg transition-colors">
+                            style="background-color: #DC143C;"
+                            class="px-4 py-2 text-white font-medium rounded-lg hover:opacity-90 transition-opacity">
                         Update Section
                     </button>
                 </div>

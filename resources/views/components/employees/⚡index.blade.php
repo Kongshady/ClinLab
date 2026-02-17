@@ -439,7 +439,8 @@ new class extends Component
                                 <td class="px-4 py-3">
                                     <div class="flex items-center space-x-2">
                                         <button wire:click="edit({{ $employee->employee_id }})"
-                                                class="px-4 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg transition-colors">
+                                                style="background-color: #DC143C;"
+                                                class="px-4 py-1.5 text-white text-sm font-medium rounded-lg hover:opacity-90 transition-opacity">
                                             Edit
                                         </button>
                                         <button wire:click="delete({{ $employee->employee_id }})" 
@@ -590,7 +591,9 @@ new class extends Component
                     <button type="button" wire:click="cancelEdit" class="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
                         Cancel
                     </button>
-                    <button type="submit" class="px-6 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition-colors">
+                    <button type="submit"
+                            style="background-color: #DC143C;"
+                            class="px-6 py-2 text-white rounded-lg hover:opacity-90 transition-opacity">
                         Update Employee
                     </button>
                 </div>

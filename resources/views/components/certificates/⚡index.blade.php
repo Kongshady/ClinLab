@@ -175,11 +175,25 @@ new class extends Component
     {
         $certificate = Certificate::find($id);
         if ($certificate) {
-            $certificate->delete();
-            $this->logActivity("Deleted certificate ID {$id}");
-            $this->flashMessage = 'Certificate deleted successfully!';
-            $this->resetPage();
+            $this->deleteCertificateId = $id;
+            $this->deleteMessage = "Are you sure you want to delete certificate '{$certificate->certificate_number}'? This action cannot be undone.";
+            $this->deleteAction = 'confirmDelete';
+            $this->showDeleteModal = true;
         }
+    }
+
+    public function confirmDelete()
+    {
+        if ($this->deleteCertificateId) {
+            $certificate = Certificate::find($this->deleteCertificateId);
+            if ($certificate) {
+                $certificate->delete();
+                $this->logActivity("Deleted certificate ID {$this->deleteCertificateId}");
+                $this->flashMessage = 'Certificate deleted successfully!';
+            }
+        }
+        $this->closeDeleteModal();
+        $this->resetPage();
     }
 
     // UPDATED: New delete selected method
@@ -745,7 +759,7 @@ new class extends Component
                             Cancel
                         </button>
                         <button type="submit" 
-                                class="px-5 py-2.5 bg-orange-500 text-white text-sm rounded-md font-medium hover:bg-orange-600 focus:outline-none">
+                                class="px-5 py-2.5 bg-[#1f1517] text-white text-sm rounded-md font-medium hover:bg-[#C41E3A] focus:outline-none">
                             Update Certificate
                         </button>
                     </div>
@@ -763,7 +777,9 @@ new class extends Component
                 <!-- Modal Header -->
                 <div class="px-6 py-4 border-b border-gray-200">
                     <div class="flex items-center justify-between">
-                        <h3 class="text-xl font-semibold text-gray-900">Confirm Deletion</h3>
+                        <h3 class="text-xl font-semibold text-gray-900">
+                            Confirm Deletion
+                        </h3>
                         <button type="button" wire:click="closeDeleteModal" class="text-gray-400 hover:text-gray-600">
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>

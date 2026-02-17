@@ -536,7 +536,8 @@ new class extends Component
                             Cancel
                         </button>
                         <button type="submit" 
-                                class="px-5 py-2.5 bg-pink-600 text-white text-sm rounded-md font-medium hover:bg-pink-700">
+                                style="background-color: #DC143C;" 
+                                class="px-5 py-2.5 text-white text-sm rounded-md font-medium hover:opacity-90 transition-opacity">
                             Update Physician
                         </button>
                     </div>
@@ -579,7 +580,8 @@ new class extends Component
                         Close
                     </button>
                     <button type="button" wire:click="enableEdit" 
-                            class="px-5 py-2.5 bg-orange-500 text-white text-sm rounded-md font-medium hover:bg-orange-600">
+                            style="background-color: #DC143C;"
+                            class="px-5 py-2.5 text-white text-sm rounded-md font-medium hover:opacity-90 transition-opacity">
                         Edit
                     </button>
                 </div>
@@ -589,4 +591,3 @@ new class extends Component
     </div>
     @endif
 </div>
-

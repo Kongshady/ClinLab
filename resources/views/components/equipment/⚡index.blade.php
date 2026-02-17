@@ -596,7 +596,7 @@ new class extends Component
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                                         <a href="{{ route('equipment.show', $item->equipment_id) }}" class="inline-block px-4 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors">Details</a>
-                                        <button type="button" wire:click="edit({{ $item->equipment_id }})" class="px-4 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg transition-colors">Edit</button>
+                                        <button type="button" wire:click="edit({{ $item->equipment_id }})" style="background-color: #DC143C;" class="px-4 py-1.5 text-white text-sm font-medium rounded-lg hover:opacity-90 transition-opacity">Edit</button>
                                         <button type="button" wire:click="delete({{ $item->equipment_id }})" wire:confirm="Are you sure you want to delete this equipment?" class="px-4 py-1.5 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors">Delete</button>
                                     </td>
                                 </tr>
@@ -861,7 +861,9 @@ new class extends Component
                     <button type="button" wire:click="cancelEdit" class="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
                         Cancel
                     </button>
-                    <button type="submit" class="px-6 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition-colors">
+                    <button type="submit" 
+                            style="background-color: #DC143C;"
+                            class="px-6 py-2 text-white rounded-lg hover:opacity-90 transition-opacity">
                         Update Equipment
                     </button>
                 </div>
