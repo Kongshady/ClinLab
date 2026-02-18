@@ -49,6 +49,16 @@ new class extends Component
     public $viewMode = false;
     public $viewingPatient = null;
 
+    // Modal inline edit
+    public $modalEditMode = false;
+    public $modalFirstname = '';
+    public $modalMiddlename = '';
+    public $modalLastname = '';
+    public $modalBirthdate = '';
+    public $modalGender = '';
+    public $modalContact = '';
+    public $modalAddress = '';
+
     // Form visibility toggle
     public $showForm = false;
 
@@ -171,6 +181,71 @@ new class extends Component
         $this->viewMode = false;
         $this->viewingPatient = null;
         $this->patientLabResults = [];
+        $this->modalEditMode = false;
+        $this->resetModalEditFields();
+    }
+
+    public function startModalEdit()
+    {
+        if (!$this->viewingPatient) return;
+        $this->modalFirstname = $this->viewingPatient->firstname;
+        $this->modalMiddlename = $this->viewingPatient->middlename ?? '';
+        $this->modalLastname = $this->viewingPatient->lastname;
+        $this->modalBirthdate = $this->viewingPatient->birthdate ? \Carbon\Carbon::parse($this->viewingPatient->birthdate)->format('Y-m-d') : '';
+        $this->modalGender = $this->viewingPatient->gender;
+        $this->modalContact = $this->viewingPatient->contact_number ?? '';
+        $this->modalAddress = $this->viewingPatient->address ?? '';
+        $this->modalEditMode = true;
+    }
+
+    public function cancelModalEdit()
+    {
+        $this->modalEditMode = false;
+        $this->resetModalEditFields();
+        $this->resetErrorBag();
+    }
+
+    public function saveModalEdit()
+    {
+        $this->validate([
+            'modalFirstname' => 'required|string|max:20',
+            'modalMiddlename' => 'nullable|string|max:20',
+            'modalLastname' => 'required|string|max:50',
+            'modalBirthdate' => 'required|date',
+            'modalGender' => 'required|string|max:10',
+            'modalContact' => 'nullable|numeric|digits:11',
+            'modalAddress' => 'nullable|string|max:200',
+        ]);
+
+        $patient = Patient::findOrFail($this->viewingPatient->patient_id);
+        $patient->update([
+            'firstname' => $this->modalFirstname,
+            'middlename' => $this->modalMiddlename ?: null,
+            'lastname' => $this->modalLastname,
+            'birthdate' => $this->modalBirthdate,
+            'gender' => $this->modalGender,
+            'contact_number' => $this->modalContact ?: null,
+            'address' => $this->modalAddress ?: null,
+        ]);
+
+        $this->logActivity("Updated patient ID {$patient->patient_id}: {$this->modalFirstname} {$this->modalLastname}");
+        $this->flashMessage = 'Patient updated successfully.';
+
+        // Refresh the viewing patient data
+        $this->viewingPatient = Patient::findOrFail($patient->patient_id);
+        $this->modalEditMode = false;
+        $this->resetModalEditFields();
+    }
+
+    protected function resetModalEditFields()
+    {
+        $this->modalFirstname = '';
+        $this->modalMiddlename = '';
+        $this->modalLastname = '';
+        $this->modalBirthdate = '';
+        $this->modalGender = '';
+        $this->modalContact = '';
+        $this->modalAddress = '';
     }
 
     public function delete($id)
@@ -539,11 +614,21 @@ new class extends Component
         <div class="relative top-10 mx-auto p-6 border w-full max-w-5xl shadow-lg rounded-xl bg-white">
             <div class="flex items-center justify-between mb-6">
                 <h3 class="text-2xl font-bold text-gray-900">Patient Details</h3>
-                <button wire:click="closeView" class="text-gray-400 hover:text-gray-600">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                    </svg>
-                </button>
+                <div class="flex items-center gap-2">
+                    @if(!$modalEditMode)
+                        <button wire:click="startModalEdit" class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                            </svg>
+                            Edit
+                        </button>
+                    @endif
+                    <button wire:click="closeView" class="text-gray-400 hover:text-gray-600 p-1">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
             </div>
             
             <div class="space-y-4">
@@ -557,6 +642,82 @@ new class extends Component
                     </div>
                 </div>
 
+                @if($modalEditMode)
+                {{-- Inline Edit Form --}}
+                <form wire:submit.prevent="saveModalEdit">
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-blue-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <p class="text-sm text-blue-700">You are editing this patient's information. Make your changes and click <strong>Save Changes</strong>.</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-500 uppercase mb-1.5">First Name <span class="text-red-400">*</span></label>
+                            <input type="text" wire:model="modalFirstname" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm" required>
+                            @error('modalFirstname') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Middle Name</label>
+                            <input type="text" wire:model="modalMiddlename" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">
+                            @error('modalMiddlename') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Last Name <span class="text-red-400">*</span></label>
+                            <input type="text" wire:model="modalLastname" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm" required>
+                            @error('modalLastname') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Date of Birth <span class="text-red-400">*</span></label>
+                            <input type="date" wire:model="modalBirthdate" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm" required>
+                            @error('modalBirthdate') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Gender <span class="text-red-400">*</span></label>
+                            <select wire:model="modalGender" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm" required>
+                                <option value="">Select Gender</option>
+                                <option value="Male">Male</option>
+                                <option value="Female">Female</option>
+                            </select>
+                            @error('modalGender') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                        </div>
+                        <div x-data="{ val: $wire.entangle('modalContact'), get missing() { return this.val ? 11 - this.val.length : 0 } }">
+                            <label class="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Contact Number</label>
+                            <input type="text" wire:model="modalContact" placeholder="09123456789" maxlength="11"
+                                   @input="val = $event.target.value = $event.target.value.replace(/[^0-9]/g, '').slice(0, 11)"
+                                   :class="val && val.length > 0 && val.length < 11 ? 'border-red-400 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'"
+                                   class="w-full px-3 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent text-sm">
+                            <template x-if="val && val.length > 0 && val.length < 11">
+                                <span class="text-red-500 text-xs mt-1 block" x-text="'Missing ' + missing + (missing === 1 ? ' digit' : ' digits')"></span>
+                            </template>
+                            @error('modalContact') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Address</label>
+                        <input type="text" wire:model="modalAddress" placeholder="123 Street, City" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">
+                        @error('modalAddress') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                    </div>
+
+                    <div class="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">
+                        <button type="button" wire:click="cancelModalEdit" class="px-5 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
+                            Cancel
+                        </button>
+                        <button type="submit" class="inline-flex items-center gap-1.5 px-5 py-2.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                            </svg>
+                            Save Changes
+                        </button>
+                    </div>
+                </form>
+                @else
+                {{-- View Mode --}}
                 <div class="grid grid-cols-2 gap-4">
                     <div class="bg-gray-50 p-4 rounded-lg">
                         <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Gender</p>
@@ -570,7 +731,7 @@ new class extends Component
                         <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Age</p>
                         <p class="text-sm font-medium text-gray-900">{{ \Carbon\Carbon::parse($viewingPatient->birthdate)->age }} years old</p>
                     </div>
-                    <div class="bg-gray-50 p-4 rounded-lg col-span-2">
+                    <div class="bg-gray-50 p-4 rounded-lg">
                         <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Contact Number</p>
                         <p class="text-sm font-medium text-gray-900">{{ $viewingPatient->contact_number ?: 'N/A' }}</p>
                     </div>
@@ -587,6 +748,7 @@ new class extends Component
                         <p class="text-sm font-medium text-green-600">Active</p>
                     </div>
                 </div>
+                @endif
 
                 <!-- Lab Results Section -->
                 <div class="mt-6">

@@ -4,15 +4,16 @@ use Livewire\Component;
 use Livewire\WithPagination;
 use Livewire\Attributes\Validate;
 use App\Models\Equipment;
+use App\Models\Employee;
 use App\Models\Section;
 use App\Models\EquipmentUsage;
+use App\Models\MaintenanceRecord;
+use App\Models\CalibrationRecord;
 use App\Traits\LogsActivity;
 
 new class extends Component
 {
     use WithPagination, LogsActivity;
-
-    public $activeTab = 'equipment';
 
     // Equipment Properties
     #[Validate('required|string|max:255')]
@@ -55,7 +56,7 @@ new class extends Component
     #[Validate('required|date')]
     public $usage_date_used = '';
 
-    #[Validate('required|string|max:200')]
+    public $usage_employee_id = '';
     public $usage_user_name = '';
 
     #[Validate('required|string|max:200')]
@@ -76,14 +77,38 @@ new class extends Component
     #[Validate('nullable|string|max:500')]
     public $usage_remarks = '';
 
-    public $usagePerPage = 10;
-
     // Edit mode
     public $editMode = false;
     public $editingEquipmentId = null;
 
     public bool $showUsageModal = false;
     public bool $showEquipmentModal = false;
+
+    // Details Modal
+    public bool $showDetailsModal = false;
+    public $detailsEquipment = null;
+    public array $detailsMaintenanceHistory = [];
+    public array $detailsCalibrationHistory = [];
+    public array $detailsUsageHistory = [];
+
+    // Maintenance Record Properties
+    public bool $showMaintenanceModal = false;
+    public $maint_equipment_id = '';
+    public $maint_equipment_name = '';
+    public $maint_performed_date = '';
+    public $maint_performed_by = '';
+    public $maint_findings = '';
+    public $maint_action_taken = '';
+    public $maint_next_due_date = '';
+    public $maint_status = 'completed';
+
+    // Delete Confirmation Modal
+    public bool $showDeleteModal = false;
+    public $deleteEquipmentId = null;
+    public $deleteEquipmentName = '';
+
+    // Equipment list section filter
+    public $filterEquipmentSection = '';
 
     public function mount()
     {
@@ -93,15 +118,9 @@ new class extends Component
         $this->usage_date_used = now()->format('Y-m-d');
     }
 
-    public function setTab($tab)
-    {
-        $this->activeTab = $tab;
-        $this->resetValidation();
-    }
-
     public function openUsageModal()
     {
-        $this->reset(['usage_equipment_id', 'usage_user_name', 'usage_item_name', 'usage_quantity', 'usage_purpose', 'usage_or_number', 'usage_remarks']);
+        $this->reset(['usage_equipment_id', 'usage_employee_id', 'usage_user_name', 'usage_item_name', 'usage_quantity', 'usage_purpose', 'usage_or_number', 'usage_remarks']);
         $this->usage_status = 'functional';
         $this->usage_date_used = now()->format('Y-m-d');
         $this->usage_quantity = 1;
@@ -216,15 +235,88 @@ new class extends Component
         $this->status = 'Operational';
     }
 
-    public function delete($id)
+    public function confirmDelete($id)
     {
         $equipment = Equipment::find($id);
         if ($equipment) {
+            $this->deleteEquipmentId = $id;
+            $this->deleteEquipmentName = $equipment->name;
+            $this->showDeleteModal = true;
+        }
+    }
+
+    public function cancelDelete()
+    {
+        $this->showDeleteModal = false;
+        $this->deleteEquipmentId = null;
+        $this->deleteEquipmentName = '';
+    }
+
+    public function deleteConfirmed()
+    {
+        $equipment = Equipment::find($this->deleteEquipmentId);
+        if ($equipment) {
             $equipment->softDelete();
-            $this->logActivity("Deleted equipment ID {$id}: {$equipment->name}");
-            $this->flashMessage = 'Equipment deleted successfully!';
+            $this->logActivity("Deleted equipment ID {$this->deleteEquipmentId}: {$equipment->name}");
+            $this->flashMessage = "Equipment '{$equipment->name}' deleted successfully!";
             $this->resetPage();
         }
+        $this->showDeleteModal = false;
+        $this->deleteEquipmentId = null;
+        $this->deleteEquipmentName = '';
+    }
+
+    public function openDetailsModal($id)
+    {
+        $equipment = Equipment::with(['section'])->find($id);
+        if (!$equipment) return;
+
+        $this->detailsEquipment = $equipment;
+
+        // Load maintenance history
+        $this->detailsMaintenanceHistory = MaintenanceRecord::where('maintenance_record.equipment_id', $id)
+            ->where('maintenance_record.is_deleted', 0)
+            ->leftJoin('employee', 'maintenance_record.performed_by', '=', 'employee.employee_id')
+            ->select(
+                'maintenance_record.*',
+                \Illuminate\Support\Facades\DB::raw("CONCAT(employee.firstname, ' ', employee.lastname) as performed_by_name")
+            )
+            ->orderBy('performed_date', 'desc')
+            ->limit(20)
+            ->get()
+            ->toArray();
+
+        // Load calibration history
+        $this->detailsCalibrationHistory = CalibrationRecord::where('calibration_record.equipment_id', $id)
+            ->leftJoin('employee', 'calibration_record.performed_by', '=', 'employee.employee_id')
+            ->leftJoin('calibration_procedure', 'calibration_record.procedure_id', '=', 'calibration_procedure.procedure_id')
+            ->select(
+                'calibration_record.*',
+                \Illuminate\Support\Facades\DB::raw("CONCAT(employee.firstname, ' ', employee.lastname) as performed_by_name"),
+                'calibration_procedure.procedure_name'
+            )
+            ->orderBy('calibration_date', 'desc')
+            ->limit(20)
+            ->get()
+            ->toArray();
+
+        // Load usage history
+        $this->detailsUsageHistory = EquipmentUsage::where('equipment_id', $id)
+            ->orderBy('date_used', 'desc')
+            ->limit(20)
+            ->get()
+            ->toArray();
+
+        $this->showDetailsModal = true;
+    }
+
+    public function closeDetailsModal()
+    {
+        $this->showDetailsModal = false;
+        $this->detailsEquipment = null;
+        $this->detailsMaintenanceHistory = [];
+        $this->detailsCalibrationHistory = [];
+        $this->detailsUsageHistory = [];
     }
 
     public function saveUsage()
@@ -232,17 +324,26 @@ new class extends Component
         $this->validate([
             'usage_equipment_id' => 'required|exists:equipment,equipment_id',
             'usage_date_used' => 'required|date',
-            'usage_user_name' => 'required|string|max:200',
+            'usage_employee_id' => 'required|exists:employee,employee_id',
             'usage_item_name' => 'required|string|max:200',
             'usage_quantity' => 'required|integer|min:1',
             'usage_purpose' => 'required|string|max:500',
             'usage_or_number' => 'nullable|string|max:50',
             'usage_status' => 'required|in:functional,not_functional',
             'usage_remarks' => 'nullable|string|max:500',
+        ], [
+            'usage_employee_id.required' => 'Please select the employee who used the equipment.',
+            'usage_employee_id.exists' => 'Selected employee does not exist.',
         ]);
 
+        // Derive user_name from the selected employee
+        $employee = Employee::findOrFail($this->usage_employee_id);
+        $this->usage_user_name = $employee->firstname . ' ' . $employee->lastname;
+
+        $equipmentId = $this->usage_equipment_id;
+
         EquipmentUsage::create([
-            'equipment_id' => $this->usage_equipment_id,
+            'equipment_id' => $equipmentId,
             'date_used' => $this->usage_date_used,
             'user_name' => $this->usage_user_name,
             'item_name' => $this->usage_item_name,
@@ -254,13 +355,87 @@ new class extends Component
             'datetime_added' => now(),
         ]);
 
-        $this->reset(['usage_equipment_id', 'usage_user_name', 'usage_item_name', 'usage_quantity', 'usage_purpose', 'usage_or_number', 'usage_remarks']);
+        // If equipment is reported not functional, update its status to Under Maintenance
+        if ($this->usage_status === 'not_functional') {
+            Equipment::where('equipment_id', $equipmentId)
+                ->update(['status' => 'Under Maintenance']);
+        }
+
+        $this->logActivity("Recorded equipment usage for equipment: {$employee->firstname} {$employee->lastname} used equipment ID {$equipmentId}");
+        $this->reset(['usage_equipment_id', 'usage_employee_id', 'usage_user_name', 'usage_item_name', 'usage_quantity', 'usage_purpose', 'usage_or_number', 'usage_remarks']);
         $this->usage_status = 'functional';
         $this->usage_date_used = now()->format('Y-m-d');
-        $this->logActivity("Recorded equipment usage for equipment ID {$this->usage_equipment_id}");
         $this->flashMessage = 'Equipment usage recorded successfully!';
         $this->showUsageModal = false;
         $this->resetPage();
+    }
+
+    // Maintenance Record Methods
+    public function openMaintenanceModal($equipmentId = null)
+    {
+        $this->reset(['maint_equipment_id', 'maint_equipment_name', 'maint_performed_date', 'maint_performed_by', 'maint_findings', 'maint_action_taken', 'maint_next_due_date']);
+        $this->maint_status = 'completed';
+        $this->maint_performed_date = now()->format('Y-m-d');
+        $this->resetValidation();
+
+        if ($equipmentId) {
+            $equipment = Equipment::find($equipmentId);
+            if ($equipment) {
+                $this->maint_equipment_id = $equipmentId;
+                $this->maint_equipment_name = $equipment->name;
+            }
+        }
+
+        $this->showMaintenanceModal = true;
+    }
+
+    public function closeMaintenanceModal()
+    {
+        $this->showMaintenanceModal = false;
+        $this->resetValidation();
+    }
+
+    public function saveMaintenance()
+    {
+        $this->validate([
+            'maint_equipment_id' => 'required|exists:equipment,equipment_id',
+            'maint_performed_date' => 'required|date',
+            'maint_performed_by' => 'required|exists:employee,employee_id',
+            'maint_findings' => 'nullable|string|max:2000',
+            'maint_action_taken' => 'nullable|string|max:2000',
+            'maint_next_due_date' => 'nullable|date|after_or_equal:maint_performed_date',
+            'maint_status' => 'required|in:completed,pending,overdue',
+        ], [
+            'maint_equipment_id.required' => 'Please select the equipment.',
+            'maint_performed_by.required' => 'Please select the employee who performed maintenance.',
+            'maint_next_due_date.after_or_equal' => 'Next due date must be on or after the performed date.',
+        ]);
+
+        $equipment = Equipment::find($this->maint_equipment_id);
+
+        MaintenanceRecord::create([
+            'equipment_id' => $this->maint_equipment_id,
+            'performed_date' => $this->maint_performed_date,
+            'performed_by' => $this->maint_performed_by,
+            'findings' => $this->maint_findings,
+            'action_taken' => $this->maint_action_taken,
+            'next_due_date' => $this->maint_next_due_date ?: null,
+            'status' => $this->maint_status,
+            'is_deleted' => 0,
+            'datetime_added' => now(),
+        ]);
+
+        // If maintenance is completed, set equipment back to Operational
+        if ($this->maint_status === 'completed' && $equipment && $equipment->status === 'Under Maintenance') {
+            $equipment->update(['status' => 'Operational']);
+        }
+
+        $this->logActivity("Recorded maintenance for equipment: {$equipment->name} (ID: {$this->maint_equipment_id})");
+        $this->reset(['maint_equipment_id', 'maint_equipment_name', 'maint_performed_date', 'maint_performed_by', 'maint_findings', 'maint_action_taken', 'maint_next_due_date']);
+        $this->maint_status = 'completed';
+        $this->flashMessage = 'Maintenance record saved successfully!';
+        $this->showMaintenanceModal = false;
+        $this->resetValidation();
     }
 
     public function getMaintenanceAlerts()
@@ -282,11 +457,11 @@ new class extends Component
             }
 
             $nextDueDate = $maintenance->next_due_date;
-            $daysUntilDue = now()->diffInDays($nextDueDate, false);
-            
-            if ($maintenance->isOverdue()) {
+            $daysUntilDue = (int) now()->startOfDay()->diffInDays(\Carbon\Carbon::parse($nextDueDate)->startOfDay(), false);
+
+            if ($daysUntilDue < 0) {
                 $status = 'Overdue';
-            } elseif ($maintenance->isDueSoon(7)) {
+            } elseif ($daysUntilDue <= 7) {
                 $status = 'Due Soon';
             } else {
                 $status = 'Scheduled';
@@ -298,7 +473,8 @@ new class extends Component
                 'model' => $equipment->model ?? 'N/A',
                 'section' => $equipment->section->label ?? 'N/A',
                 'next_due_date' => $nextDueDate->format('M d, Y'),
-                'days_until_due' => round($daysUntilDue) . ' days',
+                'days_until_due' => $daysUntilDue < 0 ? abs($daysUntilDue) . ' days overdue' : $daysUntilDue . ' days',
+                'raw_days' => $daysUntilDue,
                 'status' => $status,
             ];
         })->filter();
@@ -310,9 +486,7 @@ new class extends Component
 
         // Sort by days until due (overdue first, then due soon, then scheduled)
         $alerts = $alerts->sortBy(function($alert) {
-            if ($alert['status'] == 'Overdue') return -1000 + (int)$alert['days_until_due'];
-            if ($alert['status'] == 'Due Soon') return (int)$alert['days_until_due'];
-            return 1000 + (int)$alert['days_until_due'];
+            return $alert['raw_days'];
         });
 
         return $alerts->take($this->alertsPerPage);
@@ -329,17 +503,16 @@ new class extends Component
                       ->orWhere('serial_no', 'like', '%' . $this->search . '%');
                 });
             })
+            ->when($this->filterEquipmentSection, function ($query) {
+                $query->where('section_id', $this->filterEquipmentSection);
+            })
             ->orderBy('equipment_id', 'desc');
-
-        $usageQuery = EquipmentUsage::with('equipment')
-            ->orderBy('date_used', 'desc')
-            ->orderBy('usage_id', 'desc');
 
         return [
             'equipment' => $this->perPage === 'all' ? $query->get() : $query->paginate((int)$this->perPage),
             'sections' => Section::active()->orderBy('label')->get(),
+            'employees' => Employee::where('is_deleted', 0)->orderBy('firstname')->get(),
             'maintenanceAlerts' => $this->getMaintenanceAlerts(),
-            'equipmentUsages' => $usageQuery->paginate((int)$this->usagePerPage, ['*'], 'usage_page'),
             'allEquipment' => Equipment::active()->orderBy('name')->get(),
         ];
     }
@@ -349,18 +522,22 @@ new class extends Component
 <div class="p-6">
     <div class="mb-6 flex items-center justify-between">
         <h1 class="text-2xl font-bold text-gray-900 flex items-center">
-            <svg class="w-7 h-7 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-7 h-7 mr-2" style="color:#d1324a" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/>
             </svg>
             Equipment Management
         </h1>
         <div class="flex gap-3">
+            <button type="button" wire:click="openMaintenanceModal()" 
+                    class="px-4 py-2 rounded-lg text-sm font-semibold transition-colors text-white" style="background-color:#d1324a" onmouseover="this.style.backgroundColor='#9f1239'" onmouseout="this.style.backgroundColor='#d1324a'">
+                Record Maintenance
+            </button>
             <button type="button" wire:click="openUsageModal" 
-                    class="px-4 py-2 rounded-md text-sm font-medium transition-colors bg-emerald-600 text-white hover:bg-emerald-700">
+                    class="px-4 py-2 rounded-lg text-sm font-semibold transition-colors text-white" style="background-color:#d1324a" onmouseover="this.style.backgroundColor='#9f1239'" onmouseout="this.style.backgroundColor='#d1324a'">
                 Record Equipment Usage
             </button>
             <button type="button" wire:click="openEquipmentModal" 
-                    class="px-4 py-2 rounded-md text-sm font-medium transition-colors bg-blue-600 text-white hover:bg-blue-700">
+                    class="px-4 py-2 rounded-lg text-sm font-semibold transition-colors border-2 hover:bg-gray-50" style="border-color:#d1324a; color:#d1324a">
                 Add Equipment
             </button>
         </div>
@@ -378,9 +555,14 @@ new class extends Component
     @endif
 
     <!-- Maintenance Alerts Section -->
-    <div class="bg-white rounded-lg shadow-sm mb-6">
-        <div class="px-6 py-4 border-b border-gray-200">
-            <h2 class="text-xl font-bold text-gray-900">Maintenance Alerts</h2>
+    <div class="bg-white rounded-xl shadow-sm mb-6">
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center gap-3">
+            <div class="p-1.5 rounded-lg" style="background-color:#fef2f2">
+                <svg class="w-5 h-5" style="color:#d1324a" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                </svg>
+            </div>
+            <h2 class="text-lg font-bold text-gray-900">Maintenance Alerts</h2>
         </div>
         <div class="p-6">
             <!-- Status Legend -->
@@ -404,7 +586,7 @@ new class extends Component
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Filter by Section</label>
-                    <select wire:model.live="filterSection" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    <select wire:model.live="filterSection" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500">
                         <option value="">All Sections</option>
                         @foreach($sections as $section)
                             <option value="{{ $section->section_id }}">{{ $section->label }}</option>
@@ -413,7 +595,7 @@ new class extends Component
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Filter by Status</label>
-                    <select wire:model.live="filterStatus" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    <select wire:model.live="filterStatus" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500">
                         <option value="">All Statuses</option>
                         <option value="Overdue">Overdue</option>
                         <option value="Due Soon">Due Soon</option>
@@ -422,7 +604,7 @@ new class extends Component
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Rows per page</label>
-                    <select wire:model.live="alertsPerPage" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    <select wire:model.live="alertsPerPage" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500">
                         <option value="10">10</option>
                         <option value="25">25</option>
                         <option value="50">50</option>
@@ -442,6 +624,7 @@ new class extends Component
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Next Due Date</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Days Until Due</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
@@ -451,19 +634,32 @@ new class extends Component
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $alert['model'] }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $alert['section'] }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $alert['next_due_date'] }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $alert['days_until_due'] }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm">
-                                    <span class="px-3 py-1 text-xs font-semibold rounded-full
-                                        {{ $alert['status'] == 'Overdue' ? 'bg-red-100 text-red-800' : '' }}
-                                        {{ $alert['status'] == 'Due Soon' ? 'bg-orange-100 text-orange-800' : '' }}
-                                        {{ $alert['status'] == 'Scheduled' ? 'bg-green-100 text-green-800' : '' }}">
+                                    <span class="font-semibold {{ $alert['status'] == 'Overdue' ? 'text-red-600' : ($alert['status'] == 'Due Soon' ? 'text-orange-600' : 'text-gray-700') }}">
+                                        {{ $alert['days_until_due'] }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-full
+                                        {{ $alert['status'] == 'Overdue' ? 'bg-red-100 text-red-700' : '' }}
+                                        {{ $alert['status'] == 'Due Soon' ? 'bg-orange-100 text-orange-700' : '' }}
+                                        {{ $alert['status'] == 'Scheduled' ? 'bg-green-100 text-green-700' : '' }}">
+                                        <span class="w-1.5 h-1.5 rounded-full inline-block
+                                            {{ $alert['status'] == 'Overdue' ? 'bg-red-500' : '' }}
+                                            {{ $alert['status'] == 'Due Soon' ? 'bg-orange-500' : '' }}
+                                            {{ $alert['status'] == 'Scheduled' ? 'bg-green-500' : '' }}"></span>
                                         {{ $alert['status'] }}
                                     </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                    <button type="button" wire:click="openMaintenanceModal({{ $alert['equipment_id'] }})" class="px-3 py-1.5 text-white text-xs font-semibold rounded-lg transition-colors" style="background-color:#d1324a" onmouseover="this.style.backgroundColor='#9f1239'" onmouseout="this.style.backgroundColor='#d1324a'">
+                                        Record
+                                    </button>
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="px-6 py-8 text-center text-gray-500">No maintenance alerts at this time.</td>
+                                <td colspan="7" class="px-6 py-8 text-center text-gray-500">No maintenance alerts at this time.</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -472,89 +668,26 @@ new class extends Component
         </div>
     </div>
 
-    <!-- Tabs Section -->
-    <div class="bg-white rounded-lg shadow-sm overflow-hidden">
-        <!-- Tab Navigation -->
-        <div class="border-b border-gray-200 bg-gray-50">
-            <nav class="-mb-px flex">
-                <button wire:click="setTab('equipment_usage')" 
-                        class="flex-1 py-4 px-6 text-center border-b-2 font-medium text-sm transition-all {{ $activeTab === 'equipment_usage' ? 'border-blue-500 text-blue-600 bg-white' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
-                    Equipment Usage Records
-                </button>
-                <button wire:click="setTab('equipment')" 
-                        class="flex-1 py-4 px-6 text-center border-b-2 font-medium text-sm transition-all {{ $activeTab === 'equipment' ? 'border-blue-500 text-blue-600 bg-white' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
-                    Equipment Management
-                </button>
-            </nav>
-        </div>
-
-        <!-- Tab Content -->
+    <!-- Equipment List Section -->
+    <div class="bg-white rounded-xl shadow-sm overflow-hidden">
         <div class="p-6">
-            <!-- Equipment Usage Tab -->
-            @if($activeTab === 'equipment_usage')
-                <!-- Equipment Usage Table -->
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Rows per page</label>
-                    <select wire:model.live="usagePerPage" class="w-48 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                        <option value="10">10</option>
-                        <option value="25">25</option>
-                        <option value="50">50</option>
-                        <option value="100">100</option>
-                    </select>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date Used</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Equipment</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Item Name</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">User's Name</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quantity (Uses)</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Purpose</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">OR Number</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody class="bg-white divide-y divide-gray-200">
-                            @forelse($equipmentUsages as $usage)
-                                <tr class="hover:bg-gray-50">
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $usage->date_used->format('M d, Y') }}</td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $usage->equipment->name ?? 'N/A' }}</td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $usage->item_name }}</td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $usage->user_name }}</td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-center text-gray-600">{{ $usage->quantity }}</td>
-                                    <td class="px-6 py-4 text-sm text-gray-600">{{ $usage->purpose }}</td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $usage->or_number ?? 'N/A' }}</td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm">
-                                        <span class="px-2 py-1 text-xs rounded-full font-semibold {{ $usage->status == 'functional' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">
-                                            {{ strtoupper($usage->status) }}
-                                        </span>
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="8" class="px-6 py-8 text-center text-gray-500">No equipment usage records found.</td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-                <div class="mt-4">
-                    {{ $equipmentUsages->links() }}
-                </div>
-            @endif
-
-            <!-- Equipment Management Tab -->
-            @if($activeTab === 'equipment')
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Search Equipment</label>
-                        <input type="text" wire:model.live="search" placeholder="Search equipment..." class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                        <input type="text" wire:model.live="search" placeholder="Search by name, model, or serial..." class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Filter by Section</label>
+                        <select wire:model.live="filterEquipmentSection" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500">
+                            <option value="">All Sections</option>
+                            @foreach($sections as $section)
+                                <option value="{{ $section->section_id }}">{{ $section->label }}</option>
+                            @endforeach
+                        </select>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Rows per page</label>
-                        <select wire:model.live="perPage" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                        <select wire:model.live="perPage" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500">
                             <option value="10">10</option>
                             <option value="25">25</option>
                             <option value="50">50</option>
@@ -568,7 +701,7 @@ new class extends Component
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-gray-50">
                             <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                                <!-- <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th> -->
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Model</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Serial No</th>
@@ -580,7 +713,7 @@ new class extends Component
                         <tbody class="bg-white divide-y divide-gray-200">
                             @forelse($equipment as $item)
                                 <tr wire:key="equipment-{{ $item->equipment_id }}" class="hover:bg-gray-50">
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $item->equipment_id }}</td>
+                                    <!-- <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $item->equipment_id }}</td> -->
                                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $item->name }}</td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $item->model ?? 'N/A' }}</td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $item->serial_no ?? 'N/A' }}</td>
@@ -595,9 +728,9 @@ new class extends Component
                                         </span>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                                        <a href="{{ route('equipment.show', $item->equipment_id) }}" class="inline-block px-4 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors">Details</a>
-                                        <button type="button" wire:click="edit({{ $item->equipment_id }})" style="background-color: #DC143C;" class="px-4 py-1.5 text-white text-sm font-medium rounded-lg hover:opacity-90 transition-opacity">Edit</button>
-                                        <button type="button" wire:click="delete({{ $item->equipment_id }})" wire:confirm="Are you sure you want to delete this equipment?" class="px-4 py-1.5 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors">Delete</button>
+                                        <button type="button" wire:click="openDetailsModal({{ $item->equipment_id }})" class="inline-block px-4 py-1.5 text-white text-sm font-medium rounded-lg transition-colors" style="background-color:#d1324a" onmouseover="this.style.backgroundColor='#9f1239'" onmouseout="this.style.backgroundColor='#d1324a'">Details</button>
+                                        <button type="button" wire:click="edit({{ $item->equipment_id }})" class="px-4 py-1.5 text-white text-sm font-medium rounded-lg transition-colors" style="background-color:#be123c" onmouseover="this.style.backgroundColor='#881337'" onmouseout="this.style.backgroundColor='#be123c'">Edit</button>
+                                        <button type="button" wire:click="confirmDelete({{ $item->equipment_id }})" class="px-4 py-1.5 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors">Delete</button>
                                     </td>
                                 </tr>
                             @empty
@@ -614,94 +747,101 @@ new class extends Component
                         {{ $equipment->links() }}
                     </div>
                 @endif
-            @endif
         </div>
     </div>
 
     <!-- Record Equipment Usage Modal -->
     @if($showUsageModal)
-    <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 p-4">
-        <div class="relative top-10 mx-auto p-6 border w-full max-w-2xl shadow-lg rounded-xl bg-white">
-            <div class="flex items-center justify-between mb-6">
-                <h3 class="text-2xl font-bold text-gray-900">Record Equipment Usage</h3>
-                <button wire:click="closeUsageModal" class="text-gray-400 hover:text-gray-600">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                    </svg>
+    <div class="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4" style="background-color: rgba(15,23,42,0.75); backdrop-filter: blur(4px);">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col" wire:click.stop>
+            {{-- Header — Crimson --}}
+            <div class="flex items-center justify-between px-7 py-5 rounded-t-2xl" style="background: linear-gradient(135deg,#9f1239 0%,#d1324a 100%);">
+                <div class="flex items-center gap-3">
+                    <div class="bg-white/20 rounded-xl p-2.5">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold text-white">Record Equipment Usage</h3>
+                        <p class="text-red-200 text-xs mt-0.5">Log equipment usage details</p>
+                    </div>
+                </div>
+                <button wire:click="closeUsageModal" class="text-white/70 hover:text-white transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                 </button>
             </div>
 
-            <form wire:submit.prevent="saveUsage">
-                <div class="grid grid-cols-1 gap-6">
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Equipment *</label>
-                            <select wire:model="usage_equipment_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                                <option value="">Select Equipment</option>
-                                @foreach($allEquipment as $eq)
-                                    <option value="{{ $eq->equipment_id }}">{{ $eq->name }}</option>
-                                @endforeach
-                            </select>
-                            @error('usage_equipment_id') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Date Used *</label>
-                            <input type="date" wire:model="usage_date_used" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                            @error('usage_date_used') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">User's Name *</label>
-                            <input type="text" wire:model="usage_user_name" placeholder="Name of person using the equipment" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                            @error('usage_user_name') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Item Name *</label>
-                            <input type="text" wire:model="usage_item_name" placeholder="Name of item/equipment being used" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                            @error('usage_item_name') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Quantity (Number of Uses) *</label>
-                            <input type="number" wire:model="usage_quantity" min="1" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                            @error('usage_quantity') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">OR Number</label>
-                            <input type="text" wire:model="usage_or_number" placeholder="Official Receipt Number" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                            @error('usage_or_number') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
-                        </div>
+            <form wire:submit.prevent="saveUsage" class="p-7 overflow-y-auto flex-1 space-y-5">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Equipment *</label>
+                        <select wire:model="usage_equipment_id" class="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent bg-gray-50 focus:bg-white transition">
+                            <option value="">Select Equipment</option>
+                            @foreach($allEquipment as $eq)
+                                <option value="{{ $eq->equipment_id }}">{{ $eq->name }}</option>
+                            @endforeach
+                        </select>
+                        @error('usage_equipment_id') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Purpose *</label>
-                        <textarea wire:model="usage_purpose" rows="2" placeholder="Describe the purpose of equipment usage" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"></textarea>
-                        @error('usage_purpose') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
-                    </div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Status *</label>
-                            <select wire:model="usage_status" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                                <option value="functional">Functional</option>
-                                <option value="not_functional">Not Functional</option>
-                            </select>
-                            @error('usage_status') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Remarks</label>
-                            <textarea wire:model="usage_remarks" rows="2" placeholder="Additional notes or observations" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"></textarea>
-                            @error('usage_remarks') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
-                        </div>
+                        <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Date Used *</label>
+                        <input type="date" wire:model="usage_date_used" class="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent bg-gray-50 focus:bg-white transition">
+                        @error('usage_date_used') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                     </div>
                 </div>
-                <div class="flex justify-end space-x-3 pt-4 border-t mt-6">
-                    <button type="button" wire:click="closeUsageModal" class="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
-                        Cancel
-                    </button>
-                    <button type="submit" class="px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors">
-                        Record Usage
-                    </button>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Used By (Employee) *</label>
+                        <select wire:model="usage_employee_id" class="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent bg-gray-50 focus:bg-white transition">
+                            <option value="">Select Employee</option>
+                            @foreach($employees as $emp)
+                                <option value="{{ $emp->employee_id }}">{{ $emp->firstname }} {{ $emp->lastname }}</option>
+                            @endforeach
+                        </select>
+                        @error('usage_employee_id') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Specimen / Reagent *</label>
+                        <input type="text" wire:model="usage_item_name" placeholder="e.g. Blood sample, Reagent X" class="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent bg-gray-50 focus:bg-white transition">
+                        @error('usage_item_name') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">No. of Samples / Runs *</label>
+                        <input type="number" wire:model="usage_quantity" min="1" class="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent bg-gray-50 focus:bg-white transition">
+                        @error('usage_quantity') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">OR Number</label>
+                        <input type="text" wire:model="usage_or_number" placeholder="Official Receipt Number" class="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent bg-gray-50 focus:bg-white transition">
+                        @error('usage_or_number') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Purpose *</label>
+                    <textarea wire:model="usage_purpose" rows="2" placeholder="Describe the purpose of equipment usage" class="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent bg-gray-50 focus:bg-white transition"></textarea>
+                    @error('usage_purpose') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Status *</label>
+                        <select wire:model="usage_status" class="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent bg-gray-50 focus:bg-white transition">
+                            <option value="functional">Functional</option>
+                            <option value="not_functional">Not Functional</option>
+                        </select>
+                        @error('usage_status') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Remarks</label>
+                        <textarea wire:model="usage_remarks" rows="2" placeholder="Additional notes" class="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent bg-gray-50 focus:bg-white transition"></textarea>
+                        @error('usage_remarks') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                    </div>
+                </div>
+                <div class="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                    <button type="button" wire:click="closeUsageModal" class="px-5 py-2.5 border border-gray-200 hover:bg-gray-50 text-gray-600 text-sm font-semibold rounded-xl transition-colors">Cancel</button>
+                    <button type="submit" class="px-5 py-2.5 text-white text-sm font-semibold rounded-xl transition-colors" style="background-color:#d1324a" onmouseover="this.style.backgroundColor='#9f1239'" onmouseout="this.style.backgroundColor='#d1324a'">Record Usage</button>
                 </div>
             </form>
         </div>
@@ -710,79 +850,82 @@ new class extends Component
 
     <!-- Add Equipment Modal -->
     @if($showEquipmentModal)
-    <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 p-4">
-        <div class="relative top-10 mx-auto p-6 border w-full max-w-2xl shadow-lg rounded-xl bg-white">
-            <div class="flex items-center justify-between mb-6">
-                <h3 class="text-2xl font-bold text-gray-900">Add New Equipment</h3>
-                <button wire:click="closeEquipmentModal" class="text-gray-400 hover:text-gray-600">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                    </svg>
+    <div class="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4" style="background-color: rgba(15,23,42,0.75); backdrop-filter: blur(4px);">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col" wire:click.stop>
+            {{-- Header — Crimson --}}
+            <div class="flex items-center justify-between px-7 py-5 rounded-t-2xl" style="background: linear-gradient(135deg,#9f1239 0%,#d1324a 100%);">
+                <div class="flex items-center gap-3">
+                    <div class="bg-white/20 rounded-xl p-2.5">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold text-white">Add New Equipment</h3>
+                        <p class="text-red-200 text-xs mt-0.5">Register new laboratory equipment</p>
+                    </div>
+                </div>
+                <button wire:click="closeEquipmentModal" class="text-white/70 hover:text-white transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                 </button>
             </div>
 
-            <form wire:submit.prevent="save">
-                <div class="grid grid-cols-1 gap-6">
+            <form wire:submit.prevent="save" class="p-7 overflow-y-auto flex-1 space-y-5">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Equipment Name *</label>
+                    <input type="text" wire:model="name" class="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent bg-gray-50 focus:bg-white transition" required>
+                    @error('name') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                </div>
+                <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Equipment Name *</label>
-                        <input type="text" wire:model="name" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" required>
-                        @error('name') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
-                    </div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Model</label>
-                            <input type="text" wire:model="model" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                            @error('model') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Serial Number</label>
-                            <input type="text" wire:model="serial_no" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                            @error('serial_no') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Section *</label>
-                            <select wire:model="section_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" required>
-                                <option value="">Select Section</option>
-                                @foreach($sections as $section)
-                                    <option value="{{ $section->section_id }}">{{ $section->label }}</option>
-                                @endforeach
-                            </select>
-                            @error('section_id') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                            <select wire:model="status" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                                <option value="Operational">Operational</option>
-                                <option value="Under Maintenance">Under Maintenance</option>
-                                <option value="Broken">Broken</option>
-                                <option value="Decommissioned">Decommissioned</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Purchase Date</label>
-                            <input type="date" wire:model="purchase_date" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Supplier</label>
-                            <input type="text" wire:model="supplier" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                        </div>
+                        <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Model</label>
+                        <input type="text" wire:model="model" class="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent bg-gray-50 focus:bg-white transition">
+                        @error('model') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Remarks</label>
-                        <textarea wire:model="remarks" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"></textarea>
+                        <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Serial Number</label>
+                        <input type="text" wire:model="serial_no" class="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent bg-gray-50 focus:bg-white transition">
+                        @error('serial_no') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                     </div>
                 </div>
-                <div class="flex justify-end space-x-3 pt-4 border-t mt-6">
-                    <button type="button" wire:click="closeEquipmentModal" class="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
-                        Cancel
-                    </button>
-                    <button type="submit" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                        Add Equipment
-                    </button>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Section *</label>
+                        <select wire:model="section_id" class="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent bg-gray-50 focus:bg-white transition" required>
+                            <option value="">Select Section</option>
+                            @foreach($sections as $section)
+                                <option value="{{ $section->section_id }}">{{ $section->label }}</option>
+                            @endforeach
+                        </select>
+                        @error('section_id') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Status</label>
+                        <select wire:model="status" class="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent bg-gray-50 focus:bg-white transition">
+                            <option value="Operational">Operational</option>
+                            <option value="Under Maintenance">Under Maintenance</option>
+                            <option value="Broken">Broken</option>
+                            <option value="Decommissioned">Decommissioned</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Purchase Date</label>
+                        <input type="date" wire:model="purchase_date" class="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent bg-gray-50 focus:bg-white transition">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Supplier</label>
+                        <input type="text" wire:model="supplier" class="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent bg-gray-50 focus:bg-white transition">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Remarks</label>
+                    <textarea wire:model="remarks" rows="3" class="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent bg-gray-50 focus:bg-white transition"></textarea>
+                </div>
+                <div class="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                    <button type="button" wire:click="closeEquipmentModal" class="px-5 py-2.5 border border-gray-200 hover:bg-gray-50 text-gray-600 text-sm font-semibold rounded-xl transition-colors">Cancel</button>
+                    <button type="submit" class="px-5 py-2.5 text-white text-sm font-semibold rounded-xl transition-colors" style="background-color:#d1324a" onmouseover="this.style.backgroundColor='#9f1239'" onmouseout="this.style.backgroundColor='#d1324a'">Add Equipment</button>
                 </div>
             </form>
         </div>
@@ -791,83 +934,413 @@ new class extends Component
 
     <!-- Edit Equipment Modal -->
     @if($editMode)
-    <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 p-4">
-        <div class="relative top-10 mx-auto p-6 border w-full max-w-2xl shadow-lg rounded-xl bg-white">
-            <div class="flex items-center justify-between mb-6">
-                <h3 class="text-2xl font-bold text-gray-900">Edit Equipment</h3>
-                <button wire:click="cancelEdit" class="text-gray-400 hover:text-gray-600">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                    </svg>
+    <div class="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4" style="background-color: rgba(15,23,42,0.75); backdrop-filter: blur(4px);">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col" wire:click.stop>
+            {{-- Header — Crimson Dark --}}
+            <div class="flex items-center justify-between px-7 py-5 rounded-t-2xl" style="background: linear-gradient(135deg,#881337 0%,#be123c 100%);">
+                <div class="flex items-center gap-3">
+                    <div class="bg-white/20 rounded-xl p-2.5">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold text-white">Edit Equipment</h3>
+                        <p class="text-red-200 text-xs mt-0.5">Update equipment information</p>
+                    </div>
+                </div>
+                <button wire:click="cancelEdit" class="text-white/70 hover:text-white transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                 </button>
             </div>
 
-            <form wire:submit.prevent="update">
-                <div class="grid grid-cols-1 gap-6">
+            <form wire:submit.prevent="update" class="p-7 overflow-y-auto flex-1 space-y-5">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Equipment Name *</label>
+                    <input type="text" wire:model="name" class="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent bg-gray-50 focus:bg-white transition" required>
+                    @error('name') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                </div>
+                <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Equipment Name *</label>
-                        <input type="text" wire:model="name" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent" required>
-                        @error('name') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
-                    </div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Model</label>
-                            <input type="text" wire:model="model" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent">
-                            @error('model') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Serial Number</label>
-                            <input type="text" wire:model="serial_no" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent">
-                            @error('serial_no') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Section *</label>
-                            <select wire:model="section_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent" required>
-                                <option value="">Select Section</option>
-                                @foreach($sections as $section)
-                                    <option value="{{ $section->section_id }}">{{ $section->label }}</option>
-                                @endforeach
-                            </select>
-                            @error('section_id') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                            <select wire:model="status" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent">
-                                <option value="Operational">Operational</option>
-                                <option value="Under Maintenance">Under Maintenance</option>
-                                <option value="Broken">Broken</option>
-                                <option value="Decommissioned">Decommissioned</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Purchase Date</label>
-                            <input type="date" wire:model="purchase_date" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Supplier</label>
-                            <input type="text" wire:model="supplier" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent">
-                        </div>
+                        <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Model</label>
+                        <input type="text" wire:model="model" class="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent bg-gray-50 focus:bg-white transition">
+                        @error('model') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Remarks</label>
-                        <textarea wire:model="remarks" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"></textarea>
+                        <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Serial Number</label>
+                        <input type="text" wire:model="serial_no" class="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent bg-gray-50 focus:bg-white transition">
+                        @error('serial_no') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                     </div>
                 </div>
-                <div class="flex justify-end space-x-3 pt-4 border-t mt-6">
-                    <button type="button" wire:click="cancelEdit" class="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
-                        Cancel
-                    </button>
-                    <button type="submit" 
-                            style="background-color: #DC143C;"
-                            class="px-6 py-2 text-white rounded-lg hover:opacity-90 transition-opacity">
-                        Update Equipment
-                    </button>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Section *</label>
+                        <select wire:model="section_id" class="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent bg-gray-50 focus:bg-white transition" required>
+                            <option value="">Select Section</option>
+                            @foreach($sections as $section)
+                                <option value="{{ $section->section_id }}">{{ $section->label }}</option>
+                            @endforeach
+                        </select>
+                        @error('section_id') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Status</label>
+                        <select wire:model="status" class="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent bg-gray-50 focus:bg-white transition">
+                            <option value="Operational">Operational</option>
+                            <option value="Under Maintenance">Under Maintenance</option>
+                            <option value="Broken">Broken</option>
+                            <option value="Decommissioned">Decommissioned</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Purchase Date</label>
+                        <input type="date" wire:model="purchase_date" class="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent bg-gray-50 focus:bg-white transition">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Supplier</label>
+                        <input type="text" wire:model="supplier" class="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent bg-gray-50 focus:bg-white transition">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Remarks</label>
+                    <textarea wire:model="remarks" rows="3" class="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent bg-gray-50 focus:bg-white transition"></textarea>
+                </div>
+                <div class="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                    <button type="button" wire:click="cancelEdit" class="px-5 py-2.5 border border-gray-200 hover:bg-gray-50 text-gray-600 text-sm font-semibold rounded-xl transition-colors">Cancel</button>
+                    <button type="submit" class="px-5 py-2.5 text-white text-sm font-semibold rounded-xl transition-colors" style="background-color:#be123c" onmouseover="this.style.backgroundColor='#881337'" onmouseout="this.style.backgroundColor='#be123c'">Update Equipment</button>
                 </div>
             </form>
+        </div>
+    </div>
+    @endif
+
+    <!-- Details Modal -->
+    @if($showDetailsModal && $detailsEquipment)
+    <div class="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4" style="background-color: rgba(15,23,42,0.75); backdrop-filter: blur(4px);">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col" wire:click.stop>
+            {{-- Header — Crimson --}}
+            <div class="flex items-center justify-between px-7 py-5 rounded-t-2xl" style="background: linear-gradient(135deg,#9f1239 0%,#d1324a 100%);">
+                <div class="flex items-center gap-3">
+                    <div class="bg-white/20 rounded-xl p-2.5">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold text-white">{{ $detailsEquipment->name }}</h3>
+                        <p class="text-red-200 text-xs mt-0.5">Equipment details, maintenance, calibration &amp; usage history</p>
+                    </div>
+                </div>
+                <button wire:click="closeDetailsModal" class="text-white/70 hover:text-white transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            <div class="p-7 overflow-y-auto flex-1 space-y-6">
+                {{-- Equipment Info Strip --}}
+                <div class="rounded-xl p-5" style="background-color:#fef2f2; border: 1px solid #fecaca;">
+                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-3">
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-wider" style="color:#d1324a">Model</p>
+                            <p class="text-sm font-bold text-gray-900 mt-0.5">{{ $detailsEquipment->model ?? 'N/A' }}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-wider" style="color:#d1324a">Serial No.</p>
+                            <p class="text-sm font-bold text-gray-900 mt-0.5">{{ $detailsEquipment->serial_no ?? 'N/A' }}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-wider" style="color:#d1324a">Section</p>
+                            <p class="text-sm font-bold text-gray-900 mt-0.5">{{ $detailsEquipment->section->label ?? 'N/A' }}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-wider" style="color:#d1324a">Status</p>
+                            <p class="text-sm font-bold mt-0.5 {{ $detailsEquipment->status === 'Operational' ? 'text-emerald-700' : ($detailsEquipment->status === 'Under Maintenance' ? 'text-amber-700' : 'text-red-700') }}">{{ $detailsEquipment->status }}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-wider" style="color:#d1324a">Purchase Date</p>
+                            <p class="text-sm text-gray-900 mt-0.5">{{ $detailsEquipment->purchase_date ? $detailsEquipment->purchase_date->format('M d, Y') : 'N/A' }}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-wider" style="color:#d1324a">Supplier</p>
+                            <p class="text-sm text-gray-900 mt-0.5">{{ $detailsEquipment->supplier ?? 'N/A' }}</p>
+                        </div>
+                        <div class="lg:col-span-2">
+                            <p class="text-xs font-semibold uppercase tracking-wider" style="color:#d1324a">Remarks</p>
+                            <p class="text-sm text-gray-900 mt-0.5">{{ $detailsEquipment->remarks ?? 'N/A' }}</p>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Maintenance History --}}
+                <div>
+                    <h4 class="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+                        <svg class="w-4 h-4" style="color: #d1324a" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                        Maintenance History ({{ count($detailsMaintenanceHistory) }})
+                    </h4>
+                    @if(count($detailsMaintenanceHistory) > 0)
+                        <div class="overflow-x-auto rounded-xl border border-gray-200">
+                            <table class="w-full text-sm">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Date</th>
+                                        <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Performed By</th>
+                                        <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Findings</th>
+                                        <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Action Taken</th>
+                                        <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
+                                        <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Next Due</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100">
+                                    @foreach($detailsMaintenanceHistory as $maint)
+                                        @php $m = (object)$maint; @endphp
+                                        <tr class="hover:bg-gray-50">
+                                            <td class="px-4 py-2.5 text-gray-900 font-medium whitespace-nowrap">{{ \Carbon\Carbon::parse($m->performed_date)->format('M d, Y') }}</td>
+                                            <td class="px-4 py-2.5 text-gray-600">{{ $m->performed_by_name ?? 'N/A' }}</td>
+                                            <td class="px-4 py-2.5 text-gray-600 max-w-xs truncate" title="{{ $m->findings }}">{{ \Illuminate\Support\Str::limit($m->findings, 40) }}</td>
+                                            <td class="px-4 py-2.5 text-gray-600 max-w-xs truncate" title="{{ $m->action_taken }}">{{ \Illuminate\Support\Str::limit($m->action_taken, 40) }}</td>
+                                            <td class="px-4 py-2.5">
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold
+                                                    {{ ($m->status ?? '') === 'completed' ? 'bg-green-100 text-green-700' : (($m->status ?? '') === 'overdue' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700') }}">
+                                                    {{ strtoupper($m->status ?? 'N/A') }}
+                                                </span>
+                                            </td>
+                                            <td class="px-4 py-2.5 text-gray-600 whitespace-nowrap">{{ $m->next_due_date ? \Carbon\Carbon::parse($m->next_due_date)->format('M d, Y') : '—' }}</td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    @else
+                        <div class="text-center py-6 bg-gray-50 rounded-xl">
+                            <p class="text-gray-400 text-sm">No maintenance records found</p>
+                        </div>
+                    @endif
+                </div>
+
+                {{-- Calibration History --}}
+                <div>
+                    <h4 class="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+                        <svg class="w-4 h-4" style="color: #d1324a" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                        Calibration History ({{ count($detailsCalibrationHistory) }})
+                    </h4>
+                    @if(count($detailsCalibrationHistory) > 0)
+                        <div class="overflow-x-auto rounded-xl border border-gray-200">
+                            <table class="w-full text-sm">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Date</th>
+                                        <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Procedure</th>
+                                        <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Performed By</th>
+                                        <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Result</th>
+                                        <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Notes</th>
+                                        <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Next Due</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100">
+                                    @foreach($detailsCalibrationHistory as $cal)
+                                        @php $c = (object)$cal; @endphp
+                                        <tr class="hover:bg-gray-50">
+                                            <td class="px-4 py-2.5 text-gray-900 font-medium whitespace-nowrap">{{ \Carbon\Carbon::parse($c->calibration_date)->format('M d, Y') }}</td>
+                                            <td class="px-4 py-2.5 text-gray-600">{{ $c->procedure_name ?? 'N/A' }}</td>
+                                            <td class="px-4 py-2.5 text-gray-600">{{ $c->performed_by_name ?? 'N/A' }}</td>
+                                            <td class="px-4 py-2.5">
+                                                @if($c->result_status === 'pass')
+                                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">PASS</span>
+                                                @elseif($c->result_status === 'fail')
+                                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700">FAIL</span>
+                                                @else
+                                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">{{ strtoupper($c->result_status ?? 'N/A') }}</span>
+                                                @endif
+                                            </td>
+                                            <td class="px-4 py-2.5 text-gray-600 max-w-xs truncate" title="{{ $c->notes }}">{{ \Illuminate\Support\Str::limit($c->notes, 30) ?? '—' }}</td>
+                                            <td class="px-4 py-2.5 text-gray-600 whitespace-nowrap">{{ $c->next_calibration_date ? \Carbon\Carbon::parse($c->next_calibration_date)->format('M d, Y') : '—' }}</td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    @else
+                        <div class="text-center py-6 bg-gray-50 rounded-xl">
+                            <p class="text-gray-400 text-sm">No calibration records found</p>
+                        </div>
+                    @endif
+                </div>
+
+                {{-- Usage History --}}
+                <div>
+                    <h4 class="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+                        <svg class="w-4 h-4" style="color: #d1324a" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        Usage History ({{ count($detailsUsageHistory) }})
+                    </h4>
+                    @if(count($detailsUsageHistory) > 0)
+                        <div class="overflow-x-auto rounded-xl border border-gray-200">
+                            <table class="w-full text-sm">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Date</th>
+                                        <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Used By</th>
+                                        <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Specimen/Reagent</th>
+                                        <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Samples</th>
+                                        <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Purpose</th>
+                                        <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100">
+                                    @foreach($detailsUsageHistory as $usg)
+                                        @php $u = (object)$usg; @endphp
+                                        <tr class="hover:bg-gray-50">
+                                            <td class="px-4 py-2.5 text-gray-900 font-medium whitespace-nowrap">{{ \Carbon\Carbon::parse($u->date_used)->format('M d, Y') }}</td>
+                                            <td class="px-4 py-2.5 text-gray-600">{{ $u->user_name }}</td>
+                                            <td class="px-4 py-2.5 text-gray-600">{{ $u->item_name }}</td>
+                                            <td class="px-4 py-2.5 text-gray-600 text-center">{{ $u->quantity }}</td>
+                                            <td class="px-4 py-2.5 text-gray-600 max-w-xs truncate" title="{{ $u->purpose }}">{{ \Illuminate\Support\Str::limit($u->purpose, 35) }}</td>
+                                            <td class="px-4 py-2.5">
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold {{ $u->status === 'functional' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700' }}">
+                                                    {{ strtoupper($u->status) }}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    @else
+                        <div class="text-center py-6 bg-gray-50 rounded-xl">
+                            <p class="text-gray-400 text-sm">No usage records found</p>
+                        </div>
+                    @endif
+                </div>
+
+                {{-- Footer --}}
+                <div class="flex items-center justify-between pt-4 border-t border-gray-100">
+                    <p class="text-xs text-gray-400">Added: {{ $detailsEquipment->datetime_added ? $detailsEquipment->datetime_added->format('M d, Y h:i A') : 'N/A' }}</p>
+                    <button wire:click="closeDetailsModal" class="px-5 py-2.5 border border-gray-200 hover:bg-gray-50 text-gray-600 text-sm font-semibold rounded-xl transition-colors">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+
+    <!-- Record Maintenance Modal -->
+    @if($showMaintenanceModal)
+    <div class="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4" style="background-color: rgba(15,23,42,0.75); backdrop-filter: blur(4px);">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col" wire:click.stop>
+            {{-- Header — Crimson --}}
+            <div class="flex items-center justify-between px-7 py-5 rounded-t-2xl" style="background: linear-gradient(135deg,#9f1239 0%,#d1324a 100%);">
+                <div class="flex items-center gap-3">
+                    <div class="bg-white/20 rounded-xl p-2.5">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold text-white">Record Maintenance</h3>
+                        <p class="text-red-200 text-xs mt-0.5">
+                            @if($maint_equipment_name)
+                                {{ $maint_equipment_name }}
+                            @else
+                                Log maintenance activity for equipment
+                            @endif
+                        </p>
+                    </div>
+                </div>
+                <button wire:click="closeMaintenanceModal" class="text-white/70 hover:text-white transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            <form wire:submit.prevent="saveMaintenance" class="p-7 overflow-y-auto flex-1 space-y-5">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Equipment *</label>
+                        @if($maint_equipment_name)
+                            <div class="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm bg-gray-100 text-gray-700">{{ $maint_equipment_name }}</div>
+                            <input type="hidden" wire:model="maint_equipment_id">
+                        @else
+                            <select wire:model="maint_equipment_id" class="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent bg-gray-50 focus:bg-white transition">
+                                <option value="">Select Equipment</option>
+                                @foreach($allEquipment as $eq)
+                                    <option value="{{ $eq->equipment_id }}">{{ $eq->name }}</option>
+                                @endforeach
+                            </select>
+                        @endif
+                        @error('maint_equipment_id') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Date Performed *</label>
+                        <input type="date" wire:model="maint_performed_date" class="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent bg-gray-50 focus:bg-white transition">
+                        @error('maint_performed_date') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Performed By *</label>
+                        <select wire:model="maint_performed_by" class="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent bg-gray-50 focus:bg-white transition">
+                            <option value="">Select Employee</option>
+                            @foreach($employees as $emp)
+                                <option value="{{ $emp->employee_id }}">{{ $emp->firstname }} {{ $emp->lastname }}</option>
+                            @endforeach
+                        </select>
+                        @error('maint_performed_by') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Status *</label>
+                        <select wire:model="maint_status" class="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent bg-gray-50 focus:bg-white transition">
+                            <option value="completed">Completed</option>
+                            <option value="pending">Pending</option>
+                            <option value="overdue">Overdue</option>
+                        </select>
+                        @error('maint_status') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Findings</label>
+                    <textarea wire:model="maint_findings" rows="3" placeholder="Describe findings during maintenance..." class="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent bg-gray-50 focus:bg-white transition"></textarea>
+                    @error('maint_findings') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Action Taken</label>
+                    <textarea wire:model="maint_action_taken" rows="3" placeholder="Describe actions taken..." class="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent bg-gray-50 focus:bg-white transition"></textarea>
+                    @error('maint_action_taken') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Next Due Date</label>
+                    <input type="date" wire:model="maint_next_due_date" class="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent bg-gray-50 focus:bg-white transition">
+                    <p class="text-xs text-gray-400 mt-1">Set the next scheduled maintenance date</p>
+                    @error('maint_next_due_date') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                </div>
+                <div class="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                    <button type="button" wire:click="closeMaintenanceModal" class="px-5 py-2.5 border border-gray-200 hover:bg-gray-50 text-gray-600 text-sm font-semibold rounded-xl transition-colors">Cancel</button>
+                    <button type="submit" class="px-5 py-2.5 text-white text-sm font-semibold rounded-xl transition-colors" style="background-color:#d1324a" onmouseover="this.style.backgroundColor='#9f1239'" onmouseout="this.style.backgroundColor='#d1324a'">Save Maintenance Record</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    @endif
+
+    <!-- Delete Confirmation Modal -->
+    @if($showDeleteModal)
+    <div class="fixed inset-0 z-[60] overflow-y-auto flex items-center justify-center p-4" style="background-color: rgba(15,23,42,0.75); backdrop-filter: blur(4px);">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md" wire:click.stop>
+            <div class="p-8 text-center">
+                <div class="mx-auto mb-4 w-14 h-14 rounded-full bg-red-100 flex items-center justify-center">
+                    <svg class="w-7 h-7 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-bold text-gray-900 mb-2">Delete Equipment</h3>
+                <p class="text-sm text-gray-600 mb-6">
+                    Are you sure you want to delete <strong class="text-gray-900">{{ $deleteEquipmentName }}</strong>?
+                    This action will remove it from the equipment list and maintenance alerts.
+                </p>
+                <div class="flex justify-center gap-3">
+                    <button wire:click="cancelDelete" class="px-5 py-2.5 border border-gray-200 hover:bg-gray-50 text-gray-600 text-sm font-semibold rounded-xl transition-colors">Cancel</button>
+                    <button wire:click="deleteConfirmed" class="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-xl transition-colors">Delete Equipment</button>
+                </div>
+            </div>
         </div>
     </div>
     @endif

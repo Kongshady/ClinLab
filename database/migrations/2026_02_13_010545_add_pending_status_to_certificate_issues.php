@@ -17,13 +17,19 @@ return new class extends Migration
             $table->dropIndex('certificate_issues_status_issued_at_index');
         });
 
-        // For SQL Server: drop any check constraint on status
-        DB::statement("ALTER TABLE certificate_issues DROP CONSTRAINT IF EXISTS CK__certifica__statu__certificate_issues");
+        // For SQL Server: drop ALL check constraints on the status column (auto-generated names vary)
+        $constraints = DB::select("SELECT cc.name FROM sys.check_constraints cc JOIN sys.columns c ON cc.parent_object_id = c.object_id AND cc.parent_column_id = c.column_id WHERE cc.parent_object_id = OBJECT_ID('certificate_issues') AND c.name = 'status'");
+        foreach ($constraints as $constraint) {
+            DB::statement("ALTER TABLE certificate_issues DROP CONSTRAINT [{$constraint->name}]");
+        }
 
         // Change column to nvarchar to support Pending status
         Schema::table('certificate_issues', function (Blueprint $table) {
             $table->string('status', 20)->default('Pending')->change();
         });
+
+        // Add new CHECK constraint that includes Pending
+        DB::statement("ALTER TABLE certificate_issues ADD CONSTRAINT CK_certificate_issues_status CHECK (status IN ('Issued', 'Revoked', 'Expired', 'Pending'))");
 
         // Recreate the index
         Schema::table('certificate_issues', function (Blueprint $table) {

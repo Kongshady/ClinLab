@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Lab Result - Order #{{ $order->lab_test_order_id }}</title>
+    <title>Lab Result - Order #<?php echo e($order->lab_test_order_id); ?></title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: DejaVu Sans, sans-serif; font-size: 11px; color: #222; line-height: 1.6; }
@@ -82,10 +82,10 @@
 <body>
 <div class="page">
 
-    {{-- ── Letterhead ── --}}
+    
     <div class="letterhead">
         <div class="letterhead-logo">
-            <img src="{{ public_path('images/UIC_logo.png') }}" alt="UIC Logo">
+            <img src="<?php echo e(public_path('images/UIC_logo.png')); ?>" alt="UIC Logo">
         </div>
         <div class="letterhead-text">
             <div class="institution">University of the Immaculate Conception</div>
@@ -94,52 +94,52 @@
         </div>
         <div class="letterhead-right">
             <div class="doc-type">Laboratory Result</div>
-            <div class="doc-no">#{{ str_pad($order->lab_test_order_id, 6, '0', STR_PAD_LEFT) }}</div>
-            <div class="doc-date">{{ $order->order_date ? $order->order_date->format('d M Y') : '' }}</div>
+            <div class="doc-no">#<?php echo e(str_pad($order->lab_test_order_id, 6, '0', STR_PAD_LEFT)); ?></div>
+            <div class="doc-date"><?php echo e($order->order_date ? $order->order_date->format('d M Y') : ''); ?></div>
         </div>
     </div>
 
     <hr class="rule-top">
     <hr class="rule-thin">
 
-    {{-- ── Patient Banner ── --}}
-    @php
+    
+    <?php
         $patient = $order->patient;
         $age = $patient && $patient->birthdate ? $patient->birthdate->age : null;
-    @endphp
+    ?>
     <div class="patient-strip">
-        <div class="patient-name">{{ $patient->full_name ?? 'N/A' }}</div>
+        <div class="patient-name"><?php echo e($patient->full_name ?? 'N/A'); ?></div>
         <div class="patient-meta">
-            <span>{{ $patient->gender ?? '—' }}</span>
-            @if($age !== null)<span>{{ $age }} yrs old</span>@endif
-            @if($patient && $patient->birthdate)<span>DOB: {{ $patient->birthdate->format('d M Y') }}</span>@endif
-            @if($patient && $patient->contact_number)<span>{{ $patient->contact_number }}</span>@endif
+            <span><?php echo e($patient->gender ?? '—'); ?></span>
+            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($age !== null): ?><span><?php echo e($age); ?> yrs old</span><?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($patient && $patient->birthdate): ?><span>DOB: <?php echo e($patient->birthdate->format('d M Y')); ?></span><?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($patient && $patient->contact_number): ?><span><?php echo e($patient->contact_number); ?></span><?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
         </div>
     </div>
 
-    {{-- ── Order Meta ── --}}
+    
     <div class="info-row">
         <div class="info-cell">
             <div class="lbl">Requesting Physician</div>
-            <div class="val">{{ $order->physician->physician_name ?? 'Not specified' }}</div>
+            <div class="val"><?php echo e($order->physician->physician_name ?? 'Not specified'); ?></div>
         </div>
         <div class="info-cell">
             <div class="lbl">Order Date</div>
-            <div class="val">{{ $order->order_date ? $order->order_date->format('F d, Y') : 'N/A' }}</div>
+            <div class="val"><?php echo e($order->order_date ? $order->order_date->format('F d, Y') : 'N/A'); ?></div>
         </div>
         <div class="info-cell">
             <div class="lbl">Time</div>
-            <div class="val">{{ $order->order_date ? $order->order_date->format('h:i A') : '—' }}</div>
+            <div class="val"><?php echo e($order->order_date ? $order->order_date->format('h:i A') : '—'); ?></div>
         </div>
         <div class="info-cell">
             <div class="lbl">Order Status</div>
             <div class="val">
-                <span class="pill pill-{{ $order->status }}">{{ ucfirst($order->status) }}</span>
+                <span class="pill pill-<?php echo e($order->status); ?>"><?php echo e(ucfirst($order->status)); ?></span>
             </div>
         </div>
     </div>
 
-    {{-- ── Test Results ── --}}
+    
     <div class="section-heading">Test Results</div>
     <table class="results">
         <thead>
@@ -154,8 +154,8 @@
             </tr>
         </thead>
         <tbody>
-            @foreach($order->orderTests as $ot)
-            @php
+            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__currentLoopData = $order->orderTests; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $ot): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
+            <?php
                 $result = $ot->labResult;
                 $flag = null; $flagClass = '';
                 if ($result && $result->result_value && $result->normal_range) {
@@ -175,44 +175,46 @@
                     elseif (str_contains($text, 'low') || str_contains($text, 'decreased')) { $flag = 'Low';    $flagClass = 'chip-low'; }
                     elseif (str_contains($text, 'normal') || str_contains($text, 'within')) { $flag = 'Normal'; $flagClass = 'chip-normal'; }
                 }
-            @endphp
+            ?>
             <tr>
-                <td style="font-weight:bold;">{{ $ot->test->label ?? 'Unknown' }}</td>
-                <td>{{ $ot->test->section->label ?? '—' }}</td>
-                <td style="font-weight:bold; font-size:11px;">{{ $result->result_value ?? '—' }}</td>
-                <td>{{ $result->normal_range ?? '—' }}</td>
+                <td style="font-weight:bold;"><?php echo e($ot->test->label ?? 'Unknown'); ?></td>
+                <td><?php echo e($ot->test->section->label ?? '—'); ?></td>
+                <td style="font-weight:bold; font-size:11px;"><?php echo e($result->result_value ?? '—'); ?></td>
+                <td><?php echo e($result->normal_range ?? '—'); ?></td>
                 <td>
-                    @if($flag)
-                        <span class="chip {{ $flagClass }}">{{ $flag }}</span>
-                    @else
+                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($flag): ?>
+                        <span class="chip <?php echo e($flagClass); ?>"><?php echo e($flag); ?></span>
+                    <?php else: ?>
                         <span style="color:#ccc;">—</span>
-                    @endif
+                    <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                 </td>
-                <td style="color:#555;">{{ $result ? ($result->remarks ?? ($result->findings ?? '—')) : '—' }}</td>
+                <td style="color:#555;"><?php echo e($result ? ($result->remarks ?? ($result->findings ?? '—')) : '—'); ?></td>
                 <td>
-                    @if($result)
-                        <span class="chip {{ match($result->status) { 'final' => 'chip-normal', 'draft' => 'chip-low', default => 'chip-high' } }}">
-                            {{ ucfirst($result->status) }}
+                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($result): ?>
+                        <span class="chip <?php echo e(match($result->status) { 'final' => 'chip-normal', 'draft' => 'chip-low', default => 'chip-high' }); ?>">
+                            <?php echo e(ucfirst($result->status)); ?>
+
                         </span>
-                    @else
+                    <?php else: ?>
                         <span style="color:#aaa; font-size:9px;">Pending</span>
-                    @endif
+                    <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                 </td>
             </tr>
-            @endforeach
+            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
         </tbody>
     </table>
 
-    {{-- ── Order Remarks ── --}}
-    @if($order->remarks)
+    
+    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($order->remarks): ?>
     <div class="remarks">
         <div class="lbl">Order Remarks</div>
-        {{ $order->remarks }}
-    </div>
-    @endif
+        <?php echo e($order->remarks); ?>
 
-    {{-- ── Signatures ── --}}
-    @php
+    </div>
+    <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+
+    
+    <?php
         $performers = $order->orderTests
             ->filter(fn($ot) => $ot->labResult && $ot->labResult->performedBy)
             ->map(fn($ot) => $ot->labResult->performedBy->firstname . ' ' . $ot->labResult->performedBy->lastname)
@@ -221,34 +223,36 @@
             ->filter(fn($ot) => $ot->labResult && $ot->labResult->verifiedBy)
             ->map(fn($ot) => $ot->labResult->verifiedBy->firstname . ' ' . $ot->labResult->verifiedBy->lastname)
             ->unique()->implode(', ');
-    @endphp
+    ?>
     <table class="sig-table">
         <tr>
             <td>
                 <div class="sig-blank"></div>
-                <div class="sig-name">{{ $performers ?: 'Medical Technologist' }}</div>
+                <div class="sig-name"><?php echo e($performers ?: 'Medical Technologist'); ?></div>
                 <div class="sig-title">Medical Technologist</div>
                 <div class="sig-lic">License No. _________________</div>
             </td>
             <td>
                 <div class="sig-blank"></div>
-                <div class="sig-name">{{ $verifiers ?: 'Pathologist' }}</div>
+                <div class="sig-name"><?php echo e($verifiers ?: 'Pathologist'); ?></div>
                 <div class="sig-title">Pathologist / Laboratory Director</div>
                 <div class="sig-lic">License No. _________________</div>
             </td>
         </tr>
     </table>
 
-    {{-- ── Footer ── --}}
+    
     <div class="footer">
         <div class="footer-left">
             University of the Immaculate Conception &bull; Clinical Laboratory &bull; Davao City
         </div>
         <div class="footer-right">
-            Generated: {{ now()->format('d M Y, h:i A') }} &bull; Order #{{ str_pad($order->lab_test_order_id, 6, '0', STR_PAD_LEFT) }}
+            Generated: <?php echo e(now()->format('d M Y, h:i A')); ?> &bull; Order #<?php echo e(str_pad($order->lab_test_order_id, 6, '0', STR_PAD_LEFT)); ?>
+
         </div>
     </div>
 
 </div>
 </body>
 </html>
+<?php /**PATH C:\xampp\htdocs\dashboard\clinlab_app\resources\views/pdf/lab-result.blade.php ENDPATH**/ ?>
