@@ -776,12 +776,68 @@ new class extends Component
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Equipment *</label>
-                        <select wire:model="usage_equipment_id" class="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent bg-gray-50 focus:bg-white transition">
-                            <option value="">Select Equipment</option>
-                            @foreach($allEquipment as $eq)
-                                <option value="{{ $eq->equipment_id }}">{{ $eq->name }}</option>
-                            @endforeach
-                        </select>
+                        <div x-data="{
+                            open: false,
+                            search: '',
+                            selectedLabel: '',
+                            anchorRect: null,
+                            items: @js($allEquipment->map(fn($eq) => ['id' => $eq->equipment_id, 'label' => $eq->name])->values()),
+                            get filtered() {
+                                return this.items.filter(i => i.label.toLowerCase().includes(this.search.toLowerCase()));
+                            },
+                            select(item) {
+                                this.selectedLabel = item.label;
+                                this.search = '';
+                                this.open = false;
+                                $wire.set('usage_equipment_id', item.id);
+                            },
+                            clear() {
+                                this.selectedLabel = '';
+                                this.open = false;
+                                $wire.set('usage_equipment_id', '');
+                            },
+                            toggle() {
+                                this.open = !this.open;
+                                if (this.open) {
+                                    this.$nextTick(() => {
+                                        const rect = this.$refs.trigger.getBoundingClientRect();
+                                        this.anchorRect = { top: rect.bottom + window.scrollY, left: rect.left + window.scrollX, width: rect.width };
+                                    });
+                                }
+                            },
+                            init() {
+                                this.$watch('$wire.usage_equipment_id', val => {
+                                    if (!val) { this.selectedLabel = ''; return; }
+                                    const found = this.items.find(i => i.id == val);
+                                    if (found) this.selectedLabel = found.label;
+                                });
+                            }
+                        }" class="relative" @click.away="open = false">
+                            <div x-ref="trigger" @click="toggle()" class="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm cursor-pointer flex items-center justify-between bg-gray-50 hover:border-red-400 transition" :class="open ? 'ring-2 ring-red-500 border-transparent bg-white' : ''">
+                                <span x-text="selectedLabel || 'Select Equipment'" :class="selectedLabel ? 'text-gray-900' : 'text-gray-400'" class="truncate"></span>
+                                <div class="flex items-center gap-1 ml-2 shrink-0">
+                                    <button type="button" x-show="selectedLabel" @click.stop="clear()" class="text-gray-400 hover:text-gray-600">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                    </button>
+                                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                </div>
+                            </div>
+                            <template x-teleport="body">
+                                <div x-show="open" x-transition.opacity
+                                     :style="anchorRect ? `position:absolute;top:${anchorRect.top+4}px;left:${anchorRect.left}px;width:${anchorRect.width}px;z-index:9999` : ''"
+                                     class="bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
+                                    <div class="p-2 border-b border-gray-100">
+                                        <input type="text" x-model="search" @click.stop placeholder="Search equipment..." class="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none" @keydown.escape="open = false">
+                                    </div>
+                                    <ul class="max-h-48 overflow-y-auto py-1">
+                                        <template x-for="item in filtered" :key="item.id">
+                                            <li @click="select(item)" class="px-4 py-2 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 cursor-pointer truncate" x-text="item.label"></li>
+                                        </template>
+                                        <li x-show="filtered.length === 0" class="px-4 py-2 text-sm text-gray-400 text-center">No results</li>
+                                    </ul>
+                                </div>
+                            </template>
+                        </div>
                         @error('usage_equipment_id') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                     </div>
                     <div>
@@ -793,12 +849,68 @@ new class extends Component
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Used By (Employee) *</label>
-                        <select wire:model="usage_employee_id" class="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent bg-gray-50 focus:bg-white transition">
-                            <option value="">Select Employee</option>
-                            @foreach($employees as $emp)
-                                <option value="{{ $emp->employee_id }}">{{ $emp->firstname }} {{ $emp->lastname }}</option>
-                            @endforeach
-                        </select>
+                        <div x-data="{
+                            open: false,
+                            search: '',
+                            selectedLabel: '',
+                            anchorRect: null,
+                            items: @js($employees->map(fn($e) => ['id' => $e->employee_id, 'label' => $e->firstname . ' ' . $e->lastname])->values()),
+                            get filtered() {
+                                return this.items.filter(i => i.label.toLowerCase().includes(this.search.toLowerCase()));
+                            },
+                            select(item) {
+                                this.selectedLabel = item.label;
+                                this.search = '';
+                                this.open = false;
+                                $wire.set('usage_employee_id', item.id);
+                            },
+                            clear() {
+                                this.selectedLabel = '';
+                                this.open = false;
+                                $wire.set('usage_employee_id', '');
+                            },
+                            toggle() {
+                                this.open = !this.open;
+                                if (this.open) {
+                                    this.$nextTick(() => {
+                                        const rect = this.$refs.trigger.getBoundingClientRect();
+                                        this.anchorRect = { top: rect.bottom + window.scrollY, left: rect.left + window.scrollX, width: rect.width };
+                                    });
+                                }
+                            },
+                            init() {
+                                this.$watch('$wire.usage_employee_id', val => {
+                                    if (!val) { this.selectedLabel = ''; return; }
+                                    const found = this.items.find(i => i.id == val);
+                                    if (found) this.selectedLabel = found.label;
+                                });
+                            }
+                        }" class="relative" @click.away="open = false">
+                            <div x-ref="trigger" @click="toggle()" class="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm cursor-pointer flex items-center justify-between bg-gray-50 hover:border-red-400 transition" :class="open ? 'ring-2 ring-red-500 border-transparent bg-white' : ''">
+                                <span x-text="selectedLabel || 'Select Employee'" :class="selectedLabel ? 'text-gray-900' : 'text-gray-400'" class="truncate"></span>
+                                <div class="flex items-center gap-1 ml-2 shrink-0">
+                                    <button type="button" x-show="selectedLabel" @click.stop="clear()" class="text-gray-400 hover:text-gray-600">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                    </button>
+                                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                </div>
+                            </div>
+                            <template x-teleport="body">
+                                <div x-show="open" x-transition.opacity
+                                     :style="anchorRect ? `position:absolute;top:${anchorRect.top+4}px;left:${anchorRect.left}px;width:${anchorRect.width}px;z-index:9999` : ''"
+                                     class="bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
+                                    <div class="p-2 border-b border-gray-100">
+                                        <input type="text" x-model="search" @click.stop placeholder="Search employee..." class="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none" @keydown.escape="open = false">
+                                    </div>
+                                    <ul class="max-h-48 overflow-y-auto py-1">
+                                        <template x-for="item in filtered" :key="item.id">
+                                            <li @click="select(item)" class="px-4 py-2 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 cursor-pointer truncate" x-text="item.label"></li>
+                                        </template>
+                                        <li x-show="filtered.length === 0" class="px-4 py-2 text-sm text-gray-400 text-center">No results</li>
+                                    </ul>
+                                </div>
+                            </template>
+                        </div>
                         @error('usage_employee_id') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                     </div>
                     <div>

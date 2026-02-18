@@ -463,130 +463,128 @@ new class extends Component
 
     <!-- View / Edit Physician Modal -->
     @if($showViewModal && $viewingPhysician)
-    <div class="fixed inset-0 z-50 overflow-y-auto" style="background-color: rgba(0, 0, 0, 0.5);">
-        <div class="flex items-center justify-center min-h-screen p-4">
-            <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full">
-                <!-- Modal Header -->
-                <div class="px-6 py-4 border-b border-gray-200">
-                    <div class="flex items-center justify-between">
-                        <h3 class="text-xl font-semibold text-gray-900">
-                            {{ $editMode ? 'Edit Physician' : 'Physician Details' }}
-                        </h3>
-                        <button type="button" wire:click="closeViewModal" class="text-gray-400 hover:text-gray-600">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                            </svg>
-                        </button>
-                    </div>
+    <div class="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto h-full w-full z-50">
+        <div class="relative top-20 mx-auto p-0 border w-full max-w-2xl shadow-lg rounded-lg bg-white">
+            <!-- Modal Header -->
+            <div class="px-6 py-4 border-b border-gray-200">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xl font-semibold text-gray-900">
+                        {{ $editMode ? 'Edit Physician' : 'Physician Details' }}
+                    </h3>
+                    <button type="button" wire:click="closeViewModal" class="text-gray-400 hover:text-gray-600">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
                 </div>
+            </div>
 
-                @if($editMode)
-                <!-- Edit Mode -->
-                <form wire:submit.prevent="save">
-                    <div class="p-6">
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">
-                                    Physician Name <span class="text-red-500">*</span>
-                                </label>
-                                <input type="text" wire:model="physician_name" 
-                                       class="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-pink-500 focus:border-pink-500">
-                                @error('physician_name') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Specialization</label>
-                                <input type="text" wire:model="specialization" 
-                                       class="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-pink-500 focus:border-pink-500">
-                                @error('specialization') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
-                            </div>
-                            <div x-data="{ val: $wire.entangle('contact_number'), get missing() { return this.val ? 11 - this.val.length : 0 } }">
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Contact Number</label>
-                                <input type="text" wire:model="contact_number" placeholder="09123456789" maxlength="11"
-                                       @input="val = $event.target.value = $event.target.value.replace(/[^0-9]/g, '').slice(0, 11)"
-                                       :class="val && val.length > 0 && val.length < 11 ? 'border-red-400 focus:ring-red-500' : 'border-gray-300 focus:ring-pink-500'"
-                                       class="w-full px-3 py-2.5 border rounded-md focus:outline-none focus:ring-1">
-                                <template x-if="val && val.length > 0 && val.length < 11">
-                                    <span class="text-red-500 text-xs mt-1 block" x-text="'You\'re missing ' + missing + (missing === 1 ? ' number' : ' numbers')"></span>
-                                </template>
-                                <p class="text-gray-400 text-xs mt-1">Must be exactly 11 digits (09 format)</p>
-                                @error('contact_number') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                                <input type="email" wire:model="email" 
-                                       class="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-pink-500 focus:border-pink-500">
-                                @error('email') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
-                            </div>
-                            <div class="md:col-span-2">
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Assigned Section</label>
-                                <select wire:model="section_id"
-                                        class="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-pink-500 focus:border-pink-500">
-                                    <option value="">Select Section (Optional)</option>
-                                    @foreach($sections as $section)
-                                        <option value="{{ $section->section_id }}">{{ $section->label }}</option>
-                                    @endforeach
-                                </select>
-                                @error('section_id') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
-                            </div>
-                        </div>
-                    </div>
-                    <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end space-x-3 rounded-b-lg">
-                        <button type="button" wire:click="cancelEdit" 
-                                class="px-5 py-2.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
-                            Cancel
-                        </button>
-                        <button type="submit" 
-                                style="background-color: #DC143C;" 
-                                class="px-5 py-2.5 text-white text-sm rounded-md font-medium hover:opacity-90 transition-opacity">
-                            Update Physician
-                        </button>
-                    </div>
-                </form>
-                @else
-                <!-- View Mode (Read-only) -->
+            @if($editMode)
+            <!-- Edit Mode -->
+            <form wire:submit.prevent="save">
                 <div class="p-6">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                        <div class="bg-gray-50 p-4 rounded-lg">
-                            <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Physician Name</p>
-                            <p class="text-sm font-medium text-gray-900">{{ $viewingPhysician->physician_name }}</p>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Physician Name <span class="text-red-500">*</span>
+                            </label>
+                            <input type="text" wire:model="physician_name" 
+                                   class="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-pink-500 focus:border-pink-500">
+                            @error('physician_name') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
                         </div>
-                        <div class="bg-gray-50 p-4 rounded-lg">
-                            <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Assigned Section</p>
-                            <p class="text-sm font-medium text-gray-900">
-                                @if($viewingPhysician->section)
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">{{ $viewingPhysician->section->label }}</span>
-                                @else
-                                    <span class="text-gray-400">Unassigned</span>
-                                @endif
-                            </p>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Specialization</label>
+                            <input type="text" wire:model="specialization" 
+                                   class="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-pink-500 focus:border-pink-500">
+                            @error('specialization') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
                         </div>
-                        <div class="bg-gray-50 p-4 rounded-lg">
-                            <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Specialization</p>
-                            <p class="text-sm font-medium text-gray-900">{{ $viewingPhysician->specialization ?? 'N/A' }}</p>
+                        <div x-data="{ val: $wire.entangle('contact_number'), get missing() { return this.val ? 11 - this.val.length : 0 } }">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Contact Number</label>
+                            <input type="text" wire:model="contact_number" placeholder="09123456789" maxlength="11"
+                                   @input="val = $event.target.value = $event.target.value.replace(/[^0-9]/g, '').slice(0, 11)"
+                                   :class="val && val.length > 0 && val.length < 11 ? 'border-red-400 focus:ring-red-500' : 'border-gray-300 focus:ring-pink-500'"
+                                   class="w-full px-3 py-2.5 border rounded-md focus:outline-none focus:ring-1">
+                            <template x-if="val && val.length > 0 && val.length < 11">
+                                <span class="text-red-500 text-xs mt-1 block" x-text="'You\'re missing ' + missing + (missing === 1 ? ' number' : ' numbers')"></span>
+                            </template>
+                            <p class="text-gray-400 text-xs mt-1">Must be exactly 11 digits (09 format)</p>
+                            @error('contact_number') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
                         </div>
-                        <div class="bg-gray-50 p-4 rounded-lg">
-                            <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Contact Number</p>
-                            <p class="text-sm font-medium text-gray-900">{{ $viewingPhysician->contact_number ?? 'N/A' }}</p>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                            <input type="email" wire:model="email" 
+                                   class="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-pink-500 focus:border-pink-500">
+                            @error('email') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
                         </div>
-                        <div class="bg-gray-50 p-4 rounded-lg">
-                            <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Email</p>
-                            <p class="text-sm font-medium text-gray-900">{{ $viewingPhysician->email ?? 'N/A' }}</p>
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Assigned Section</label>
+                            <select wire:model="section_id"
+                                    class="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-pink-500 focus:border-pink-500">
+                                <option value="">Select Section (Optional)</option>
+                                @foreach($sections as $section)
+                                    <option value="{{ $section->section_id }}">{{ $section->label }}</option>
+                                @endforeach
+                            </select>
+                            @error('section_id') <span class="text-red-500 text-sm mt-1 block">{{ $message }}</span> @enderror
                         </div>
                     </div>
                 </div>
                 <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end space-x-3 rounded-b-lg">
-                    <button type="button" wire:click="closeViewModal" 
+                    <button type="button" wire:click="cancelEdit" 
                             class="px-5 py-2.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
-                        Close
+                        Cancel
                     </button>
-                    <button type="button" wire:click="enableEdit" 
-                            style="background-color: #DC143C;"
+                    <button type="submit" 
+                            style="background-color: #DC143C;" 
                             class="px-5 py-2.5 text-white text-sm rounded-md font-medium hover:opacity-90 transition-opacity">
-                        Edit
+                        Update Physician
                     </button>
                 </div>
-                @endif
+            </form>
+            @else
+            <!-- View Mode (Read-only) -->
+            <div class="p-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Physician Name</p>
+                        <p class="text-sm font-medium text-gray-900">{{ $viewingPhysician->physician_name }}</p>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Assigned Section</p>
+                        <p class="text-sm font-medium text-gray-900">
+                            @if($viewingPhysician->section)
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">{{ $viewingPhysician->section->label }}</span>
+                            @else
+                                <span class="text-gray-400">Unassigned</span>
+                            @endif
+                        </p>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Specialization</p>
+                        <p class="text-sm font-medium text-gray-900">{{ $viewingPhysician->specialization ?? 'N/A' }}</p>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Contact Number</p>
+                        <p class="text-sm font-medium text-gray-900">{{ $viewingPhysician->contact_number ?? 'N/A' }}</p>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Email</p>
+                        <p class="text-sm font-medium text-gray-900">{{ $viewingPhysician->email ?? 'N/A' }}</p>
+                    </div>
+                </div>
             </div>
+            <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end space-x-3 rounded-b-lg">
+                <button type="button" wire:click="closeViewModal" 
+                        class="px-5 py-2.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                    Close
+                </button>
+                <button type="button" wire:click="enableEdit" 
+                        style="background-color: #DC143C;"
+                        class="px-5 py-2.5 text-white text-sm rounded-md font-medium hover:opacity-90 transition-opacity">
+                    Edit
+                </button>
+            </div>
+            @endif
         </div>
     </div>
     @endif

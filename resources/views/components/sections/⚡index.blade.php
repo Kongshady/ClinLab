@@ -20,8 +20,13 @@ new class extends Component
     // Delete confirmation modal properties
     public $showDeleteModal = false;
     public $deleteMessage = '';
+    public $deleteAction = '';
     public $itemToDelete = null;
     public $itemName = '';
+
+    // Selection properties
+    public $selectedSections = [];
+    public $selectAll = false;
 
     // Edit properties
     public $editingSectionId = null;
@@ -82,6 +87,61 @@ new class extends Component
         $this->reset(['edit_label']);
     }
 
+    public function updatedSelectAll($value)
+    {
+        if ($value) {
+            $query = Section::active()
+                ->when($this->search, function ($query) {
+                    $query->where('label', 'like', '%' . $this->search . '%');
+                })
+                ->orderBy('label');
+            $sections = $this->perPage === 'all' ? $query->get() : $query->paginate((int)$this->perPage);
+            $this->selectedSections = $sections->pluck('section_id')->map(fn($id) => (string)$id)->toArray();
+        } else {
+            $this->selectedSections = [];
+        }
+    }
+
+    public function updatedSelectedSections()
+    {
+        $this->selectAll = false;
+    }
+
+    public function updatedSearch()
+    {
+        $this->selectedSections = [];
+        $this->selectAll = false;
+        $this->resetPage();
+    }
+
+    public function deleteSelected()
+    {
+        if (empty($this->selectedSections)) return;
+        $count = count($this->selectedSections);
+        $this->deleteMessage = "Are you sure you want to delete {$count} selected section(s)? This action cannot be undone.";
+        $this->deleteAction = 'confirmDeleteSelected';
+        $this->itemToDelete = $this->selectedSections;
+        $this->showDeleteModal = true;
+    }
+
+    public function confirmDeleteSelected()
+    {
+        if (empty($this->itemToDelete)) return;
+        $ids = is_array($this->itemToDelete) ? $this->itemToDelete : [$this->itemToDelete];
+        foreach ($ids as $id) {
+            $section = Section::find($id);
+            if ($section) {
+                $section->softDelete();
+                $this->logActivity("Deleted section ID {$id}: {$section->label}");
+            }
+        }
+        $this->flashMessage = count($ids) . ' section(s) deleted successfully!';
+        $this->selectedSections = [];
+        $this->selectAll = false;
+        $this->resetPage();
+        $this->closeDeleteModal();
+    }
+
     public function delete($id)
     {
         $section = Section::find($id);
@@ -89,6 +149,7 @@ new class extends Component
             $this->itemToDelete = $id;
             $this->itemName = $section->label;
             $this->deleteMessage = "Are you sure you want to delete the section '{$this->itemName}'? This action cannot be undone.";
+            $this->deleteAction = 'confirmDelete';
             $this->showDeleteModal = true;
         }
     }
@@ -110,6 +171,7 @@ new class extends Component
     {
         $this->showDeleteModal = false;
         $this->deleteMessage = '';
+        $this->deleteAction = '';
         $this->itemToDelete = null;
         $this->itemName = '';
     }
@@ -195,34 +257,49 @@ new class extends Component
     <!-- Sections List -->
     <div class="bg-white rounded-lg shadow-sm">
         <div class="p-6">
-            <h2 class="text-lg font-semibold text-gray-900 mb-4">Sections List</h2>
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-semibold text-gray-900">Sections List</h2>
+                <div class="flex items-center gap-3">
+                    @if(count($selectedSections) > 0)
+                    <button wire:click="deleteSelected"
+                            class="inline-flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                        </svg>
+                        Delete Selected ({{ count($selectedSections) }})
+                    </button>
+                    @endif
+                    <div class="relative">
+                        <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                        </svg>
+                        <input type="text" wire:model.live="search" placeholder="Search sections..."
+                               class="pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-pink-500 focus:border-transparent w-64">
+                    </div>
+                </div>
+            </div>
             
             <div class="overflow-x-auto">
                 <table class="w-full">
                     <thead>
                         <tr class="bg-gray-50">
+                            <th class="px-4 py-3 text-left w-10">
+                                <input type="checkbox" wire:model.live="selectAll"
+                                       class="w-4 h-4 text-pink-500 rounded border-gray-300 focus:ring-pink-500">
+                            </th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Section Name</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-200">
                         @forelse($sections as $section)
-                            <tr class="hover:bg-gray-50">
-                                <td class="px-4 py-3 text-sm text-gray-900 font-medium">{{ $section->label }}</td>
-                                <td class="px-4 py-3">
-                                    <div class="flex items-center space-x-2">
-                                        <button wire:click="editSection({{ $section->section_id }})"
-                                                type="button"
-                                                style="background-color: #DC143C;"
-                                                class="px-4 py-1.5 text-white text-sm font-medium rounded-lg hover:opacity-90 transition-opacity">
-                                            Edit
-                                        </button>
-                                        <button wire:click="delete({{ $section->section_id }})" 
-                                                class="px-4 py-1.5 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors">
-                                            Delete
-                                        </button>
-                                    </div>
+                            <tr class="hover:bg-gray-50 cursor-pointer {{ in_array((string) $section->section_id, $selectedSections) ? 'bg-pink-50' : '' }}">
+                                <td class="px-4 py-3" wire:click.stop>
+                                    <input type="checkbox" wire:model.live="selectedSections"
+                                           value="{{ $section->section_id }}"
+                                           class="w-4 h-4 text-pink-500 rounded border-gray-300 focus:ring-pink-500">
                                 </td>
+                                <td class="px-4 py-3 text-sm text-gray-900 font-medium"
+                                    wire:click="editSection({{ $section->section_id }})">{{ $section->label }}</td>
                             </tr>
                         @empty
                             <tr>
@@ -308,9 +385,9 @@ new class extends Component
                             class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium rounded-lg transition-colors">
                         Cancel
                     </button>
-                    <button wire:click="confirmDelete"
+                    <button wire:click="{{ $deleteAction }}"
                             class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white font-medium rounded-lg transition-colors">
-                        Delete Section
+                        Delete
                     </button>
                 </div>
             </div>

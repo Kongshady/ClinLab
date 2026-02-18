@@ -421,14 +421,14 @@ new class extends Component
                         Delete Selected ({{ count($selectedTests) }})
                     </button>
                     @endif
-                    {{-- UPDATED: Web search button --}}
-                    <button wire:click="openSearchModal" 
-                            class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">
-                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    {{-- Search bar --}}
+                    <div class="relative">
+                        <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                         </svg>
-                        Search Web
-                    </button>
+                        <input type="text" wire:model.live="search" placeholder="Search tests..." 
+                               class="pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-pink-500 focus:border-transparent w-64">
+                    </div>
                 </div>
             </div>
             

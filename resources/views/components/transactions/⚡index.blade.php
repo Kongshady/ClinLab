@@ -316,15 +316,58 @@ public function updatedSelectAll($value)
         @if($showForm)
         <form wire:submit.prevent="save" class="p-6">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
+                <!-- Searchable Patient Dropdown -->
+                <div x-data="{
+                    open: false,
+                    search: '',
+                    selectedLabel: '',
+                    items: @js($patients->map(fn($p) => ['id' => $p->patient_id, 'name' => $p->full_name])),
+                    get filtered() {
+                        if (!this.search) return this.items;
+                        return this.items.filter(i => i.name.toLowerCase().includes(this.search.toLowerCase()));
+                    },
+                    select(item) {
+                        $wire.set('client_id', item.id);
+                        this.selectedLabel = item.name;
+                        this.search = '';
+                        this.open = false;
+                    },
+                    clear() {
+                        $wire.set('client_id', '');
+                        this.selectedLabel = '';
+                        this.search = '';
+                    },
+                    init() {
+                        let val = $wire.get('client_id');
+                        if (val) {
+                            let found = this.items.find(i => String(i.id) === String(val));
+                            if (found) this.selectedLabel = found.name;
+                        }
+                    }
+                }" @click.away="open = false" class="relative">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Patient *</label>
-                    <select wire:model="client_id" 
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
-                        <option value="">Select Patient</option>
-                        @foreach($patients as $patient)
-                            <option value="{{ $patient->patient_id }}">{{ $patient->full_name }}</option>
-                        @endforeach
-                    </select>
+                    <div @click="open = !open" class="w-full px-3 py-2 border border-gray-300 rounded-md focus-within:ring-2 focus-within:ring-purple-500 cursor-pointer bg-white flex items-center justify-between">
+                        <span x-show="selectedLabel" x-text="selectedLabel" class="text-gray-900 truncate"></span>
+                        <span x-show="!selectedLabel" class="text-gray-400">Select Patient</span>
+                        <div class="flex items-center gap-1">
+                            <button x-show="selectedLabel" @click.stop="clear()" type="button" class="text-gray-400 hover:text-red-500">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                            </button>
+                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                        </div>
+                    </div>
+                    <div x-show="open" x-transition class="absolute z-50 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-hidden">
+                        <div class="p-2 border-b border-gray-200">
+                            <input type="text" x-model="search" @click.stop placeholder="Search patients..." 
+                                   class="w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-purple-500" autocomplete="off">
+                        </div>
+                        <ul class="overflow-y-auto max-h-48">
+                            <template x-for="item in filtered" :key="item.id">
+                                <li @click="select(item)" class="px-4 py-2 text-sm hover:bg-purple-50 cursor-pointer" x-text="item.name"></li>
+                            </template>
+                            <li x-show="filtered.length === 0" class="px-4 py-2 text-sm text-gray-400">No results found</li>
+                        </ul>
+                    </div>
                     @error('client_id') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
                 </div>
                 <div>
@@ -449,17 +492,60 @@ public function updatedSelectAll($value)
                 <form wire:submit.prevent="update">
                     <div class="p-6">
                         <div class="grid grid-cols-1 gap-5">
-                            <div>
+                            <!-- Searchable Patient Dropdown -->
+                            <div x-data="{
+                                open: false,
+                                search: '',
+                                selectedLabel: '',
+                                items: @js($patients->map(fn($p) => ['id' => $p->patient_id, 'name' => $p->full_name])),
+                                get filtered() {
+                                    if (!this.search) return this.items;
+                                    return this.items.filter(i => i.name.toLowerCase().includes(this.search.toLowerCase()));
+                                },
+                                select(item) {
+                                    $wire.set('client_id', item.id);
+                                    this.selectedLabel = item.name;
+                                    this.search = '';
+                                    this.open = false;
+                                },
+                                clear() {
+                                    $wire.set('client_id', '');
+                                    this.selectedLabel = '';
+                                    this.search = '';
+                                },
+                                init() {
+                                    let val = $wire.get('client_id');
+                                    if (val) {
+                                        let found = this.items.find(i => String(i.id) === String(val));
+                                        if (found) this.selectedLabel = found.name;
+                                    }
+                                }
+                            }" @click.away="open = false" class="relative">
                                 <label class="block text-sm font-medium text-gray-700 mb-2">
                                     Patient <span class="text-red-500">*</span>
                                 </label>
-                                <select wire:model="client_id" 
-                                        class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
-                                    <option value="">Select Patient</option>
-                                    @foreach($patients as $patient)
-                                        <option value="{{ $patient->patient_id }}">{{ $patient->full_name }}</option>
-                                    @endforeach
-                                </select>
+                                <div @click="open = !open" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus-within:ring-2 focus-within:ring-purple-500 cursor-pointer bg-white flex items-center justify-between">
+                                    <span x-show="selectedLabel" x-text="selectedLabel" class="text-gray-900 truncate"></span>
+                                    <span x-show="!selectedLabel" class="text-gray-400">Select Patient</span>
+                                    <div class="flex items-center gap-1">
+                                        <button x-show="selectedLabel" @click.stop="clear()" type="button" class="text-gray-400 hover:text-red-500">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                        </button>
+                                        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                    </div>
+                                </div>
+                                <div x-show="open" x-transition class="absolute z-50 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-hidden">
+                                    <div class="p-2 border-b border-gray-200">
+                                        <input type="text" x-model="search" @click.stop placeholder="Search patients..." 
+                                               class="w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-purple-500" autocomplete="off">
+                                    </div>
+                                    <ul class="overflow-y-auto max-h-48">
+                                        <template x-for="item in filtered" :key="item.id">
+                                            <li @click="select(item)" class="px-4 py-2 text-sm hover:bg-purple-50 cursor-pointer" x-text="item.name"></li>
+                                        </template>
+                                        <li x-show="filtered.length === 0" class="px-4 py-2 text-sm text-gray-400">No results found</li>
+                                    </ul>
+                                </div>
                                 @error('client_id') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                             </div>
                             <div>

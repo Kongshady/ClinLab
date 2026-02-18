@@ -19,6 +19,8 @@ new class extends Component
     // Lab results search/filter
     public $orderSearch = '';
     public $orderStatusFilter = '';
+    public $ordersPage = 1;
+    public $ordersPerPage = 5;
 
     // Profile edit fields
     public $editMode = false;
@@ -149,6 +151,28 @@ new class extends Component
         }
 
         $this->certificates = $merged->sortByDesc('raw_date')->values()->toArray();
+    }
+
+    public function updatedOrderSearch()
+    {
+        $this->ordersPage = 1;
+    }
+
+    public function updatedOrderStatusFilter()
+    {
+        $this->ordersPage = 1;
+    }
+
+    public function nextOrdersPage()
+    {
+        $this->ordersPage++;
+    }
+
+    public function prevOrdersPage()
+    {
+        if ($this->ordersPage > 1) {
+            $this->ordersPage--;
+        }
     }
 
     public function updatedCertFilterType()
@@ -656,6 +680,9 @@ new class extends Component
                             }
                             return true;
                         });
+                        $totalFilteredOrders = $filtered->count();
+                        $totalOrderPages = (int) ceil($totalFilteredOrders / $ordersPerPage);
+                        $paginatedOrders = $filtered->forPage($ordersPage, $ordersPerPage);
                     @endphp
 
                     @if($filtered->isEmpty())
@@ -668,7 +695,7 @@ new class extends Component
                         </div>
                     @else
                     <div class="space-y-3">
-                        @foreach($filtered as $order)
+                        @foreach($paginatedOrders as $order)
                         @php
                             $totalTests = $order->orderTests->count();
                             $completedTests = $order->orderTests->where('status', 'completed')->count();
@@ -764,6 +791,32 @@ new class extends Component
                         </div>
                         @endforeach
                     </div>
+
+                    {{-- Pagination --}}
+                    @if($totalOrderPages > 1)
+                    <div class="flex items-center justify-between mt-4 px-1">
+                        <p class="text-sm text-gray-500">
+                            Showing {{ ($ordersPage - 1) * $ordersPerPage + 1 }}–{{ min($ordersPage * $ordersPerPage, $totalFilteredOrders) }} of {{ $totalFilteredOrders }} orders
+                        </p>
+                        <div class="flex items-center gap-2">
+                            <button wire:click="prevOrdersPage" @disabled($ordersPage <= 1)
+                                    class="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-xl border transition-all
+                                        {{ $ordersPage <= 1 ? 'border-gray-100 text-gray-300 bg-gray-50 cursor-not-allowed' : 'border-gray-200 text-gray-600 bg-white hover:bg-gray-50 hover:border-gray-300' }}">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                                Prev
+                            </button>
+                            <span class="px-3 py-2 text-sm font-semibold text-gray-700 bg-blue-50 border border-blue-100 rounded-xl">
+                                {{ $ordersPage }} / {{ $totalOrderPages }}
+                            </span>
+                            <button wire:click="nextOrdersPage" @disabled($ordersPage >= $totalOrderPages)
+                                    class="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-xl border transition-all
+                                        {{ $ordersPage >= $totalOrderPages ? 'border-gray-100 text-gray-300 bg-gray-50 cursor-not-allowed' : 'border-gray-200 text-gray-600 bg-white hover:bg-gray-50 hover:border-gray-300' }}">
+                                Next
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                    @endif
                     @endif
                 @else
                     {{-- Empty State --}}

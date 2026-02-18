@@ -380,52 +380,227 @@ new class extends Component
                 </div>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <div>
+                <!-- Searchable Patient Dropdown -->
+                <div x-data="{
+                    open: false,
+                    search: '',
+                    selectedLabel: '',
+                    items: @js($patients->map(fn($p) => ['id' => $p->patient_id, 'name' => $p->full_name])),
+                    get filtered() {
+                        if (!this.search) return this.items;
+                        return this.items.filter(i => i.name.toLowerCase().includes(this.search.toLowerCase()));
+                    },
+                    select(item) {
+                        $wire.set('patient_id', item.id);
+                        this.selectedLabel = item.name;
+                        this.search = '';
+                        this.open = false;
+                    },
+                    clear() {
+                        $wire.set('patient_id', '');
+                        this.selectedLabel = '';
+                        this.search = '';
+                    },
+                    init() {
+                        let val = $wire.get('patient_id');
+                        if (val) {
+                            let found = this.items.find(i => String(i.id) === String(val));
+                            if (found) this.selectedLabel = found.name;
+                        }
+                    }
+                }" @click.away="open = false" class="relative">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Patient (if applicable)</label>
-                    <select wire:model="patient_id" 
-                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                        <option value="">Select Patient</option>
-                        @foreach($patients as $patient)
-                            <option value="{{ $patient->patient_id }}">{{ $patient->full_name }}</option>
-                        @endforeach
-                    </select>
+                    <div @click="open = !open" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus-within:ring-2 focus-within:ring-blue-500 cursor-pointer bg-white flex items-center justify-between">
+                        <span x-show="selectedLabel" x-text="selectedLabel" class="text-gray-900 truncate"></span>
+                        <span x-show="!selectedLabel" class="text-gray-400">Select Patient</span>
+                        <div class="flex items-center gap-1">
+                            <button x-show="selectedLabel" @click.stop="clear()" type="button" class="text-gray-400 hover:text-red-500">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                            </button>
+                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                        </div>
+                    </div>
+                    <div x-show="open" x-transition class="absolute z-50 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-hidden">
+                        <div class="p-2 border-b border-gray-200">
+                            <input type="text" x-model="search" @click.stop placeholder="Search patients..." 
+                                   class="w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-500" autocomplete="off">
+                        </div>
+                        <ul class="overflow-y-auto max-h-48">
+                            <template x-for="item in filtered" :key="item.id">
+                                <li @click="select(item)" class="px-4 py-2 text-sm hover:bg-blue-50 cursor-pointer" x-text="item.name"></li>
+                            </template>
+                            <li x-show="filtered.length === 0" class="px-4 py-2 text-sm text-gray-400">No results found</li>
+                        </ul>
+                    </div>
                     @error('patient_id') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
                 </div>
-                <div>
+
+                <!-- Searchable Equipment Dropdown -->
+                <div x-data="{
+                    open: false,
+                    search: '',
+                    selectedLabel: '',
+                    items: @js($equipment->map(fn($e) => ['id' => $e->equipment_id, 'name' => $e->name])),
+                    get filtered() {
+                        if (!this.search) return this.items;
+                        return this.items.filter(i => i.name.toLowerCase().includes(this.search.toLowerCase()));
+                    },
+                    select(item) {
+                        $wire.set('equipment_id', item.id);
+                        this.selectedLabel = item.name;
+                        this.search = '';
+                        this.open = false;
+                    },
+                    clear() {
+                        $wire.set('equipment_id', '');
+                        this.selectedLabel = '';
+                        this.search = '';
+                    },
+                    init() {
+                        let val = $wire.get('equipment_id');
+                        if (val) {
+                            let found = this.items.find(i => String(i.id) === String(val));
+                            if (found) this.selectedLabel = found.name;
+                        }
+                    }
+                }" @click.away="open = false" class="relative">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Equipment (if applicable)</label>
-                    <select wire:model="equipment_id" 
-                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                        <option value="">Select Equipment</option>
-                        @foreach($equipment as $item)
-                            <option value="{{ $item->equipment_id }}">{{ $item->name }}</option>
-                        @endforeach
-                    </select>
+                    <div @click="open = !open" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus-within:ring-2 focus-within:ring-blue-500 cursor-pointer bg-white flex items-center justify-between">
+                        <span x-show="selectedLabel" x-text="selectedLabel" class="text-gray-900 truncate"></span>
+                        <span x-show="!selectedLabel" class="text-gray-400">Select Equipment</span>
+                        <div class="flex items-center gap-1">
+                            <button x-show="selectedLabel" @click.stop="clear()" type="button" class="text-gray-400 hover:text-red-500">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                            </button>
+                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                        </div>
+                    </div>
+                    <div x-show="open" x-transition class="absolute z-50 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-hidden">
+                        <div class="p-2 border-b border-gray-200">
+                            <input type="text" x-model="search" @click.stop placeholder="Search equipment..." 
+                                   class="w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-500" autocomplete="off">
+                        </div>
+                        <ul class="overflow-y-auto max-h-48">
+                            <template x-for="item in filtered" :key="item.id">
+                                <li @click="select(item)" class="px-4 py-2 text-sm hover:bg-blue-50 cursor-pointer" x-text="item.name"></li>
+                            </template>
+                            <li x-show="filtered.length === 0" class="px-4 py-2 text-sm text-gray-400">No results found</li>
+                        </ul>
+                    </div>
                     @error('equipment_id') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
                 </div>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                <div>
+                <!-- Searchable Issued By Dropdown -->
+                <div x-data="{
+                    open: false,
+                    search: '',
+                    selectedLabel: '',
+                    items: @js($employees->map(fn($e) => ['id' => $e->employee_id, 'name' => $e->full_name])),
+                    get filtered() {
+                        if (!this.search) return this.items;
+                        return this.items.filter(i => i.name.toLowerCase().includes(this.search.toLowerCase()));
+                    },
+                    select(item) {
+                        $wire.set('issued_by', item.id);
+                        this.selectedLabel = item.name;
+                        this.search = '';
+                        this.open = false;
+                    },
+                    clear() {
+                        $wire.set('issued_by', '');
+                        this.selectedLabel = '';
+                        this.search = '';
+                    },
+                    init() {
+                        let val = $wire.get('issued_by');
+                        if (val) {
+                            let found = this.items.find(i => String(i.id) === String(val));
+                            if (found) this.selectedLabel = found.name;
+                        }
+                    }
+                }" @click.away="open = false" class="relative">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Issued By *</label>
-                    <select wire:model="issued_by" 
-                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                        <option value="">Select Employee</option>
-                        @foreach($employees as $employee)
-                            <option value="{{ $employee->employee_id }}">{{ $employee->full_name }}</option>
-                        @endforeach
-                    </select>
+                    <div @click="open = !open" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus-within:ring-2 focus-within:ring-blue-500 cursor-pointer bg-white flex items-center justify-between">
+                        <span x-show="selectedLabel" x-text="selectedLabel" class="text-gray-900 truncate"></span>
+                        <span x-show="!selectedLabel" class="text-gray-400">Select Employee</span>
+                        <div class="flex items-center gap-1">
+                            <button x-show="selectedLabel" @click.stop="clear()" type="button" class="text-gray-400 hover:text-red-500">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                            </button>
+                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                        </div>
+                    </div>
+                    <div x-show="open" x-transition class="absolute z-50 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-hidden">
+                        <div class="p-2 border-b border-gray-200">
+                            <input type="text" x-model="search" @click.stop placeholder="Search employees..." 
+                                   class="w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-500" autocomplete="off">
+                        </div>
+                        <ul class="overflow-y-auto max-h-48">
+                            <template x-for="item in filtered" :key="item.id">
+                                <li @click="select(item)" class="px-4 py-2 text-sm hover:bg-blue-50 cursor-pointer" x-text="item.name"></li>
+                            </template>
+                            <li x-show="filtered.length === 0" class="px-4 py-2 text-sm text-gray-400">No results found</li>
+                        </ul>
+                    </div>
                     @error('issued_by') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
                 </div>
-                <div>
+
+                <!-- Searchable Verified By Dropdown -->
+                <div x-data="{
+                    open: false,
+                    search: '',
+                    selectedLabel: '',
+                    items: @js($employees->map(fn($e) => ['id' => $e->employee_id, 'name' => $e->full_name])),
+                    get filtered() {
+                        if (!this.search) return this.items;
+                        return this.items.filter(i => i.name.toLowerCase().includes(this.search.toLowerCase()));
+                    },
+                    select(item) {
+                        $wire.set('verified_by', item.id);
+                        this.selectedLabel = item.name;
+                        this.search = '';
+                        this.open = false;
+                    },
+                    clear() {
+                        $wire.set('verified_by', '');
+                        this.selectedLabel = '';
+                        this.search = '';
+                    },
+                    init() {
+                        let val = $wire.get('verified_by');
+                        if (val) {
+                            let found = this.items.find(i => String(i.id) === String(val));
+                            if (found) this.selectedLabel = found.name;
+                        }
+                    }
+                }" @click.away="open = false" class="relative">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Verified By</label>
-                    <select wire:model="verified_by" 
-                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                        <option value="">Select Employee</option>
-                        @foreach($employees as $employee)
-                            <option value="{{ $employee->employee_id }}">{{ $employee->full_name }}</option>
-                        @endforeach
-                    </select>
+                    <div @click="open = !open" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus-within:ring-2 focus-within:ring-blue-500 cursor-pointer bg-white flex items-center justify-between">
+                        <span x-show="selectedLabel" x-text="selectedLabel" class="text-gray-900 truncate"></span>
+                        <span x-show="!selectedLabel" class="text-gray-400">Select Employee</span>
+                        <div class="flex items-center gap-1">
+                            <button x-show="selectedLabel" @click.stop="clear()" type="button" class="text-gray-400 hover:text-red-500">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                            </button>
+                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                        </div>
+                    </div>
+                    <div x-show="open" x-transition class="absolute z-50 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-hidden">
+                        <div class="p-2 border-b border-gray-200">
+                            <input type="text" x-model="search" @click.stop placeholder="Search employees..." 
+                                   class="w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-500" autocomplete="off">
+                        </div>
+                        <ul class="overflow-y-auto max-h-48">
+                            <template x-for="item in filtered" :key="item.id">
+                                <li @click="select(item)" class="px-4 py-2 text-sm hover:bg-blue-50 cursor-pointer" x-text="item.name"></li>
+                            </template>
+                            <li x-show="filtered.length === 0" class="px-4 py-2 text-sm text-gray-400">No results found</li>
+                        </ul>
+                    </div>
                     @error('verified_by') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
                 </div>
+
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Status *</label>
                     <select wire:model="status" 
@@ -489,24 +664,15 @@ new class extends Component
             <div class="flex items-center justify-between">
                 <h2 class="text-lg font-semibold text-gray-900">Issued Certificates</h2>
                 <div class="flex items-center gap-3">
-                    {{-- UPDATED: Delete button --}}
-                    @if(count($selectedCertificates) > 0)
-                    <button wire:click="deleteSelected" 
-                            class="inline-flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                        </svg>
-                        Delete Selected ({{ count($selectedCertificates) }})
-                    </button>
-                    @endif
-                    {{-- UPDATED: Web search button --}}
-                    <button wire:click="openSearchModal" 
-                            class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">
-                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                        </svg>
-                        Search Web
-                    </button>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                            </svg>
+                        </div>
+                        <input type="text" wire:model.live="search" placeholder="Search certificates..."
+                               class="pl-9 pr-4 py-2 w-64 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent">
+                    </div>
                 </div>
             </div>
         </div>
@@ -514,10 +680,6 @@ new class extends Component
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
-                        <th class="px-6 py-3 text-left w-10">
-                            <input type="checkbox" wire:model.live="selectAll"
-                                   class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 h-4 w-4">
-                        </th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Certificate #</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient/Equipment</th>
@@ -530,11 +692,7 @@ new class extends Component
                 <tbody class="bg-white divide-y divide-gray-200">
                     @forelse($certificates as $cert)
                         <tr wire:key="certificate-{{ $cert->certificate_id }}" 
-                            class="hover:bg-gray-50 {{ in_array((string) $cert->certificate_id, $selectedCertificates) ? 'bg-blue-50' : '' }}">
-                            <td class="px-6 py-4">
-                                <input type="checkbox" wire:model.live="selectedCertificates" value="{{ $cert->certificate_id }}"
-                                       class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 h-4 w-4">
-                            </td>
+                            class="hover:bg-gray-50">
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                 <div class="font-medium">{{ $cert->certificate_number }}</div>
                                 <div class="text-xs text-gray-500">ID: {{ $cert->certificate_id }}</div>
@@ -604,7 +762,7 @@ new class extends Component
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="px-6 py-12 text-center">
+                            <td colspan="6" class="px-6 py-12 text-center">
                                 <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                                 </svg>
@@ -696,57 +854,281 @@ new class extends Component
                                 @error('editStatus') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                             </div>
 
-                            <!-- Patient -->
-                            <div>
+                            <!-- Patient (Searchable) -->
+                            <div x-data="{
+                                open: false,
+                                search: '',
+                                selectedLabel: '',
+                                anchorRect: null,
+                                items: @js($patients->map(fn($p) => ['id' => $p->patient_id, 'name' => $p->full_name])),
+                                get filtered() {
+                                    if (!this.search) return this.items;
+                                    return this.items.filter(i => i.name.toLowerCase().includes(this.search.toLowerCase()));
+                                },
+                                select(item) {
+                                    $wire.set('editPatientId', item.id);
+                                    this.selectedLabel = item.name;
+                                    this.search = '';
+                                    this.open = false;
+                                },
+                                clear() {
+                                    $wire.set('editPatientId', '');
+                                    this.selectedLabel = '';
+                                    this.search = '';
+                                },
+                                toggle() {
+                                    this.open = !this.open;
+                                    if (this.open) {
+                                        this.$nextTick(() => {
+                                            const r = this.$refs.trigger.getBoundingClientRect();
+                                            this.anchorRect = { top: r.bottom + window.scrollY, left: r.left + window.scrollX, width: r.width };
+                                        });
+                                    }
+                                },
+                                init() {
+                                    let val = $wire.get('editPatientId');
+                                    if (val) {
+                                        let found = this.items.find(i => String(i.id) === String(val));
+                                        if (found) this.selectedLabel = found.name;
+                                    }
+                                }
+                            }" @click.away="open = false" class="relative">
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Patient (if applicable)</label>
-                                <select wire:model="editPatientId" 
-                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                    <option value="">Select Patient</option>
-                                    @foreach($patients as $patient)
-                                        <option value="{{ $patient->patient_id }}">{{ $patient->full_name }}</option>
-                                    @endforeach
-                                </select>
+                                <div x-ref="trigger" @click="toggle()" class="w-full px-3 py-2 border border-gray-300 rounded-md cursor-pointer bg-white flex items-center justify-between hover:border-blue-400 transition" :class="open ? 'ring-2 ring-blue-500 border-transparent' : ''">
+                                    <span x-show="selectedLabel" x-text="selectedLabel" class="text-gray-900 truncate"></span>
+                                    <span x-show="!selectedLabel" class="text-gray-400">Select Patient</span>
+                                    <div class="flex items-center gap-1 ml-2 shrink-0">
+                                        <button x-show="selectedLabel" @click.stop="clear()" type="button" class="text-gray-400 hover:text-red-500">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                        </button>
+                                        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                    </div>
+                                </div>
+                                <template x-teleport="body">
+                                    <div x-show="open" x-transition.opacity
+                                         :style="anchorRect ? `position:absolute;top:${anchorRect.top+4}px;left:${anchorRect.left}px;width:${anchorRect.width}px;z-index:9999` : ''"
+                                         class="bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
+                                        <div class="p-2 border-b border-gray-100">
+                                            <input type="text" x-model="search" @click.stop placeholder="Search patients..."
+                                                   class="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none" @keydown.escape="open = false">
+                                        </div>
+                                        <ul class="max-h-48 overflow-y-auto py-1">
+                                            <template x-for="item in filtered" :key="item.id">
+                                                <li @click="select(item)" class="px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 cursor-pointer truncate" x-text="item.name"></li>
+                                            </template>
+                                            <li x-show="filtered.length === 0" class="px-4 py-2 text-sm text-gray-400 text-center">No results found</li>
+                                        </ul>
+                                    </div>
+                                </template>
                                 @error('editPatientId') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                             </div>
 
-                            <!-- Equipment -->
-                            <div>
+                            <!-- Equipment (Searchable) -->
+                            <div x-data="{
+                                open: false,
+                                search: '',
+                                selectedLabel: '',
+                                anchorRect: null,
+                                items: @js($equipment->map(fn($e) => ['id' => $e->equipment_id, 'name' => $e->name])),
+                                get filtered() {
+                                    if (!this.search) return this.items;
+                                    return this.items.filter(i => i.name.toLowerCase().includes(this.search.toLowerCase()));
+                                },
+                                select(item) {
+                                    $wire.set('editEquipmentId', item.id);
+                                    this.selectedLabel = item.name;
+                                    this.search = '';
+                                    this.open = false;
+                                },
+                                clear() {
+                                    $wire.set('editEquipmentId', '');
+                                    this.selectedLabel = '';
+                                    this.search = '';
+                                },
+                                toggle() {
+                                    this.open = !this.open;
+                                    if (this.open) {
+                                        this.$nextTick(() => {
+                                            const r = this.$refs.trigger.getBoundingClientRect();
+                                            this.anchorRect = { top: r.bottom + window.scrollY, left: r.left + window.scrollX, width: r.width };
+                                        });
+                                    }
+                                },
+                                init() {
+                                    let val = $wire.get('editEquipmentId');
+                                    if (val) {
+                                        let found = this.items.find(i => String(i.id) === String(val));
+                                        if (found) this.selectedLabel = found.name;
+                                    }
+                                }
+                            }" @click.away="open = false" class="relative">
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Equipment (if applicable)</label>
-                                <select wire:model="editEquipmentId" 
-                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                    <option value="">Select Equipment</option>
-                                    @foreach($equipment as $item)
-                                        <option value="{{ $item->equipment_id }}">{{ $item->name }}</option>
-                                    @endforeach
-                                </select>
+                                <div x-ref="trigger" @click="toggle()" class="w-full px-3 py-2 border border-gray-300 rounded-md cursor-pointer bg-white flex items-center justify-between hover:border-blue-400 transition" :class="open ? 'ring-2 ring-blue-500 border-transparent' : ''">
+                                    <span x-show="selectedLabel" x-text="selectedLabel" class="text-gray-900 truncate"></span>
+                                    <span x-show="!selectedLabel" class="text-gray-400">Select Equipment</span>
+                                    <div class="flex items-center gap-1 ml-2 shrink-0">
+                                        <button x-show="selectedLabel" @click.stop="clear()" type="button" class="text-gray-400 hover:text-red-500">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                        </button>
+                                        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                    </div>
+                                </div>
+                                <template x-teleport="body">
+                                    <div x-show="open" x-transition.opacity
+                                         :style="anchorRect ? `position:absolute;top:${anchorRect.top+4}px;left:${anchorRect.left}px;width:${anchorRect.width}px;z-index:9999` : ''"
+                                         class="bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
+                                        <div class="p-2 border-b border-gray-100">
+                                            <input type="text" x-model="search" @click.stop placeholder="Search equipment..."
+                                                   class="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none" @keydown.escape="open = false">
+                                        </div>
+                                        <ul class="max-h-48 overflow-y-auto py-1">
+                                            <template x-for="item in filtered" :key="item.id">
+                                                <li @click="select(item)" class="px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 cursor-pointer truncate" x-text="item.name"></li>
+                                            </template>
+                                            <li x-show="filtered.length === 0" class="px-4 py-2 text-sm text-gray-400 text-center">No results found</li>
+                                        </ul>
+                                    </div>
+                                </template>
                                 @error('editEquipmentId') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                             </div>
 
-                            <!-- Issued By -->
-                            <div>
+                            <!-- Issued By (Searchable) -->
+                            <div x-data="{
+                                open: false,
+                                search: '',
+                                selectedLabel: '',
+                                anchorRect: null,
+                                items: @js($employees->map(fn($e) => ['id' => $e->employee_id, 'name' => $e->full_name])),
+                                get filtered() {
+                                    if (!this.search) return this.items;
+                                    return this.items.filter(i => i.name.toLowerCase().includes(this.search.toLowerCase()));
+                                },
+                                select(item) {
+                                    $wire.set('editIssuedBy', item.id);
+                                    this.selectedLabel = item.name;
+                                    this.search = '';
+                                    this.open = false;
+                                },
+                                clear() {
+                                    $wire.set('editIssuedBy', '');
+                                    this.selectedLabel = '';
+                                    this.search = '';
+                                },
+                                toggle() {
+                                    this.open = !this.open;
+                                    if (this.open) {
+                                        this.$nextTick(() => {
+                                            const r = this.$refs.trigger.getBoundingClientRect();
+                                            this.anchorRect = { top: r.bottom + window.scrollY, left: r.left + window.scrollX, width: r.width };
+                                        });
+                                    }
+                                },
+                                init() {
+                                    let val = $wire.get('editIssuedBy');
+                                    if (val) {
+                                        let found = this.items.find(i => String(i.id) === String(val));
+                                        if (found) this.selectedLabel = found.name;
+                                    }
+                                }
+                            }" @click.away="open = false" class="relative">
                                 <label class="block text-sm font-medium text-gray-700 mb-1">
                                     Issued By <span class="text-red-500">*</span>
                                 </label>
-                                <select wire:model="editIssuedBy" 
-                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                    <option value="">Select Employee</option>
-                                    @foreach($employees as $employee)
-                                        <option value="{{ $employee->employee_id }}">{{ $employee->full_name }}</option>
-                                    @endforeach
-                                </select>
+                                <div x-ref="trigger" @click="toggle()" class="w-full px-3 py-2 border border-gray-300 rounded-md cursor-pointer bg-white flex items-center justify-between hover:border-blue-400 transition" :class="open ? 'ring-2 ring-blue-500 border-transparent' : ''">
+                                    <span x-show="selectedLabel" x-text="selectedLabel" class="text-gray-900 truncate"></span>
+                                    <span x-show="!selectedLabel" class="text-gray-400">Select Employee</span>
+                                    <div class="flex items-center gap-1 ml-2 shrink-0">
+                                        <button x-show="selectedLabel" @click.stop="clear()" type="button" class="text-gray-400 hover:text-red-500">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                        </button>
+                                        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                    </div>
+                                </div>
+                                <template x-teleport="body">
+                                    <div x-show="open" x-transition.opacity
+                                         :style="anchorRect ? `position:absolute;top:${anchorRect.top+4}px;left:${anchorRect.left}px;width:${anchorRect.width}px;z-index:9999` : ''"
+                                         class="bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
+                                        <div class="p-2 border-b border-gray-100">
+                                            <input type="text" x-model="search" @click.stop placeholder="Search employees..."
+                                                   class="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none" @keydown.escape="open = false">
+                                        </div>
+                                        <ul class="max-h-48 overflow-y-auto py-1">
+                                            <template x-for="item in filtered" :key="item.id">
+                                                <li @click="select(item)" class="px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 cursor-pointer truncate" x-text="item.name"></li>
+                                            </template>
+                                            <li x-show="filtered.length === 0" class="px-4 py-2 text-sm text-gray-400 text-center">No results found</li>
+                                        </ul>
+                                    </div>
+                                </template>
                                 @error('editIssuedBy') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                             </div>
 
-                            <!-- Verified By -->
-                            <div>
+                            <!-- Verified By (Searchable) -->
+                            <div x-data="{
+                                open: false,
+                                search: '',
+                                selectedLabel: '',
+                                anchorRect: null,
+                                items: @js($employees->map(fn($e) => ['id' => $e->employee_id, 'name' => $e->full_name])),
+                                get filtered() {
+                                    if (!this.search) return this.items;
+                                    return this.items.filter(i => i.name.toLowerCase().includes(this.search.toLowerCase()));
+                                },
+                                select(item) {
+                                    $wire.set('editVerifiedBy', item.id);
+                                    this.selectedLabel = item.name;
+                                    this.search = '';
+                                    this.open = false;
+                                },
+                                clear() {
+                                    $wire.set('editVerifiedBy', '');
+                                    this.selectedLabel = '';
+                                    this.search = '';
+                                },
+                                toggle() {
+                                    this.open = !this.open;
+                                    if (this.open) {
+                                        this.$nextTick(() => {
+                                            const r = this.$refs.trigger.getBoundingClientRect();
+                                            this.anchorRect = { top: r.bottom + window.scrollY, left: r.left + window.scrollX, width: r.width };
+                                        });
+                                    }
+                                },
+                                init() {
+                                    let val = $wire.get('editVerifiedBy');
+                                    if (val) {
+                                        let found = this.items.find(i => String(i.id) === String(val));
+                                        if (found) this.selectedLabel = found.name;
+                                    }
+                                }
+                            }" @click.away="open = false" class="relative">
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Verified By</label>
-                                <select wire:model="editVerifiedBy" 
-                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                    <option value="">Select Employee</option>
-                                    @foreach($employees as $employee)
-                                        <option value="{{ $employee->employee_id }}">{{ $employee->full_name }}</option>
-                                    @endforeach
-                                </select>
+                                <div x-ref="trigger" @click="toggle()" class="w-full px-3 py-2 border border-gray-300 rounded-md cursor-pointer bg-white flex items-center justify-between hover:border-blue-400 transition" :class="open ? 'ring-2 ring-blue-500 border-transparent' : ''">
+                                    <span x-show="selectedLabel" x-text="selectedLabel" class="text-gray-900 truncate"></span>
+                                    <span x-show="!selectedLabel" class="text-gray-400">Select Employee</span>
+                                    <div class="flex items-center gap-1 ml-2 shrink-0">
+                                        <button x-show="selectedLabel" @click.stop="clear()" type="button" class="text-gray-400 hover:text-red-500">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                        </button>
+                                        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                    </div>
+                                </div>
+                                <template x-teleport="body">
+                                    <div x-show="open" x-transition.opacity
+                                         :style="anchorRect ? `position:absolute;top:${anchorRect.top+4}px;left:${anchorRect.left}px;width:${anchorRect.width}px;z-index:9999` : ''"
+                                         class="bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
+                                        <div class="p-2 border-b border-gray-100">
+                                            <input type="text" x-model="search" @click.stop placeholder="Search employees..."
+                                                   class="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none" @keydown.escape="open = false">
+                                        </div>
+                                        <ul class="max-h-48 overflow-y-auto py-1">
+                                            <template x-for="item in filtered" :key="item.id">
+                                                <li @click="select(item)" class="px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 cursor-pointer truncate" x-text="item.name"></li>
+                                            </template>
+                                            <li x-show="filtered.length === 0" class="px-4 py-2 text-sm text-gray-400 text-center">No results found</li>
+                                        </ul>
+                                    </div>
+                                </template>
                                 @error('editVerifiedBy') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                             </div>
                         </div>
