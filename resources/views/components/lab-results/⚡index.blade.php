@@ -168,10 +168,30 @@ new class extends Component
 
         if (!$order) return;
 
-        $pdf = Pdf::loadView('pdf.lab-result', ['order' => $order])
-            ->setPaper('a4', 'portrait');
+        // Generate serial numbers and QR codes for final results
+        $serialNumbers = [];
+        $qrCodes = [];
+
+        foreach ($order->orderTests as $orderTest) {
+            if ($orderTest->labResult && $orderTest->labResult->status === 'final' && !$orderTest->labResult->is_revoked) {
+                $serial = $orderTest->labResult->assignSerialNumber();
+                $testName = $orderTest->test->label ?? 'Unknown';
+                $serialNumbers[$testName] = $serial;
+                $qrCodes[$serial] = $orderTest->labResult->generateQrCodeBase64();
+                $orderTest->labResult->markAsPrinted();
+            }
+        }
+
+        $pdf = Pdf::loadView('pdf.lab-result', [
+            'order' => $order,
+            'serialNumbers' => $serialNumbers,
+            'qrCodes' => $qrCodes,
+        ])->setPaper('a4', 'portrait');
 
         $filename = 'LabResult_Order_' . $order->lab_test_order_id . '_' . now()->format('Ymd') . '.pdf';
+
+        $this->logActivity("Downloaded PDF for lab test order ID {$order->lab_test_order_id}" . 
+            (count($serialNumbers) > 0 ? ' with serial(s): ' . implode(', ', $serialNumbers) : ''));
 
         return response()->streamDownload(function () use ($pdf) {
             echo $pdf->output();
@@ -189,6 +209,19 @@ new class extends Component
         
         if ($this->showOrderDetail && $this->viewingOrder && $this->viewingOrder->lab_test_order_id == $orderId) {
             $this->viewOrder($orderId);
+        }
+    }
+
+    // Revoke Lab Result (invalidates serial number / QR verification)
+    public function revokeResult($resultId)
+    {
+        $result = LabResult::findOrFail($resultId);
+        $result->revoke();
+        $this->logActivity("Revoked lab result ID {$resultId} (Serial: {$result->serial_number})");
+        $this->flashMessage = 'Lab result has been revoked. The QR code will now show as invalid.';
+
+        if ($this->viewingOrder) {
+            $this->viewOrder($this->viewingOrder->lab_test_order_id);
         }
     }
 
@@ -243,6 +276,14 @@ new class extends Component
             'status' => $this->resultStatus,
             'datetime_added' => now(),
         ]);
+
+        // Auto-assign serial number when result is saved as final
+        if ($this->resultStatus === 'final') {
+            $newResult = LabResult::where('order_test_id', $orderTest->order_test_id)->latest('lab_result_id')->first();
+            if ($newResult) {
+                $newResult->assignSerialNumber();
+            }
+        }
 
         // Update order_test status
         $orderTest->update(['status' => 'completed']);
@@ -308,6 +349,11 @@ new class extends Component
             'datetime_modified' => now(),
         ]);
 
+        // Auto-assign serial number when result status changes to final
+        if ($this->editResultStatus === 'final') {
+            $result->assignSerialNumber();
+        }
+
         $this->logActivity("Updated lab result ID {$this->editResultId}");
         $this->flashMessage = 'Result updated successfully!';
         $this->closeEditResultModal();
@@ -358,11 +404,28 @@ new class extends Component
     public function updatedSearchQuery()
     {
         if (strlen($this->searchQuery) > 2) {
-            // Your search logic here - placeholder
-            $this->searchResults = collect([
-                (object)['title' => 'Sample Result 1', 'snippet' => 'This is a sample search result for ' . $this->searchQuery],
-                (object)['title' => 'Sample Result 2', 'snippet' => 'Another sample result related to your query']
-            ]);
+            $this->searchResults = Test::with('section')
+                ->where(function ($query) {
+                    $query->where('label', 'like', '%' . $this->searchQuery . '%')
+                          ->orWhereHas('section', function ($q) {
+                              $q->where('label', 'like', '%' . $this->searchQuery . '%');
+                          });
+                })
+                ->orderBy('label')
+                ->limit(20)
+                ->get();
+        } else {
+            $this->searchResults = null;
+        }
+    }
+
+    public function toggleTestFromSearch($testId)
+    {
+        $testId = (string) $testId;
+        if (in_array($testId, $this->selectedTests)) {
+            $this->selectedTests = array_values(array_diff($this->selectedTests, [$testId]));
+        } else {
+            $this->selectedTests[] = $testId;
         }
     }
 
@@ -847,6 +910,25 @@ new class extends Component
                                                 <p class="text-sm text-gray-700">{{ $orderTest->labResult->remarks }}</p>
                                             </div>
                                         @endif
+                                        {{-- Serial Number & Revoke Info --}}
+                                        @if($orderTest->labResult->serial_number)
+                                            <div class="mt-2 flex items-center gap-3">
+                                                <div class="flex items-center gap-1.5">
+                                                    <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"/>
+                                                    </svg>
+                                                    <span class="text-xs font-mono text-gray-600">{{ $orderTest->labResult->serial_number }}</span>
+                                                </div>
+                                                @if($orderTest->labResult->is_revoked)
+                                                    <span class="px-2 py-0.5 text-xs font-medium rounded-full bg-red-100 text-red-700">REVOKED</span>
+                                                @else
+                                                    <span class="px-2 py-0.5 text-xs font-medium rounded-full bg-emerald-100 text-emerald-700">VERIFIED</span>
+                                                @endif
+                                                @if($orderTest->labResult->printed_at)
+                                                    <span class="text-xs text-gray-400">Printed: {{ $orderTest->labResult->printed_at->format('M d, Y g:i A') }}</span>
+                                                @endif
+                                            </div>
+                                        @endif
                                         <div class="mt-2 flex items-center justify-between">
                                             <div class="flex gap-4 text-xs text-gray-500">
                                                 @if($orderTest->labResult->performedBy)
@@ -856,10 +938,19 @@ new class extends Component
                                                     <span>Verified by: <span class="font-medium text-gray-700">{{ $orderTest->labResult->verifiedBy->full_name }}</span></span>
                                                 @endif
                                             </div>
-                                            <button wire:click="openEditResultModal({{ $orderTest->labResult->lab_result_id }})" 
-                                                    class="px-3 py-1 bg-orange-500 hover:bg-orange-600 text-white text-xs font-medium rounded-lg transition-colors">
-                                                Edit Result
-                                            </button>
+                                            <div class="flex items-center gap-2">
+                                                @if($orderTest->labResult->serial_number && !$orderTest->labResult->is_revoked)
+                                                    <button wire:click="revokeResult({{ $orderTest->labResult->lab_result_id }})"
+                                                            wire:confirm="Are you sure you want to revoke this lab result? The QR code will no longer verify as valid."
+                                                            class="px-3 py-1 bg-red-500 hover:bg-red-600 text-white text-xs font-medium rounded-lg transition-colors">
+                                                        Revoke
+                                                    </button>
+                                                @endif
+                                                <button wire:click="openEditResultModal({{ $orderTest->labResult->lab_result_id }})" 
+                                                        class="px-3 py-1 bg-orange-500 hover:bg-orange-600 text-white text-xs font-medium rounded-lg transition-colors">
+                                                    Edit Result
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                 @endif
@@ -1073,40 +1164,82 @@ new class extends Component
     </div>
     @endif
 
-    {{-- UPDATED: Web Search Modal --}}
+    {{-- Search Tests Modal --}}
     @if($showSearchModal)
-    <div class="fixed inset-0 z-50 overflow-y-auto" style="background-color: rgba(0, 0, 0, 0.5);">
+    <div class="fixed inset-0 z-[70] overflow-y-auto" style="background-color: rgba(0, 0, 0, 0.5);">
         <div class="flex items-center justify-center min-h-screen p-4">
-            <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full">
-                <div class="px-6 py-4 border-b border-gray-200">
-                    <div class="flex items-center justify-between">
-                        <h3 class="text-xl font-semibold text-gray-900">Search Tests</h3>
-                        <button type="button" wire:click="closeSearchModal" class="text-gray-400 hover:text-gray-600">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                            </svg>
-                        </button>
+            <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[80vh] flex flex-col">
+                <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
+                    <div>
+                        <h3 class="text-lg font-bold text-gray-900">Search Tests</h3>
+                        <p class="text-sm text-gray-500 mt-0.5">Find and select tests by name or section</p>
                     </div>
+                    <button type="button" wire:click="closeSearchModal" class="text-gray-400 hover:text-gray-600 p-1">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
                 </div>
-                <div class="p-6">
-                    <input type="text" wire:model.live.debounce.500ms="searchQuery" 
-                           placeholder="Enter test name or section..." 
-                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 mb-4">
+                <div class="p-6 flex flex-col flex-1 overflow-hidden">
+                    <div class="relative mb-4">
+                        <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                        </svg>
+                        <input type="text" wire:model.live.debounce.300ms="searchQuery" 
+                               placeholder="Type test name or section (min 3 characters)..." 
+                               autofocus
+                               class="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">
+                    </div>
                     
-                    @if($searchResults)
-                    <div class="space-y-3 max-h-96 overflow-y-auto">
-                        @foreach($searchResults as $result)
-                        <div class="p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
-                            <h4 class="font-semibold text-gray-900">{{ $result->title }}</h4>
-                            <p class="text-sm text-gray-600">{{ $result->snippet }}</p>
-                        </div>
+                    @if($searchResults && count($searchResults) > 0)
+                    <div class="border border-gray-200 rounded-lg overflow-y-auto flex-1">
+                        @foreach($searchResults as $test)
+                        <label wire:click="toggleTestFromSearch({{ $test->test_id }})" 
+                               class="flex items-center px-4 py-3 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-0 transition-colors
+                                      {{ in_array((string)$test->test_id, $selectedTests) ? 'bg-blue-50' : '' }}">
+                            <div class="flex items-center justify-center w-5 h-5 mr-3 rounded border 
+                                        {{ in_array((string)$test->test_id, $selectedTests) ? 'bg-blue-600 border-blue-600' : 'border-gray-300' }}">
+                                @if(in_array((string)$test->test_id, $selectedTests))
+                                    <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
+                                    </svg>
+                                @endif
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <span class="text-sm font-medium text-gray-900">{{ $test->label }}</span>
+                                @if($test->section)
+                                    <span class="text-xs text-gray-400 ml-2">{{ $test->section->label }}</span>
+                                @endif
+                            </div>
+                            @if($test->current_price)
+                                <span class="text-xs text-gray-400 ml-2 flex-shrink-0">&#8369;{{ number_format($test->current_price, 2) }}</span>
+                            @endif
+                        </label>
                         @endforeach
+                    </div>
+                    @elseif($searchResults && count($searchResults) === 0)
+                    <div class="text-center py-8 text-gray-500">
+                        <svg class="w-10 h-10 mx-auto mb-2 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <p class="text-sm">No tests found for "{{ $searchQuery }}"</p>
                     </div>
                     @else
                     <div class="text-center py-8 text-gray-500">
-                        <p>Start typing to search for tests...</p>
+                        <svg class="w-10 h-10 mx-auto mb-2 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                        </svg>
+                        <p class="text-sm">Start typing to search for tests...</p>
                     </div>
                     @endif
+                </div>
+
+                <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex items-center justify-between flex-shrink-0 rounded-b-xl">
+                    <span class="text-sm text-gray-600">{{ count($selectedTests) }} test(s) selected</span>
+                    <button type="button" wire:click="closeSearchModal" 
+                            class="px-5 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">
+                        Done
+                    </button>
                 </div>
             </div>
         </div>

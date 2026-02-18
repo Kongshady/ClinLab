@@ -77,6 +77,14 @@
         .footer { margin-top: 32px; padding-top: 8px; border-top: 1px solid #e8e8e8; display: table; width: 100%; }
         .footer-left { display: table-cell; font-size: 8px; color: #bbb; vertical-align: bottom; }
         .footer-right { display: table-cell; text-align: right; font-size: 8px; color: #bbb; vertical-align: bottom; }
+        .verification-strip { margin-top: 28px; padding: 12px 16px; border: 1.5px solid #e8e8e8; border-radius: 6px; background: #fafafa; display: table; width: 100%; }
+        .verification-qr { display: table-cell; width: 80px; vertical-align: middle; }
+        .verification-qr img { width: 72px; height: 72px; }
+        .verification-info { display: table-cell; vertical-align: middle; padding-left: 14px; }
+        .verification-info .serial-label { font-size: 7.5px; text-transform: uppercase; letter-spacing: 1px; color: #999; font-weight: bold; }
+        .verification-info .serial-value { font-size: 13px; font-weight: bold; color: #d1324a; margin-top: 2px; letter-spacing: 0.5px; font-family: monospace; }
+        .verification-info .verify-url { font-size: 8px; color: #888; margin-top: 4px; }
+        .verification-info .verify-note { font-size: 7.5px; color: #aaa; margin-top: 3px; }
     </style>
 </head>
 <body>
@@ -240,6 +248,25 @@
             </td>
         </tr>
     </table>
+
+    
+    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(isset($serialNumbers) && count($serialNumbers) > 0): ?>
+    <div class="verification-strip">
+        <div class="verification-qr">
+            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(isset($qrCodes) && isset($qrCodes[array_key_first($serialNumbers)])): ?>
+                <img src="data:image/png;base64,<?php echo e($qrCodes[array_key_first($serialNumbers)]); ?>" alt="QR Code">
+            <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+        </div>
+        <div class="verification-info">
+            <div class="serial-label">Document Serial Number<?php echo e(count($serialNumbers) > 1 ? 's' : ''); ?></div>
+            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__currentLoopData = $serialNumbers; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $testName => $serial): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
+                <div class="serial-value"><?php echo e($serial); ?></div>
+            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
+            <div class="verify-url">Scan QR code or visit: <?php echo e(url('/verify/lab-result')); ?>?code=<?php echo e($serialNumbers[array_key_first($serialNumbers)]); ?></div>
+            <div class="verify-note">This document can be verified online using the serial number or QR code above.</div>
+        </div>
+    </div>
+    <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
 
     
     <div class="footer">

@@ -346,8 +346,25 @@ new class extends Component
 
         if (!$order) return;
 
-        $pdf = Pdf::loadView('pdf.lab-result', ['order' => $order])
-            ->setPaper('a4', 'portrait');
+        // Generate serial numbers and QR codes for final results
+        $serialNumbers = [];
+        $qrCodes = [];
+
+        foreach ($order->orderTests as $orderTest) {
+            if ($orderTest->labResult && $orderTest->labResult->status === 'final' && !$orderTest->labResult->is_revoked) {
+                $serial = $orderTest->labResult->assignSerialNumber();
+                $testName = $orderTest->test->label ?? 'Unknown';
+                $serialNumbers[$testName] = $serial;
+                $qrCodes[$serial] = $orderTest->labResult->generateQrCodeBase64();
+                $orderTest->labResult->markAsPrinted();
+            }
+        }
+
+        $pdf = Pdf::loadView('pdf.lab-result', [
+            'order' => $order,
+            'serialNumbers' => $serialNumbers,
+            'qrCodes' => $qrCodes,
+        ])->setPaper('a4', 'portrait');
 
         $filename = 'LabResult_Order_' . $order->lab_test_order_id . '_' . now()->format('Ymd') . '.pdf';
 

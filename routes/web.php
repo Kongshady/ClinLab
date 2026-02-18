@@ -18,6 +18,7 @@ use App\Http\Controllers\AccountSettingsController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\PatientCertificateController;
+use App\Http\Controllers\LabResultVerificationController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -61,6 +62,10 @@ Route::middleware(['auth', 'role:Patient'])->prefix('patient')->group(function (
 // Public certificate verification (no auth required)
 Route::get('/certificates/verify', [PatientCertificateController::class, 'verify'])
     ->name('certificates.public.verify');
+
+// Public lab result verification (no auth required)
+Route::get('/verify/lab-result/{serial?}', [LabResultVerificationController::class, 'verify'])
+    ->name('verify.lab-result');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
