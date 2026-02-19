@@ -41,7 +41,7 @@ new class extends Component
     public $remarks = '';
 
     public $search = '';
-    public $perPage = 'all';
+    public $perPage = 10;
     public $flashMessage = '';
 
     // Maintenance Alerts Filters

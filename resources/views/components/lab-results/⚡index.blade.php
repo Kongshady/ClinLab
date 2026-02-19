@@ -10,6 +10,8 @@ use App\Models\Test;
 use App\Models\Section;
 use App\Models\Physician;
 use App\Models\Employee;
+use App\Models\TestRequest;
+use App\Models\TestRequestItem;
 use Carbon\Carbon;
 use App\Traits\LogsActivity;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -18,12 +20,28 @@ new class extends Component
 {
     use WithPagination, LogsActivity;
 
+    // Active tab: 'orders' or 'requests'
+    public $activeTab = 'orders';
+
     // Filters
     public $search = '';
     public $filterStatus = '';
     public $filterDate = '';
     public $perPage = 10;
     public $flashMessage = '';
+
+    // Test Request filters (separate so they don't conflict)
+    public $reqSearch = '';
+    public $reqFilterStatus = '';
+    public $reqFilterDate = '';
+    public $reqPerPage = 10;
+
+    // Test Request modals
+    public bool $showRequestDetail = false;
+    public $viewingRequest = null;
+    public bool $showRejectModal = false;
+    public $rejectRequestId = null;
+    public $rejectRemarks = '';
 
     // UPDATED: Delete confirmation modal properties
     public $showDeleteModal = false;
@@ -317,6 +335,11 @@ new class extends Component
         }
     }
 
+    public function switchTab($tab)
+    {
+        $this->activeTab = $tab;
+    }
+
     public function updatingSearch()
     {
         $this->resetPage();
@@ -325,6 +348,133 @@ new class extends Component
     public function updatingFilterStatus()
     {
         $this->resetPage();
+    }
+
+    public function updatingReqSearch()
+    {
+        $this->resetPage();
+    }
+
+    public function updatingReqFilterStatus()
+    {
+        $this->resetPage();
+    }
+
+    public function updatingReqFilterDate()
+    {
+        $this->resetPage();
+    }
+
+    // ===== TEST REQUEST METHODS =====
+
+    public function viewRequestDetail($requestId)
+    {
+        $this->viewingRequest = TestRequest::with([
+            'patient',
+            'requestedBy',
+            'reviewer',
+            'items.test.section',
+        ])->find($requestId);
+        $this->showRequestDetail = true;
+    }
+
+    public function closeRequestDetail()
+    {
+        $this->showRequestDetail = false;
+        $this->viewingRequest = null;
+    }
+
+    public function approveRequest($requestId)
+    {
+        $request = TestRequest::with(['items.test', 'patient'])->find($requestId);
+
+        if (!$request || $request->status !== 'PENDING') {
+            $this->flashMessage = 'Request cannot be approved (already processed).';
+            return;
+        }
+
+        $order = LabTestOrder::create([
+            'patient_id' => $request->patient_id,
+            'physician_id' => null,
+            'order_date' => now(),
+            'status' => 'pending',
+            'remarks' => 'Created from patient test request #' . $request->id,
+        ]);
+
+        foreach ($request->items as $item) {
+            OrderTest::create([
+                'order_id' => $order->lab_test_order_id,
+                'test_id' => $item->test_id,
+                'status' => 'pending',
+                'datetime_added' => now(),
+            ]);
+        }
+
+        $request->update([
+            'status' => 'APPROVED',
+            'reviewed_by' => auth()->id(),
+            'reviewed_at' => now(),
+            'datetime_updated' => now(),
+        ]);
+
+        $patientName = $request->patient ? $request->patient->full_name : 'Unknown';
+        $this->logActivity("Approved test request #{$request->id} for patient {$patientName} — Lab Test Order #{$order->lab_test_order_id} created");
+
+        $this->flashMessage = "Request #{$request->id} approved! Lab Test Order #{$order->lab_test_order_id} created.";
+
+        if ($this->showRequestDetail && $this->viewingRequest && $this->viewingRequest->id == $requestId) {
+            $this->viewRequestDetail($requestId);
+        }
+    }
+
+    public function openRejectModal($requestId)
+    {
+        $this->rejectRequestId = $requestId;
+        $this->rejectRemarks = '';
+        $this->showRejectModal = true;
+    }
+
+    public function closeRejectModal()
+    {
+        $this->showRejectModal = false;
+        $this->rejectRequestId = null;
+        $this->rejectRemarks = '';
+        $this->resetValidation();
+    }
+
+    public function rejectRequest()
+    {
+        $this->validate([
+            'rejectRemarks' => 'required|string|max:500',
+        ], [
+            'rejectRemarks.required' => 'Please provide a reason for rejection.',
+        ]);
+
+        $request = TestRequest::with('patient')->find($this->rejectRequestId);
+
+        if (!$request || $request->status !== 'PENDING') {
+            $this->flashMessage = 'Request cannot be rejected (already processed).';
+            $this->closeRejectModal();
+            return;
+        }
+
+        $request->update([
+            'status' => 'REJECTED',
+            'staff_remarks' => $this->rejectRemarks,
+            'reviewed_by' => auth()->id(),
+            'reviewed_at' => now(),
+            'datetime_updated' => now(),
+        ]);
+
+        $patientName = $request->patient ? $request->patient->full_name : 'Unknown';
+        $this->logActivity("Rejected test request #{$request->id} for patient {$patientName}: {$this->rejectRemarks}");
+
+        $this->flashMessage = "Request #{$request->id} rejected.";
+        $this->closeRejectModal();
+
+        if ($this->showRequestDetail && $this->viewingRequest && $this->viewingRequest->id == $this->rejectRequestId) {
+            $this->viewRequestDetail($this->rejectRequestId);
+        }
     }
 
     // UPDATED: Delete selected method (placeholder - no selection in this page)
@@ -411,6 +561,27 @@ new class extends Component
             $q->active()->orderBy('label');
         }])->orderBy('label')->get();
 
+        // Test Request query & stats
+        $reqQuery = TestRequest::with(['patient', 'requestedBy', 'reviewer', 'items.test'])
+            ->when($this->reqSearch, function ($q) {
+                $q->whereHas('patient', function ($pq) {
+                    $pq->where('firstname', 'like', '%' . $this->reqSearch . '%')
+                       ->orWhere('lastname', 'like', '%' . $this->reqSearch . '%');
+                });
+            })
+            ->when($this->reqFilterStatus, function ($q) {
+                $q->where('status', $this->reqFilterStatus);
+            })
+            ->when($this->reqFilterDate, function ($q) {
+                $q->whereDate('datetime_added', $this->reqFilterDate);
+            })
+            ->orderByDesc('datetime_added');
+
+        $reqPendingCount = TestRequest::where('status', 'PENDING')->count();
+        $reqTodayCount = TestRequest::whereDate('datetime_added', Carbon::today())->count();
+        $reqApprovedCount = TestRequest::where('status', 'APPROVED')->count();
+        $reqRejectedCount = TestRequest::where('status', 'REJECTED')->count();
+
         return [
             'orders' => $this->perPage === 'all' ? $query->get() : $query->paginate((int)$this->perPage),
             'patients' => Patient::active()->orderBy('lastname')->get(),
@@ -420,6 +591,12 @@ new class extends Component
             'pendingCount' => $pendingCount,
             'todayCount' => $todayCount,
             'completedTodayCount' => $completedTodayCount,
+            // Test Requests
+            'testRequests' => $this->reqPerPage === 'all' ? $reqQuery->get() : $reqQuery->paginate((int)$this->reqPerPage, ['*'], 'reqPage'),
+            'reqPendingCount' => $reqPendingCount,
+            'reqTodayCount' => $reqTodayCount,
+            'reqApprovedCount' => $reqApprovedCount,
+            'reqRejectedCount' => $reqRejectedCount,
         ];
     }
 };
@@ -437,16 +614,47 @@ new class extends Component
     </div>
 
     {{-- Flash Message --}}
-    @if($flashMessage)
-        <div class="mb-6 bg-white border-l-4 border-green-500 shadow-sm rounded-lg p-4 flex items-center justify-between">
-            <div class="flex items-center">
-                <svg class="w-5 h-5 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-                </svg>
-                <span class="text-sm font-medium text-gray-900">{{ $flashMessage }}</span>
-            </div>
+    <div x-show="$wire.flashMessage" x-transition x-init="$nextTick(() => setTimeout(() => $wire.set('flashMessage', ''), 5000))"
+         class="mb-6 bg-white border-l-4 border-green-500 shadow-sm rounded-lg p-4 flex items-center justify-between">
+        <div class="flex items-center">
+            <svg class="w-5 h-5 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+            </svg>
+            <span class="text-sm font-medium text-gray-900">{{ $flashMessage }}</span>
         </div>
-    @endif
+    </div>
+
+    {{-- Tabs --}}
+    <div class="mb-6 border-b border-gray-200">
+        <nav class="flex gap-4" aria-label="Tabs">
+            <button wire:click="switchTab('orders')" 
+                    class="pb-3 px-1 text-sm font-medium border-b-2 transition-colors {{ $activeTab === 'orders' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
+                <div class="flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                    </svg>
+                    Test Orders
+                </div>
+            </button>
+            @can('test-requests.access')
+            <button wire:click="switchTab('requests')" 
+                    class="pb-3 px-1 text-sm font-medium border-b-2 transition-colors {{ $activeTab === 'requests' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
+                <div class="flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                    </svg>
+                    Patient Requests
+                    @if($reqPendingCount > 0)
+                        <span class="inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold leading-none text-white bg-red-500 rounded-full">{{ $reqPendingCount }}</span>
+                    @endif
+                </div>
+            </button>
+            @endcan
+        </nav>
+    </div>
+
+    {{-- ==================== TAB: TEST ORDERS ==================== --}}
+    @if($activeTab === 'orders')
 
     {{-- Stats Cards --}}
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -614,6 +822,347 @@ new class extends Component
             </div>
         @endif
     </div>
+
+    @endif {{-- END: activeTab === 'orders' --}}
+
+    {{-- ==================== TAB: TEST REQUESTS ==================== --}}
+    @if($activeTab === 'requests')
+
+    {{-- Request Stats Cards --}}
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
+            <div class="flex items-center">
+                <div class="flex-shrink-0 p-3 bg-yellow-100 rounded-lg">
+                    <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-500">Pending</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ $reqPendingCount }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
+            <div class="flex items-center">
+                <div class="flex-shrink-0 p-3 bg-blue-100 rounded-lg">
+                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-500">Today</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ $reqTodayCount }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
+            <div class="flex items-center">
+                <div class="flex-shrink-0 p-3 bg-green-100 rounded-lg">
+                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-500">Approved</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ $reqApprovedCount }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
+            <div class="flex items-center">
+                <div class="flex-shrink-0 p-3 bg-red-100 rounded-lg">
+                    <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-500">Rejected</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ $reqRejectedCount }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- Requests List Card --}}
+    <div class="bg-white rounded-lg shadow-sm">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h2 class="text-lg font-semibold text-gray-900">Patient Test Requests</h2>
+        </div>
+
+        {{-- Filters --}}
+        <div class="p-6 border-b border-gray-100">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Search Patient</label>
+                    <input type="text" wire:model.live.debounce.300ms="reqSearch" placeholder="Search by patient name..." 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                    <select wire:model.live="reqFilterStatus" 
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                        <option value="">All Status</option>
+                        <option value="PENDING">Pending</option>
+                        <option value="APPROVED">Approved</option>
+                        <option value="REJECTED">Rejected</option>
+                        <option value="CANCELLED">Cancelled</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Request Date</label>
+                    <input type="date" wire:model.live="reqFilterDate" 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Rows per page</label>
+                    <select wire:model.live="reqPerPage" 
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                        <option value="10">10</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                        <option value="all">All</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        {{-- Requests Table --}}
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Request #</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Patient</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Tests</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Preferred Date</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Submitted</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
+                        <th class="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    @forelse($testRequests as $req)
+                        @php $badge = $req->statusBadge; @endphp
+                        <tr wire:key="req-{{ $req->id }}" class="hover:bg-blue-50/50 transition-colors">
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="text-sm font-semibold text-blue-600">#{{ $req->id }}</span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm font-medium text-gray-900">{{ $req->patient->full_name ?? 'N/A' }}</div>
+                            </td>
+                            <td class="px-6 py-4">
+                                <div class="flex flex-wrap gap-1">
+                                    @foreach($req->items->take(3) as $item)
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">{{ $item->test->label ?? 'N/A' }}</span>
+                                    @endforeach
+                                    @if($req->items->count() > 3)
+                                        <span class="text-xs text-gray-500">+{{ $req->items->count() - 3 }} more</span>
+                                    @endif
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm text-gray-600">
+                                    {{ $req->preferred_date ? \Carbon\Carbon::parse($req->preferred_date)->format('M d, Y') : '—' }}
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm text-gray-600">
+                                    {{ $req->datetime_added ? \Carbon\Carbon::parse($req->datetime_added)->format('M d, Y h:i A') : '—' }}
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full {{ $badge['class'] }}">
+                                    {{ $badge['label'] }}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right">
+                                <div class="flex items-center justify-end gap-2">
+                                    <button wire:click="viewRequestDetail({{ $req->id }})" class="text-blue-600 hover:text-blue-800 text-sm font-medium">View</button>
+                                    @if($req->status === 'PENDING')
+                                        @can('test-requests.review')
+                                        <button wire:click="approveRequest({{ $req->id }})" wire:confirm="Approve this request and create a lab test order?" class="text-green-600 hover:text-green-800 text-sm font-medium">Approve</button>
+                                        <button wire:click="openRejectModal({{ $req->id }})" class="text-red-600 hover:text-red-800 text-sm font-medium">Reject</button>
+                                        @endcan
+                                    @endif
+                                </div>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="7" class="px-6 py-12 text-center">
+                                <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                                </svg>
+                                <p class="text-gray-500 font-medium">No patient test requests found</p>
+                                <p class="text-gray-400 text-sm mt-1">Patient requests will appear here when submitted.</p>
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+
+        @if($reqPerPage !== 'all' && method_exists($testRequests, 'hasPages') && $testRequests->hasPages())
+            <div class="px-6 py-4 border-t border-gray-200">
+                {{ $testRequests->links() }}
+            </div>
+        @endif
+    </div>
+
+    {{-- ===== VIEW REQUEST DETAIL MODAL ===== --}}
+    @if($showRequestDetail && $viewingRequest)
+    <div class="fixed inset-0 z-50 overflow-y-auto" style="background-color: rgba(0, 0, 0, 0.5);">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col">
+                {{-- Modal Header --}}
+                <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
+                    <div>
+                        <h3 class="text-xl font-bold text-gray-900">Test Request #{{ $viewingRequest->id }}</h3>
+                        @php $vBadge = $viewingRequest->statusBadge; @endphp
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold mt-1 {{ $vBadge['class'] }}">{{ $vBadge['label'] }}</span>
+                    </div>
+                    <button wire:click="closeRequestDetail" class="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+                {{-- Modal Body --}}
+                <div class="p-6 overflow-y-auto">
+                    {{-- Patient Info --}}
+                    <div class="mb-6">
+                        <h4 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Patient Information</h4>
+                        <div class="bg-gray-50 rounded-lg p-4 grid grid-cols-2 gap-4">
+                            <div>
+                                <span class="text-xs text-gray-500 block">Name</span>
+                                <span class="text-sm font-medium text-gray-900">{{ $viewingRequest->patient->full_name ?? 'N/A' }}</span>
+                            </div>
+                            <div>
+                                <span class="text-xs text-gray-500 block">Submitted</span>
+                                <span class="text-sm font-medium text-gray-900">
+                                    {{ $viewingRequest->datetime_added ? \Carbon\Carbon::parse($viewingRequest->datetime_added)->format('M d, Y h:i A') : '—' }}
+                                </span>
+                            </div>
+                            @if($viewingRequest->preferred_date)
+                            <div>
+                                <span class="text-xs text-gray-500 block">Preferred Date</span>
+                                <span class="text-sm font-medium text-gray-900">{{ \Carbon\Carbon::parse($viewingRequest->preferred_date)->format('M d, Y') }}</span>
+                            </div>
+                            @endif
+                            @if($viewingRequest->purpose)
+                            <div class="{{ $viewingRequest->preferred_date ? '' : 'col-span-2' }}">
+                                <span class="text-xs text-gray-500 block">Purpose</span>
+                                <span class="text-sm font-medium text-gray-900">{{ $viewingRequest->purpose }}</span>
+                            </div>
+                            @endif
+                        </div>
+                    </div>
+
+                    {{-- Requested Tests --}}
+                    <div class="mb-6">
+                        <h4 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Requested Tests ({{ $viewingRequest->items->count() }})</h4>
+                        <div class="space-y-2">
+                            @foreach($viewingRequest->items as $item)
+                                <div class="flex items-center justify-between bg-gray-50 rounded-lg px-4 py-3">
+                                    <div>
+                                        <p class="text-sm font-medium text-gray-900">{{ $item->test->label ?? 'Unknown Test' }}</p>
+                                        @if($item->test && $item->test->section)
+                                            <p class="text-xs text-gray-500">{{ $item->test->section->label }}</p>
+                                        @endif
+                                    </div>
+                                    @if($item->test && $item->test->price)
+                                        <span class="text-sm font-medium text-gray-600">₱{{ number_format($item->test->price, 2) }}</span>
+                                    @endif
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+
+                    {{-- Review Info --}}
+                    @if($viewingRequest->reviewed_by)
+                    <div class="mb-6">
+                        <h4 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Review Details</h4>
+                        <div class="bg-gray-50 rounded-lg p-4 grid grid-cols-2 gap-4">
+                            <div>
+                                <span class="text-xs text-gray-500 block">Reviewed By</span>
+                                <span class="text-sm font-medium text-gray-900">{{ $viewingRequest->reviewer->name ?? 'N/A' }}</span>
+                            </div>
+                            <div>
+                                <span class="text-xs text-gray-500 block">Reviewed At</span>
+                                <span class="text-sm font-medium text-gray-900">
+                                    {{ $viewingRequest->reviewed_at ? \Carbon\Carbon::parse($viewingRequest->reviewed_at)->format('M d, Y h:i A') : '—' }}
+                                </span>
+                            </div>
+                            @if($viewingRequest->staff_remarks)
+                            <div class="col-span-2">
+                                <span class="text-xs text-gray-500 block">Remarks</span>
+                                <span class="text-sm font-medium text-gray-900">{{ $viewingRequest->staff_remarks }}</span>
+                            </div>
+                            @endif
+                        </div>
+                    </div>
+                    @endif
+
+                    {{-- Actions --}}
+                    @if($viewingRequest->status === 'PENDING')
+                        @can('test-requests.review')
+                        <div class="flex gap-3 pt-4 border-t border-gray-200">
+                            <button wire:click="approveRequest({{ $viewingRequest->id }})" wire:confirm="Approve this request and create a lab test order?"
+                                    class="flex-1 px-4 py-2.5 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                </svg>
+                                Approve & Create Order
+                            </button>
+                            <button wire:click="openRejectModal({{ $viewingRequest->id }})"
+                                    class="flex-1 px-4 py-2.5 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center gap-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                </svg>
+                                Reject
+                            </button>
+                        </div>
+                        @endcan
+                    @endif
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+
+    {{-- ===== REJECT REQUEST MODAL ===== --}}
+    @if($showRejectModal)
+    <div class="fixed inset-0 z-[60] overflow-y-auto" style="background-color: rgba(0, 0, 0, 0.5);">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-xl shadow-2xl max-w-md w-full">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h3 class="text-lg font-bold text-gray-900">Reject Test Request</h3>
+                    <p class="text-sm text-gray-500 mt-1">Please provide a reason for rejecting this request.</p>
+                </div>
+                <div class="p-6">
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Reason for Rejection <span class="text-red-500">*</span></label>
+                        <textarea wire:model="rejectRemarks" rows="4" 
+                                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm resize-none"
+                                  placeholder="Explain why this request is being rejected..."></textarea>
+                        @error('rejectRemarks') <span class="text-red-500 text-xs mt-1">{{ $message }}</span> @enderror
+                    </div>
+                    <div class="flex gap-3">
+                        <button wire:click="closeRejectModal" class="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200 transition-colors">
+                            Cancel
+                        </button>
+                        <button wire:click="rejectRequest" class="flex-1 px-4 py-2.5 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors">
+                            Confirm Rejection
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+
+    @endif {{-- END: activeTab === 'requests' --}}
 
     {{-- ==================== CREATE ORDER MODAL ==================== --}}
     @if($showCreateModal)

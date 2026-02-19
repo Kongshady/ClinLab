@@ -33,10 +33,17 @@ new class extends Component
     #[Validate('nullable|string|max:200')]
     public $address = '';
 
+    #[Validate('required|email|max:100')]
+    public $email = '';
+
+    public $patient_type = 'External';
+
     // Search and filter properties
     public $search = '';
     public $filterGender = '';
-    public $perPage = 'all';
+    public $filterType = 'all'; // Tab filter: all, Internal, External
+    public $sortBy = 'recent'; // Default to recently added
+    public $perPage = 10;
 
     // Flash message
     public $flashMessage = '';
@@ -58,6 +65,8 @@ new class extends Component
     public $modalGender = '';
     public $modalContact = '';
     public $modalAddress = '';
+    public $modalEmail = '';
+    public $modalPatientType = '';
 
     // Form visibility toggle
     public $showForm = false;
@@ -77,10 +86,19 @@ new class extends Component
         if (!$this->showForm) {
             $this->reset([
                 'firstname', 'middlename', 'lastname', 
-                'birthdate', 'gender', 'contact_number', 'address'
+                'birthdate', 'gender', 'contact_number', 'address',
+                'email', 'patient_type'
             ]);
             $this->resetErrorBag();
         }
+    }
+
+    public function toggleSort()
+    {
+        $sorts = ['recent', 'name_asc', 'name_desc'];
+        $currentIndex = array_search($this->sortBy, $sorts);
+        $nextIndex = ($currentIndex + 1) % count($sorts);
+        $this->sortBy = $sorts[$nextIndex];
     }
 
     public function save()
@@ -100,7 +118,7 @@ new class extends Component
         }
 
         Patient::create([
-            'patient_type' => 'External',
+            'patient_type' => $this->patient_type,
             'firstname' => $this->firstname,
             'middlename' => $this->middlename,
             'lastname' => $this->lastname,
@@ -108,16 +126,18 @@ new class extends Component
             'gender' => $this->gender,
             'contact_number' => $this->contact_number,
             'address' => $this->address,
+            'email' => $this->email,
         ]);
 
         $this->reset([
             'firstname', 'middlename', 'lastname', 
-            'birthdate', 'gender', 'contact_number', 'address'
+            'birthdate', 'gender', 'contact_number', 'address',
+            'email', 'patient_type'
         ]);
         
         $this->logActivity("Created patient: {$this->firstname} {$this->lastname}");
         $this->flashMessage = 'Patient added successfully.';
-        $this->showForm = false; // Close form after successful save
+        $this->dispatch('patient-saved');
         $this->resetPage(); // Reset pagination to show new patient
     }
 
@@ -132,6 +152,8 @@ new class extends Component
         $this->gender = $patient->gender;
         $this->contact_number = $patient->contact_number;
         $this->address = $patient->address;
+        $this->email = $patient->email ?? '';
+        $this->patient_type = $patient->patient_type ?? 'External';
         $this->editMode = true;
     }
 
@@ -141,6 +163,7 @@ new class extends Component
 
         $patient = Patient::findOrFail($this->editingPatientId);
         $patient->update([
+            'patient_type' => $this->patient_type,
             'firstname' => $this->firstname,
             'middlename' => $this->middlename,
             'lastname' => $this->lastname,
@@ -148,11 +171,13 @@ new class extends Component
             'gender' => $this->gender,
             'contact_number' => $this->contact_number,
             'address' => $this->address,
+            'email' => $this->email,
         ]);
 
         $this->cancelEdit();
         $this->logActivity("Updated patient ID {$patient->patient_id}: {$this->firstname} {$this->lastname}");
         $this->flashMessage = 'Patient updated successfully.';
+        $this->dispatch('patient-saved');
     }
 
     public function cancelEdit()
@@ -160,6 +185,7 @@ new class extends Component
         $this->reset([
             'firstname', 'middlename', 'lastname', 
             'birthdate', 'gender', 'contact_number', 'address',
+            'email', 'patient_type',
             'editMode', 'editingPatientId'
         ]);
     }
@@ -195,6 +221,8 @@ new class extends Component
         $this->modalGender = $this->viewingPatient->gender;
         $this->modalContact = $this->viewingPatient->contact_number ?? '';
         $this->modalAddress = $this->viewingPatient->address ?? '';
+        $this->modalEmail = $this->viewingPatient->email ?? '';
+        $this->modalPatientType = $this->viewingPatient->patient_type ?? 'External';
         $this->modalEditMode = true;
     }
 
@@ -215,10 +243,13 @@ new class extends Component
             'modalGender' => 'required|string|max:10',
             'modalContact' => 'nullable|numeric|digits:11',
             'modalAddress' => 'nullable|string|max:200',
+            'modalEmail' => 'required|email|max:100',
+            'modalPatientType' => 'required|in:Internal,External',
         ]);
 
         $patient = Patient::findOrFail($this->viewingPatient->patient_id);
         $patient->update([
+            'patient_type' => $this->modalPatientType,
             'firstname' => $this->modalFirstname,
             'middlename' => $this->modalMiddlename ?: null,
             'lastname' => $this->modalLastname,
@@ -226,10 +257,12 @@ new class extends Component
             'gender' => $this->modalGender,
             'contact_number' => $this->modalContact ?: null,
             'address' => $this->modalAddress ?: null,
+            'email' => $this->modalEmail,
         ]);
 
         $this->logActivity("Updated patient ID {$patient->patient_id}: {$this->modalFirstname} {$this->modalLastname}");
         $this->flashMessage = 'Patient updated successfully.';
+        $this->dispatch('patient-saved');
 
         // Refresh the viewing patient data
         $this->viewingPatient = Patient::findOrFail($patient->patient_id);
@@ -246,6 +279,8 @@ new class extends Component
         $this->modalGender = '';
         $this->modalContact = '';
         $this->modalAddress = '';
+        $this->modalEmail = '';
+        $this->modalPatientType = '';
     }
 
     public function delete($id)
@@ -254,6 +289,7 @@ new class extends Component
         $patient->softDelete();
         $this->logActivity("Deleted patient ID {$id}: {$patient->firstname} {$patient->lastname}");
         $this->flashMessage = 'Patient deleted successfully.';
+        $this->dispatch('patient-saved');
         $this->resetPage();
     }
 
@@ -271,6 +307,7 @@ new class extends Component
         }
         $this->logActivity("Bulk deleted {$count} patient(s)");
         $this->flashMessage = $count . ' patient(s) deleted successfully!';
+        $this->dispatch('patient-saved');
         $this->resetPage();
         $this->dispatch('selection-cleared');
     }
@@ -282,13 +319,25 @@ new class extends Component
                 $query->where(function($q) {
                     $q->where('firstname', 'like', '%' . $this->search . '%')
                       ->orWhere('lastname', 'like', '%' . $this->search . '%')
-                      ->orWhere('patient_id', 'like', '%' . $this->search . '%');
+                      ->orWhere('patient_id', 'like', '%' . $this->search . '%')
+                      ->orWhere('email', 'like', '%' . $this->search . '%');
                 });
             })
             ->when($this->filterGender, function($query) {
                 $query->where('gender', $this->filterGender);
             })
-            ->orderBy('patient_id', 'desc');
+            ->when($this->filterType !== 'all', function($query) {
+                $query->where('patient_type', $this->filterType);
+            })
+            ->when($this->sortBy === 'name_asc', function($query) {
+                $query->orderBy('firstname')->orderBy('lastname');
+            })
+            ->when($this->sortBy === 'name_desc', function($query) {
+                $query->orderBy('firstname', 'desc')->orderBy('lastname', 'desc');
+            })
+            ->when($this->sortBy === 'recent', function($query) {
+                $query->orderBy('patient_id', 'desc');
+            });
             
         return [
             'patients' => $this->perPage === 'all' ? $query->get() : $query->paginate((int)$this->perPage)
@@ -299,6 +348,8 @@ new class extends Component
 <div class="p-6 space-y-6" x-data="{ 
     selectedIds: [],
     selectAll: false,
+    showToast: false,
+    toastTimeout: null,
     toggleAll(ids) {
         if (this.selectAll) {
             this.selectedIds = ids;
@@ -313,8 +364,17 @@ new class extends Component
         } else {
             this.selectedIds.push(id);
         }
+    },
+    showToastMessage() {
+        this.showToast = true;
+        if (this.toastTimeout) {
+            clearTimeout(this.toastTimeout);
+        }
+        this.toastTimeout = setTimeout(() => {
+            this.showToast = false;
+        }, 3000);
     }
-}" @selection-cleared.window="selectedIds = []; selectAll = false">
+}" @selection-cleared.window="selectedIds = []; selectAll = false" x-init="$wire.on('patient-saved', () => showToastMessage())">
     <!-- Page Header -->
     <div class="mb-6">
         <h1 class="text-2xl font-bold text-gray-900 flex items-center">
@@ -326,7 +386,7 @@ new class extends Component
     </div>
 
     @if($flashMessage)
-        <div class="mb-6 p-4 bg-green-50 border-l-4 border-green-500 rounded">
+        <div class="mb-6 p-4 bg-green-50 border-l-4 border-green-500 rounded" x-show="showToast" x-transition>
             <p class="text-green-800">{{ $flashMessage }}</p>
         </div>
     @endif
@@ -379,7 +439,7 @@ new class extends Component
                     @error('birthdate') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                 </div>
             </div>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Gender *</label>
                     <select wire:model="gender" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500" required>
@@ -402,6 +462,11 @@ new class extends Component
                     <span class="text-xs text-gray-400 mt-1 block">11 digits only</span>
                 </div>
                 <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Email Address *</label>
+                    <input type="email" wire:model="email" placeholder="juan@example.com" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500" required>
+                    @error('email') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                </div>
+                <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Address</label>
                     <input type="text" wire:model="address" placeholder="123 Street, City" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500">
                     @error('address') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
@@ -419,12 +484,8 @@ new class extends Component
     <!-- Search and Filters Card -->
     <div class="bg-white rounded-lg shadow-sm mb-6">
         <div class="p-6">
-            <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
-                <div class="md:col-span-8">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Search Patients</label>
-                    <input type="text" wire:model.live="search" placeholder="Search by name or patient ID..." class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500">
-                </div>
-                <div class="md:col-span-2">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Gender</label>
                     <select wire:model.live="filterGender" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500">
                         <option value="">All Genders</option>
@@ -432,7 +493,29 @@ new class extends Component
                         <option value="Female">Female</option>
                     </select>
                 </div>
-                <div class="md:col-span-2">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Sort By</label>
+                    <button wire:click="toggleSort" type="button"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500 hover:bg-gray-50 transition-colors flex items-center justify-center gap-2">
+                        @if($sortBy === 'recent')
+                            <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            <span class="text-sm">Recently Added</span>
+                        @elseif($sortBy === 'name_asc')
+                            <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h14M3 8h14M3 12h6"/>
+                            </svg>
+                            <span class="text-sm">A-Z</span>
+                        @else
+                            <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h14M3 8h14M3 12h6"/>
+                            </svg>
+                            <span class="text-sm">Z-A</span>
+                        @endif
+                    </button>
+                </div>
+                <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Rows per page</label>
                     <select wire:model.live="perPage" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500">
                         <option value="10">10</option>
@@ -441,6 +524,10 @@ new class extends Component
                         <option value="100">100</option>
                         <option value="all">All</option>
                     </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Search Patients</label>
+                    <input type="text" wire:model.live="search" placeholder="Search by name or patient ID..." class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500" style="min-width: 280px;">
                 </div>
             </div>
         </div>
@@ -464,6 +551,25 @@ new class extends Component
                 </div>
             </div>
         </div>
+
+        <!-- Tab Bar -->
+        <div class="border-b border-gray-200 bg-gray-50">
+            <nav class="flex px-6 -mb-px" aria-label="Tabs">
+                <button wire:click="$set('filterType', 'all')" type="button"
+                        class="py-3 px-4 text-sm font-medium border-b-2 transition-colors {{ $filterType === 'all' ? 'border-pink-500 text-pink-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
+                    All
+                </button>
+                <button wire:click="$set('filterType', 'Internal')" type="button"
+                        class="py-3 px-4 text-sm font-medium border-b-2 transition-colors {{ $filterType === 'Internal' ? 'border-pink-500 text-pink-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
+                    Internal
+                </button>
+                <button wire:click="$set('filterType', 'External')" type="button"
+                        class="py-3 px-4 text-sm font-medium border-b-2 transition-colors {{ $filterType === 'External' ? 'border-pink-500 text-pink-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
+                    External
+                </button>
+            </nav>
+        </div>
+
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
@@ -471,9 +577,10 @@ new class extends Component
                         <th class="px-6 py-3 text-left w-10">
                             <input type="checkbox" x-model="selectAll" 
                                    @change="toggleAll([{{ $patients instanceof \Illuminate\Pagination\LengthAwarePaginator ? $patients->pluck('patient_id')->implode(',') : $patients->pluck('patient_id')->implode(',') }}])"
-                                   class="rounded border-gray-300 text-pink-600 focus:ring-pink-500">
+                                   class="h-4 w-4 rounded border-gray-300 text-pink-600 focus:ring-pink-500">
                         </th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Full Name</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Birthdate</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gender</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
@@ -488,7 +595,7 @@ new class extends Component
                                 <input type="checkbox" value="{{ $patient->patient_id }}" 
                                        @change="toggleOne({{ $patient->patient_id }})"
                                        :checked="selectedIds.includes({{ $patient->patient_id }})"
-                                       class="rounded border-gray-300 text-pink-600 focus:ring-pink-500">
+                                       class="h-4 w-4 rounded border-gray-300 text-pink-600 focus:ring-pink-500">
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="flex items-center">
@@ -500,6 +607,11 @@ new class extends Component
                                         <div class="text-xs text-gray-500">ID: {{ $patient->patient_id }}</div>
                                     </div>
                                 </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $patient->patient_type === 'Internal' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800' }}">
+                                    {{ $patient->patient_type ?? 'N/A' }}
+                                </span>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                 {{ \Carbon\Carbon::parse($patient->birthdate)->format('M d, Y') }}
@@ -513,7 +625,7 @@ new class extends Component
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="px-6 py-12 text-center text-gray-500">
+                            <td colspan="6" class="px-6 py-12 text-center text-gray-500">
                                 No patients found
                             </td>
                         </tr>
@@ -565,7 +677,7 @@ new class extends Component
                         @error('birthdate') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                     </div>
                 </div>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Gender *</label>
                         <select wire:model="gender" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500" required>
@@ -586,6 +698,11 @@ new class extends Component
                         </template>
                         @error('contact_number') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                         <span class="text-xs text-gray-400 mt-1 block">11 digits only</span>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Email Address *</label>
+                        <input type="email" wire:model="email" placeholder="juan@example.com" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500" required>
+                        @error('email') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Address</label>
@@ -704,6 +821,22 @@ new class extends Component
                         @error('modalAddress') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                     </div>
 
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Email Address <span class="text-red-400">*</span></label>
+                            <input type="email" wire:model="modalEmail" placeholder="juan@example.com" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm" required>
+                            @error('modalEmail') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Patient Type <span class="text-red-400">*</span></label>
+                            <select wire:model="modalPatientType" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm" required>
+                                <option value="External">External</option>
+                                <option value="Internal">Internal</option>
+                            </select>
+                            @error('modalPatientType') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                        </div>
+                    </div>
+
                     <div class="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">
                         <button type="button" wire:click="cancelModalEdit" class="px-5 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
                             Cancel
@@ -738,6 +871,18 @@ new class extends Component
                     <div class="bg-gray-50 p-4 rounded-lg col-span-2">
                         <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Address</p>
                         <p class="text-sm font-medium text-gray-900">{{ $viewingPatient->address ?: 'N/A' }}</p>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Email Address</p>
+                        <p class="text-sm font-medium text-gray-900">{{ $viewingPatient->email ?: 'N/A' }}</p>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Patient Type</p>
+                        <p class="text-sm font-medium">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $viewingPatient->patient_type === 'Internal' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800' }}">
+                                {{ $viewingPatient->patient_type ?? 'N/A' }}
+                            </span>
+                        </p>
                     </div>
                     <div class="bg-gray-50 p-4 rounded-lg">
                         <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Date Added</p>

@@ -28,6 +28,7 @@ new class extends Component
 
     public $search = '';
     public $filterSpecialization = '';
+    public $sortBy = 'recent'; // Default to recently added
     public $flashMessage = '';
     public $perPage = 'all';
     
@@ -55,6 +56,14 @@ new class extends Component
             $this->reset(['physician_name', 'specialization', 'contact_number', 'email', 'section_id']);
             $this->resetErrorBag();
         }
+    }
+
+    public function toggleSort()
+    {
+        $sorts = ['recent', 'name_asc', 'name_desc'];
+        $currentIndex = array_search($this->sortBy, $sorts);
+        $nextIndex = ($currentIndex + 1) % count($sorts);
+        $this->sortBy = $sorts[$nextIndex];
     }
 
     public function save()
@@ -109,6 +118,7 @@ new class extends Component
             ]);
             $this->logActivity("Updated physician ID {$this->editId}: {$this->physician_name}");
             $this->flashMessage = 'Physician updated successfully!';
+            $this->dispatch('physician-saved');
             $this->editMode = false;
             $this->editId = null;
             $this->showEditModal = false;
@@ -126,6 +136,7 @@ new class extends Component
             ]);
             $this->logActivity("Created physician: {$this->physician_name}");
             $this->flashMessage = 'Physician added successfully!';
+            $this->dispatch('physician-saved');
             $this->showForm = false;
         }
 
@@ -178,6 +189,7 @@ new class extends Component
             $physician->softDelete();
             $this->logActivity("Deleted physician ID {$id}: {$physician->physician_name}");
             $this->flashMessage = 'Physician deleted successfully!';
+            $this->dispatch('physician-saved');
             $this->resetPage();
         }
     }
@@ -196,6 +208,7 @@ new class extends Component
         }
         $this->logActivity("Bulk deleted {$count} physician(s)");
         $this->flashMessage = $count . ' physician(s) deleted successfully!';
+        $this->dispatch('physician-saved');
         $this->resetPage();
         $this->dispatch('selection-cleared');
     }
@@ -216,7 +229,15 @@ new class extends Component
             ->when($this->filterSpecialization, function ($query) {
                 $query->where('specialization', 'like', '%' . $this->filterSpecialization . '%');
             })
-            ->orderBy('physician_id', 'desc');
+            ->when($this->sortBy === 'name_asc', function($query) {
+                $query->orderBy('physician_name');
+            })
+            ->when($this->sortBy === 'name_desc', function($query) {
+                $query->orderBy('physician_name', 'desc');
+            })
+            ->when($this->sortBy === 'recent', function($query) {
+                $query->orderBy('physician_id', 'desc');
+            });
 
         $physicians = $this->perPage === 'all' ? $query->get() : $query->paginate((int)$this->perPage);
         
@@ -240,6 +261,8 @@ new class extends Component
 <div class="p-6 space-y-6" x-data="{ 
     selectedIds: [],
     selectAll: false,
+    showToast: false,
+    toastTimeout: null,
     toggleAll(ids) {
         if (this.selectAll) {
             this.selectedIds = ids;
@@ -254,10 +277,19 @@ new class extends Component
         } else {
             this.selectedIds.push(id);
         }
+    },
+    showToastMessage() {
+        this.showToast = true;
+        if (this.toastTimeout) {
+            clearTimeout(this.toastTimeout);
+        }
+        this.toastTimeout = setTimeout(() => {
+            this.showToast = false;
+        }, 3000);
     }
-}" @selection-cleared.window="selectedIds = []; selectAll = false">
+}" @selection-cleared.window="selectedIds = []; selectAll = false" x-init="$wire.on('physician-saved', () => showToastMessage())">
     @if($flashMessage)
-        <div class="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg" role="alert">
+        <div class="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg" role="alert" x-show="showToast" x-transition>
             <span class="block sm:inline">{{ $flashMessage }}</span>
         </div>
     @endif
@@ -345,13 +377,8 @@ new class extends Component
     <!-- Search and Filters -->
     <div class="bg-white rounded-lg shadow-sm mb-6">
         <div class="p-6">
-            <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
-                <div class="md:col-span-6">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Search Physicians</label>
-                    <input type="text" wire:model.live="search" placeholder="Search by name, specialization, or email..." 
-                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500">
-                </div>
-                <div class="md:col-span-3">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Specialization</label>
                     <select wire:model.live="filterSpecialization" 
                             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500">
@@ -361,7 +388,29 @@ new class extends Component
                         @endforeach
                     </select>
                 </div>
-                <div class="md:col-span-3">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Sort By</label>
+                    <button wire:click="toggleSort" type="button"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500 hover:bg-gray-50 transition-colors flex items-center justify-center gap-2">
+                        @if($sortBy === 'recent')
+                            <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            <span class="text-sm">Recently Added</span>
+                        @elseif($sortBy === 'name_asc')
+                            <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h14M3 8h14M3 12h6"/>
+                            </svg>
+                            <span class="text-sm">A-Z</span>
+                        @else
+                            <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h14M3 8h14M3 12h6"/>
+                            </svg>
+                            <span class="text-sm">Z-A</span>
+                        @endif
+                    </button>
+                </div>
+                <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Rows per page</label>
                     <select wire:model.live="perPage" 
                             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500">
@@ -371,6 +420,11 @@ new class extends Component
                         <option value="100">100</option>
                         <option value="all">All</option>
                     </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Search Physicians</label>
+                    <input type="text" wire:model.live="search" placeholder="Search by name, specialization, or email..." 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500" style="min-width: 280px;">
                 </div>
             </div>
         </div>

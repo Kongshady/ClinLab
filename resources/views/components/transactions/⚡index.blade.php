@@ -102,6 +102,7 @@ public function updatedSelectAll($value)
         
         $count = Transaction::whereIn('transaction_id', $this->transactionsToDelete)->delete();
         $this->flashMessage = $count . ' transaction(s) deleted successfully!';
+        $this->dispatch('transaction-saved');
         $this->selectedTransactions = [];
         $this->selectAll = false;
         $this->resetPage();
@@ -157,6 +158,7 @@ public function updatedSelectAll($value)
         ]);
 
         $this->flashMessage = 'Transaction updated successfully!';
+        $this->dispatch('transaction-saved');
         $this->closeEditModal();
     }
 
@@ -186,6 +188,7 @@ public function updatedSelectAll($value)
         ]);
         $this->logActivity("Created transaction OR#{$this->or_number}");
         $this->flashMessage = 'Transaction added successfully!';
+        $this->dispatch('transaction-saved');
 
         $this->reset(['client_id', 'or_number']);
         $this->showForm = false;
@@ -228,6 +231,7 @@ public function updatedSelectAll($value)
 
         $this->logActivity("Updated transaction ID {$this->editingTransactionId}: OR#{$this->or_number}");
         $this->flashMessage = 'Transaction updated successfully!';
+        $this->dispatch('transaction-saved');
         $this->viewingTransaction = $transaction->fresh()->load('patient');
         $this->editMode = false;
         $this->editingTransactionId = null;
@@ -260,6 +264,7 @@ public function updatedSelectAll($value)
             $transaction->delete();
             $this->logActivity("Deleted transaction ID {$id}");
             $this->flashMessage = 'Transaction deleted successfully!';
+            $this->dispatch('transaction-saved');
             $this->resetPage();
         }
     }
@@ -284,7 +289,19 @@ public function updatedSelectAll($value)
 };
 ?>
 
-<div class="p-6">
+<div class="p-6" x-data="{ 
+    showToast: false,
+    toastTimeout: null,
+    showToastMessage() {
+        this.showToast = true;
+        if (this.toastTimeout) {
+            clearTimeout(this.toastTimeout);
+        }
+        this.toastTimeout = setTimeout(() => {
+            this.showToast = false;
+        }, 3000);
+    }
+}" x-init="$wire.on('transaction-saved', () => showToastMessage())">
     <div class="mb-6">
         <h1 class="text-2xl font-bold text-gray-900 flex items-center">
             <svg class="w-7 h-7 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -295,7 +312,7 @@ public function updatedSelectAll($value)
     </div>
 
     @if($flashMessage)
-        <div class="mb-6 bg-white border-l-4 border-green-500 shadow-sm rounded-lg p-4 flex items-center justify-between">
+        <div class="mb-6 bg-white border-l-4 border-green-500 shadow-sm rounded-lg p-4 flex items-center justify-between" x-show="showToast" x-transition>
             <div class="flex items-center">
                 <svg class="w-5 h-5 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
                     <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
@@ -404,12 +421,7 @@ public function updatedSelectAll($value)
             </div>
         </div>
         <div class="p-6">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Search</label>
-                    <input type="text" wire:model.live="search" placeholder="Search by OR number or patient name..." 
-                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
-                </div>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Rows per page</label>
                     <select wire:model.live="perPage" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
@@ -419,6 +431,14 @@ public function updatedSelectAll($value)
                         <option value="100">100</option>
                         <option value="all">All</option>
                     </select>
+                </div>
+                <div class="md:col-span-2">
+                    <!-- Empty space for layout balance -->
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Search Transactions</label>
+                    <input type="text" wire:model.live="search" placeholder="Search by OR number or patient name..." 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500" style="min-width: 280px;">
                 </div>
             </div>
         </div>

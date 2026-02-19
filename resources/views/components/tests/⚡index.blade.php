@@ -405,98 +405,100 @@ new class extends Component
         </select>
     </div>
 
-    <!-- Tests List -->
+    <!-- Tests List Card -->
     <div class="bg-white rounded-lg shadow-sm">
-        <div class="p-6">
-            <div class="flex items-center justify-between mb-4">
-                <h2 class="text-lg font-semibold text-gray-900">Tests List</h2>
-                <div class="flex items-center gap-3">
-                    {{-- UPDATED: Delete button --}}
-                    @if(count($selectedTests) > 0)
-                    <button wire:click="deleteSelected" 
+        <div class="px-6 py-4 border-b border-gray-200">
+            <div class="flex items-center justify-between">
+                <h2 class="text-lg font-semibold text-gray-900">Tests Directory</h2>
+                <!-- Delete Selected Button -->
+                <div x-show="$wire.selectedTests.length > 0" x-cloak x-transition>
+                    <button type="button" 
+                            @click="if(confirm('Are you sure you want to delete ' + $wire.selectedTests.length + ' selected test(s)?')) { $wire.deleteSelected() }"
                             class="inline-flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                         </svg>
-                        Delete Selected ({{ count($selectedTests) }})
+                        Delete Selected (<span x-text="$wire.selectedTests.length"></span>)
                     </button>
-                    @endif
-                    {{-- Search bar --}}
-                    <div class="relative">
-                        <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                        </svg>
-                        <input type="text" wire:model.live="search" placeholder="Search tests..." 
-                               class="pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-pink-500 focus:border-transparent w-64">
-                    </div>
                 </div>
             </div>
-            
-            <div class="overflow-x-auto">
-                <table class="w-full">
-                    <thead>
-                        <tr class="bg-gray-50">
-                            <th class="px-4 py-3 text-left w-10">
-                                <input type="checkbox" wire:model.live="selectAll"
-                                       class="rounded border-gray-300 text-green-600 focus:ring-green-500 h-4 w-4">
-                            </th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Test Name</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Section</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Previous Price</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Current Price</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-200">
-                        @forelse($tests as $test)
-                            <tr class="hover:bg-gray-50 {{ in_array((string) $test->test_id, $selectedTests) ? 'bg-green-50' : '' }}">
-                                <td class="px-4 py-3">
-                                    <input type="checkbox" wire:model.live="selectedTests" value="{{ $test->test_id }}"
-                                           class="rounded border-gray-300 text-green-600 focus:ring-green-500 h-4 w-4">
-                                </td>
-                                <td class="px-4 py-3 text-sm text-gray-900 font-medium">{{ $test->label }}</td>
-                                <td class="px-4 py-3 text-sm text-gray-700">{{ $test->section->label ?? 'N/A' }}</td>
-                                <td class="px-4 py-3 text-sm text-gray-700">₱{{ number_format($test->previous_price ?? 0, 2) }}</td>
-                                <td class="px-4 py-3 text-sm text-gray-900 font-semibold">₱{{ number_format($test->current_price, 2) }}</td>
-                                <td class="px-4 py-3">
-                                    <div class="flex items-center space-x-2">
-                                        <button wire:click="editTest({{ $test->test_id }})"
-                                                type="button"
-                                                class="px-4 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg transition-colors">
-                                            Edit
-                                        </button>
-                                        <button wire:click="openSetPriceModal({{ $test->test_id }})"
-                                                type="button"
-                                                class="px-4 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors">
-                                            Set Price
-                                        </button>
-                                        <button wire:click="viewHistory({{ $test->test_id }})"
-                                                type="button"
-                                                class="px-4 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors">
-                                            View History
-                                        </button>
-                                        <button wire:click="delete({{ $test->test_id }})" 
-                                                class="px-4 py-1.5 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors">
-                                            Delete
-                                        </button>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left w-10">
+                            <input type="checkbox" wire:model.live="selectAll"
+                                   class="h-4 w-4 rounded border-gray-300 text-pink-600 focus:ring-pink-500">
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Test Name</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Section</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Current Price</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    @forelse($tests as $test)
+                        <tr wire:key="test-{{ $test->test_id }}" 
+                            class="hover:bg-gray-50 cursor-pointer transition-colors {{ in_array((string) $test->test_id, $selectedTests) ? 'bg-pink-50' : '' }}">
+                            <td class="px-6 py-4" wire:click.stop>
+                                <input type="checkbox" wire:model.live="selectedTests" value="{{ $test->test_id }}"
+                                       class="h-4 w-4 rounded border-gray-300 text-pink-600 focus:ring-pink-500">
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex items-center">
+                                    <div class="w-8 h-8 bg-pink-500 rounded-full flex items-center justify-center text-white text-xs font-bold mr-3">
+                                        {{ strtoupper(substr($test->label, 0, 2)) }}
                                     </div>
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="5" class="px-4 py-8 text-center text-gray-500">No tests found.</td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
-
-            @if($perPage !== 'all')
-            <div class="mt-6">
+                                    <div>
+                                        <div class="font-medium text-gray-900">{{ $test->label }}</div>
+                                        <div class="text-xs text-gray-500">ID: {{ $test->test_id }}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {{ $test->section->label ?? 'N/A' }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                ₱{{ number_format($test->current_price, 2) }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <div class="flex items-center space-x-2">
+                                    <button wire:click.stop="editTest({{ $test->test_id }})"
+                                            class="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pink-500">
+                                        Edit
+                                    </button>
+                                    <button wire:click.stop="openSetPriceModal({{ $test->test_id }})"
+                                            class="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pink-500">
+                                        Set Price
+                                    </button>
+                                    <button wire:click.stop="viewHistory({{ $test->test_id }})"
+                                            class="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pink-500">
+                                        History
+                                    </button>
+                                    <button wire:click.stop="delete({{ $test->test_id }})"
+                                            class="inline-flex items-center px-3 py-1.5 border border-red-300 rounded-md text-sm font-medium text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                                        Delete
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="5" class="px-6 py-12 text-center text-gray-500">
+                                No tests found
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+        
+        @if($perPage !== 'all' && $tests instanceof \Illuminate\Pagination\LengthAwarePaginator && $tests->hasPages())
+            <div class="px-6 py-4 border-t border-gray-200">
                 {{ $tests->links() }}
             </div>
-            @endif
-        </div>
+        @endif
     </div>
 
     <!-- Edit Test Modal -->

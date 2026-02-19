@@ -89,7 +89,7 @@ Route::middleware('auth')->group(function () {
     Route::middleware(['permission:lab-results.access'])->group(function () {
         Route::resource('lab-results', LabResultController::class);
     });
-    
+
     Route::middleware(['permission:tests.access'])->group(function () {
         Route::resource('tests', TestController::class);
     });

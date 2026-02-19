@@ -249,10 +249,11 @@
 
     {{-- ── Verification / QR Code Strip ── --}}
     @if(isset($serialNumbers) && count($serialNumbers) > 0)
+    @php $firstSerial = reset($serialNumbers); @endphp
     <div class="verification-strip">
         <div class="verification-qr">
-            @if(isset($qrCodes) && isset($qrCodes[array_key_first($serialNumbers)]))
-                <img src="data:image/png;base64,{{ $qrCodes[array_key_first($serialNumbers)] }}" alt="QR Code">
+            @if(isset($qrCodes) && isset($qrCodes[$firstSerial]))
+                <img src="data:image/png;base64,{{ $qrCodes[$firstSerial] }}" alt="QR Code">
             @endif
         </div>
         <div class="verification-info">
@@ -260,7 +261,7 @@
             @foreach($serialNumbers as $testName => $serial)
                 <div class="serial-value">{{ $serial }}</div>
             @endforeach
-            <div class="verify-url">Scan QR code or visit: {{ url('/verify/lab-result') }}?code={{ $serialNumbers[array_key_first($serialNumbers)] }}</div>
+            <div class="verify-url">Scan QR code or visit: {{ url('/verify/lab-result') }}?code={{ $firstSerial }}</div>
             <div class="verify-note">This document can be verified online using the serial number or QR code above.</div>
         </div>
     </div>

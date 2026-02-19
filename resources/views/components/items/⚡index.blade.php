@@ -24,6 +24,15 @@ new class extends Component
     public $flashMessage = '';
     public $perPage = 'all';
 
+    // Item Type Combobox properties
+    public $itemTypeQuery = '';
+    public $showItemTypeDropdown = false;
+    public $selectedItemType = '';
+
+    // Edit Modal Combobox properties
+    public $editItemTypeQuery = '';
+    public $showEditItemTypeDropdown = false;
+
     // Bulk delete
     public $selectedItems = [];
     public $selectAll = false;
@@ -80,6 +89,7 @@ new class extends Component
         $this->reset(['section_id', 'label', 'item_type']);
         $this->logActivity("Created item: {$this->label}");
         $this->flashMessage = 'Item added successfully!';
+        $this->dispatch('item-saved');
         
         $this->resetPage();
     }
@@ -97,13 +107,14 @@ new class extends Component
         $this->editSectionId = $item->section_id;
         $this->editLabel = $item->label;
         $this->editItemType = $itemTypeData->label ?? '';
+        $this->editItemTypeQuery = $this->editItemType;
         $this->showEditModal = true;
     }
 
     public function closeEditModal()
     {
         $this->showEditModal = false;
-        $this->reset(['editItemId', 'editSectionId', 'editLabel', 'editItemType']);
+        $this->reset(['editItemId', 'editSectionId', 'editLabel', 'editItemType', 'editItemTypeQuery']);
     }
 
     public function updateItem()
@@ -144,6 +155,7 @@ new class extends Component
 
         $this->logActivity("Updated item ID {$this->editItemId}: {$this->editLabel}");
         $this->flashMessage = 'Item updated successfully!';
+        $this->dispatch('item-saved');
         $this->closeEditModal();
     }
 
@@ -169,6 +181,55 @@ new class extends Component
         $this->selectedItems = [];
         $this->selectAll = false;
         $this->resetPage();
+    }
+
+    // Item Type Combobox Methods
+    public function selectItemType($typeLabel)
+    {
+        $this->item_type = $typeLabel;
+        $this->itemTypeQuery = $typeLabel;
+        $this->showItemTypeDropdown = false;
+    }
+
+    public function updatedItemTypeQuery()
+    {
+        $this->showItemTypeDropdown = true;
+        $this->item_type = $this->itemTypeQuery;
+    }
+
+    public function deleteItemType($itemTypeId)
+    {
+        // Check if any items are using this type
+        $itemsCount = Item::where('item_type_id', $itemTypeId)->count();
+        
+        if ($itemsCount > 0) {
+            $this->flashMessage = "Cannot delete item type. It is being used by {$itemsCount} item(s).";
+            return;
+        }
+
+        \DB::table('item_type')->where('item_type_id', $itemTypeId)->delete();
+        $this->flashMessage = 'Item type deleted successfully!';
+        $this->dispatch('item-saved');
+        
+        // Reset form if the deleted type was selected
+        if ($this->item_type === \DB::table('item_type')->where('item_type_id', $itemTypeId)->value('label')) {
+            $this->item_type = '';
+            $this->itemTypeQuery = '';
+        }
+    }
+
+    // Edit Modal Combobox Methods
+    public function selectEditItemType($typeLabel)
+    {
+        $this->editItemType = $typeLabel;
+        $this->editItemTypeQuery = $typeLabel;
+        $this->showEditItemTypeDropdown = false;
+    }
+
+    public function updatedEditItemTypeQuery()
+    {
+        $this->showEditItemTypeDropdown = true;
+        $this->editItemType = $this->editItemTypeQuery;
     }
 
     public function deleteSelected()
@@ -198,6 +259,7 @@ new class extends Component
         
         $this->logActivity("Bulk deleted {$count} item(s)");
         $this->flashMessage = $count . ' item(s) deleted successfully!';
+        $this->dispatch('item-saved');
         $this->selectedItems = [];
         $this->selectAll = false;
         $this->resetPage();
@@ -236,18 +298,46 @@ new class extends Component
         $query = $this->getFilteredQuery();
         $items = $this->perPage === 'all' ? $query->get() : $query->paginate((int)$this->perPage);
 
+        // Get filtered item types for combobox
+        $itemTypesQuery = \DB::table('item_type');
+        if ($this->itemTypeQuery) {
+            $itemTypesQuery->where('label', 'like', '%' . $this->itemTypeQuery . '%');
+        }
+        $filteredItemTypes = $itemTypesQuery->orderBy('label')->get();
+
+        // Get filtered item types for edit modal
+        $editItemTypesQuery = \DB::table('item_type');
+        if ($this->editItemTypeQuery) {
+            $editItemTypesQuery->where('label', 'like', '%' . $this->editItemTypeQuery . '%');
+        }
+        $filteredEditItemTypes = $editItemTypesQuery->orderBy('label')->get();
+
         return [
             'items' => $items,
             'sections' => Section::active()->orderBy('label')->get(),
             'itemTypes' => \DB::table('item_type')->orderBy('label')->get(),
+            'filteredItemTypes' => $filteredItemTypes,
+            'filteredEditItemTypes' => $filteredEditItemTypes,
         ];
     }
 };
 ?>
 
-<div class="p-6 space-y-6">
+<div class="p-6 space-y-6" x-data="{ 
+    showToast: false,
+    toastTimeout: null,
+    showToastMessage() {
+        this.showToast = true;
+        if (this.toastTimeout) {
+            clearTimeout(this.toastTimeout);
+        }
+        this.toastTimeout = setTimeout(() => {
+            this.showToast = false;
+        }, 3000);
+    }
+}" x-init="$wire.on('item-saved', () => showToastMessage())">
     @if($flashMessage)
-        <div class="mb-6 bg-white border-l-4 border-green-500 shadow-sm rounded-lg p-4 flex items-center justify-between">
+        <div class="mb-6 bg-white border-l-4 border-green-500 shadow-sm rounded-lg p-4 flex items-center justify-between" x-show="showToast" x-transition>
             <div class="flex items-center">
                 <svg class="w-5 h-5 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
                     <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
@@ -278,13 +368,64 @@ new class extends Component
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Item Type <span class="text-red-500">*</span></label>
-                    <select wire:model="item_type"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent">
-                        <option value="">Select Item Type</option>
-                        @foreach($itemTypes as $type)
-                            <option value="{{ $type->label }}">{{ $type->label }}</option>
-                        @endforeach
-                    </select>
+                    <div class="relative" x-data="{ open: false }">
+                        <input type="text" 
+                               wire:model.live.debounce.300ms="itemTypeQuery"
+                               wire:keydown.enter.prevent
+                               wire:keydown.arrow-down.prevent="open = true"
+                               wire:keydown.escape.prevent="open = false"
+                               @keydown.arrow-down.window="if ($event.target === $el) open = true"
+                               @keydown.escape.window="open = false"
+                               @focus="open = true"
+                               @click.away="open = false"
+                               placeholder="Type or select item type..."
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                               autocomplete="off">
+                        
+                        <!-- Dropdown Arrow -->
+                        <div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+                            <svg class="h-5 w-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                            </svg>
+                        </div>
+
+                        <!-- Dropdown -->
+                        <div x-show="open" 
+                             x-transition:enter="transition ease-out duration-100"
+                             x-transition:enter-start="opacity-0"
+                             x-transition:enter-end="opacity-100"
+                             x-transition:leave="transition ease-in duration-75"
+                             x-transition:leave-start="opacity-100"
+                             x-transition:leave-end="opacity-0"
+                             class="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm">
+                            
+                            <!-- Show "Create new" option if query doesn't match existing -->
+                            @if($itemTypeQuery && !collect($itemTypes)->contains('label', $itemTypeQuery))
+                                <div wire:click="selectItemType('{{ $itemTypeQuery }}')" 
+                                     class="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-gray-100">
+                                    <div class="flex items-center">
+                                        <span class="font-normal ml-3 block truncate">Create "{{ $itemTypeQuery }}"</span>
+                                    </div>
+                                </div>
+                            @endif
+
+                            <!-- Existing item types -->
+                            @foreach($filteredItemTypes as $type)
+                                <div class="group flex items-center justify-between px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                                     wire:click="selectItemType('{{ $type->label }}')">
+                                    <span class="block truncate">{{ $type->label }}</span>
+                                    <button type="button" 
+                                            wire:click.stop="deleteItemType({{ $type->item_type_id }})"
+                                            wire:confirm="Are you sure you want to delete this item type?"
+                                            class="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 p-1 rounded transition-opacity">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                        </svg>
+                                    </button>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
                     @error('item_type') <span class="text-red-600 text-xs mt-1">{{ $message }}</span> @enderror
                 </div>
                 <div>
@@ -311,13 +452,8 @@ new class extends Component
     <!-- Search and Filters -->
     <div class="bg-white rounded-lg shadow-sm mb-6">
         <div class="p-6">
-            <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
-                <div class="md:col-span-8">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Search Items</label>
-                    <input type="text" wire:model.live.debounce.300ms="search" placeholder="Search by item name, type, or section..." 
-                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500">
-                </div>
-                <div class="md:col-span-4">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Rows per page</label>
                     <select wire:model.live="perPage" 
                             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500">
@@ -327,6 +463,14 @@ new class extends Component
                         <option value="100">100</option>
                         <option value="all">All</option>
                     </select>
+                </div>
+                <div class="md:col-span-2">
+                    <!-- Empty space for layout balance -->
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Search Items</label>
+                    <input type="text" wire:model.live.debounce.300ms="search" placeholder="Search by item name, type, or section..." 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500" style="min-width: 280px;">
                 </div>
             </div>
         </div>
@@ -354,7 +498,7 @@ new class extends Component
                     <tr>
                         <th class="px-6 py-3 text-left w-10"> 
                             <input type="checkbox" wire:model.live="selectAll"
-                                   class="rounded border-gray-300 text-pink-600 focus:ring-pink-500">
+                                   class="h-4 w-4 rounded border-gray-300 text-pink-600 focus:ring-pink-500">
                         </th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item Name</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item Type</th>
@@ -368,7 +512,7 @@ new class extends Component
                             class="hover:bg-gray-50 cursor-pointer transition-colors {{ in_array((string) $item->item_id, $selectedItems) ? 'bg-pink-50' : '' }}">
                             <td class="px-6 py-4" wire:click.stop>
                                 <input type="checkbox" wire:model.live="selectedItems" value="{{ $item->item_id }}"
-                                       class="rounded border-gray-300 text-pink-600 focus:ring-pink-500">
+                                       class="h-4 w-4 rounded border-gray-300 text-pink-600 focus:ring-pink-500">
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="flex items-center">
@@ -459,13 +603,64 @@ new class extends Component
                             <label class="block text-sm font-medium text-gray-700 mb-2">
                                 Item Type <span class="text-red-500">*</span>
                             </label>
-                            <select wire:model="editItemType"
-                                    class="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
-                                <option value="">Select Item Type</option>
-                                @foreach($itemTypes as $type)
-                                    <option value="{{ $type->label }}">{{ $type->label }}</option>
-                                @endforeach
-                            </select>
+                            <div class="relative" x-data="{ open: false }">
+                                <input type="text" 
+                                       wire:model.live.debounce.300ms="editItemTypeQuery"
+                                       wire:keydown.enter.prevent
+                                       wire:keydown.arrow-down.prevent="open = true"
+                                       wire:keydown.escape.prevent="open = false"
+                                       @keydown.arrow-down.window="if ($event.target === $el) open = true"
+                                       @keydown.escape.window="open = false"
+                                       @focus="open = true"
+                                       @click.away="open = false"
+                                       placeholder="Type or select item type..."
+                                       class="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                       autocomplete="off">
+                                
+                                <!-- Dropdown Arrow -->
+                                <div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+                                    <svg class="h-5 w-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                                    </svg>
+                                </div>
+
+                                <!-- Dropdown -->
+                                <div x-show="open" 
+                                     x-transition:enter="transition ease-out duration-100"
+                                     x-transition:enter-start="opacity-0"
+                                     x-transition:enter-end="opacity-100"
+                                     x-transition:leave="transition ease-in duration-75"
+                                     x-transition:leave-start="opacity-100"
+                                     x-transition:leave-end="opacity-0"
+                                     class="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm">
+                                    
+                                    <!-- Show "Create new" option if query doesn't match existing -->
+                                    @if($editItemTypeQuery && !collect($itemTypes)->contains('label', $editItemTypeQuery))
+                                        <div wire:click="selectEditItemType('{{ $editItemTypeQuery }}')" 
+                                             class="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-gray-100">
+                                            <div class="flex items-center">
+                                                <span class="font-normal ml-3 block truncate">Create "{{ $editItemTypeQuery }}"</span>
+                                            </div>
+                                        </div>
+                                    @endif
+
+                                    <!-- Existing item types -->
+                                    @foreach($filteredEditItemTypes as $type)
+                                        <div class="group flex items-center justify-between px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                                             wire:click="selectEditItemType('{{ $type->label }}')">
+                                            <span class="block truncate">{{ $type->label }}</span>
+                                            <button type="button" 
+                                                    wire:click.stop="deleteItemType({{ $type->item_type_id }})"
+                                                    wire:confirm="Are you sure you want to delete this item type?"
+                                                    class="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 p-1 rounded transition-opacity">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            </div>
                             @error('editItemType') <span class="text-red-500 text-xs mt-1">{{ $message }}</span> @enderror
                         </div>
                     </div>

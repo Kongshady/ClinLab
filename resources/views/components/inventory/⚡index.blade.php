@@ -209,7 +209,9 @@ new class extends Component
 
         $this->reset(['stock_in_items', 'stock_in_supplier', 'stock_in_reference', 'stock_in_remarks']);
         $this->addStockInRow();
+        $this->resetPage('movement_page'); // Reset movement pagination to show new movements
         $this->flashMessage = $itemsAdded . ' item(s) added to stock successfully!';
+        $this->dispatch('stock-updated');
     }
 
     public function removeStock()
@@ -267,7 +269,9 @@ new class extends Component
 
         $this->reset(['stock_out_items', 'stock_out_reference', 'stock_out_remarks']);
         $this->addStockOutRow();
+        $this->resetPage('movement_page'); // Reset movement pagination to show new movements
         $this->flashMessage = $itemsRemoved . ' item(s) removed from stock successfully!';
+        $this->dispatch('stock-updated');
     }
 
     public function recordUsage()
@@ -329,7 +333,9 @@ new class extends Component
 
         $this->reset(['stock_usage_items', 'stock_usage_employee_id', 'stock_usage_purpose', 'stock_usage_or_number']);
         $this->addStockUsageRow();
+        $this->resetPage('movement_page'); // Reset movement pagination to show new movements
         $this->flashMessage = $itemsRecorded . ' item(s) usage recorded successfully!';
+        $this->dispatch('stock-updated');
     }
 
     public function with(): array
@@ -391,18 +397,20 @@ new class extends Component
             ->concat($stockOutMovements)
             ->concat($stockUsageMovements)
             ->sortByDesc('datetime_added')
-            ->take(100);
+            ->values();
 
-        // Paginate movements
-        $movementPage = request()->get('movement_page', 1);
-        $movementOffset = ($movementPage - 1) * $this->movementPerPage;
-        
+        // Use Livewire pagination for movements
+        $currentPage = request()->get('movement_page', 1);
         $paginatedMovements = new \Illuminate\Pagination\LengthAwarePaginator(
-            $movements->slice($movementOffset, $this->movementPerPage)->all(),
+            $movements->forPage($currentPage, $this->movementPerPage),
             $movements->count(),
             $this->movementPerPage,
-            $movementPage,
-            ['path' => request()->url(), 'query' => request()->query(), 'pageName' => 'movement_page']
+            $currentPage,
+            [
+                'path' => request()->url(),
+                'query' => request()->query(),
+                'pageName' => 'movement_page'
+            ]
         );
 
         // Get items with stock for Stock Out and Stock Usage dropdowns - optimized with caching
@@ -434,11 +442,23 @@ new class extends Component
     }
 }; ?>
 
-<div class="min-h-screen bg-gray-50 max-w-8xl mx-auto px-4 sm:px-4 lg:px-6 py-8">
+<div class="min-h-screen bg-gray-50 max-w-8xl mx-auto px-4 sm:px-4 lg:px-6 py-8" x-data="{ 
+    showToast: false,
+    toastTimeout: null,
+    showToastMessage() {
+        this.showToast = true;
+        if (this.toastTimeout) {
+            clearTimeout(this.toastTimeout);
+        }
+        this.toastTimeout = setTimeout(() => {
+            this.showToast = false;
+        }, 3000);
+    }
+}" x-init="$wire.on('stock-updated', () => showToastMessage())">
     <div class="max-w-8xl  ">
         <!-- Success Message -->
         @if($flashMessage)
-            <div class="mb-6 bg-white border-l-4 border-green-500 shadow-sm rounded-lg p-4 flex items-center justify-between">
+            <div class="mb-6 bg-white border-l-4 border-green-500 shadow-sm rounded-lg p-4 flex items-center justify-between" x-show="showToast" x-transition>
                 <div class="flex items-center">
                     <svg class="w-5 h-5 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
                         <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
@@ -990,7 +1010,7 @@ new class extends Component
                                 $reorderLevel = $item->reorder_level ?? 0;
                                 $isLowStock = $currentStock <= $reorderLevel;
                             @endphp
-                            <tr class="hover:bg-gray-50 transition-colors {{ $isLowStock ? 'bg-orange-50' : '' }}">
+                            <tr class="hover:bg-gray-50 transition-colors">
                                 <td class="px-4 py-3">
                                     <div class="font-medium text-sm text-gray-900">{{ $item->label }}</div>
                                 </td>
@@ -1001,19 +1021,13 @@ new class extends Component
                                     <span class="text-sm text-gray-700">{{ $item->unit ?? 'pcs' }}</span>
                                 </td>
                                 <td class="px-3 py-3 text-center">
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 text-xs font-medium">
-                                        {{ number_format($item->total_in) }}
-                                    </span>
+                                    <span class="text-sm text-gray-700">{{ number_format($item->total_in) }}</span>
                                 </td>
                                 <td class="px-3 py-3 text-center">
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded-md bg-gray-100 text-gray-700 text-xs font-medium">
-                                        {{ number_format($item->total_out + $item->total_usage) }}
-                                    </span>
+                                    <span class="text-sm text-gray-700">{{ number_format($item->total_out + $item->total_usage) }}</span>
                                 </td>
                                 <td class="px-3 py-3 text-center">
-                                    <span class="inline-flex items-center px-2.5 py-1 rounded-md text-sm font-bold {{ $isLowStock ? 'bg-orange-100 text-orange-700' : 'bg-blue-50 text-blue-700' }}">
-                                        {{ number_format($currentStock) }}
-                                    </span>
+                                    <span class="text-sm font-bold text-gray-900">{{ number_format($currentStock) }}</span>
                                 </td>
                                 <td class="px-3 py-3 text-center">
                                     <span class="text-sm text-gray-600">{{ number_format($reorderLevel) }}</span>
@@ -1175,7 +1189,7 @@ new class extends Component
 
             <!-- Pagination -->
             <div class="px-8 py-4 border-t border-gray-200 bg-gray-50">
-                {{ $movements->links() }}
+                {{ $movements->appends(request()->query())->links() }}
             </div>
 
             <!-- Detail Sidebar -->

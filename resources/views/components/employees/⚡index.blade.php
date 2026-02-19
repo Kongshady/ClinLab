@@ -45,6 +45,10 @@ new class extends Component
     public $flashMessage = '';
     public $perPage = 'all';
 
+    // Bulk selection
+    public $selectedEmployees = [];
+    public $selectAll = false;
+
     // Delete confirmation modal properties
     public $showDeleteModal = false;
     public $deleteMessage = '';
@@ -195,6 +199,56 @@ new class extends Component
     public function cancelEdit()
     {
         $this->reset(['firstname', 'middlename', 'lastname', 'email', 'position', 'role_id', 'editMode', 'editingEmployeeId', 'new_password', 'new_password_confirmation', 'change_password']);
+    }
+
+    public function updatedSelectAll($value)
+    {
+        if ($value) {
+            $query = Employee::active()
+                ->when($this->search, function ($query) {
+                    $query->where(function ($q) {
+                        $q->where('firstname', 'like', '%' . $this->search . '%')
+                          ->orWhere('lastname', 'like', '%' . $this->search . '%')
+                          ->orWhere('username', 'like', '%' . $this->search . '%')
+                          ->orWhere('position', 'like', '%' . $this->search . '%');
+                    });
+                });
+
+            $employees = $this->perPage === 'all' ? $query->get() : $query->paginate((int)$this->perPage);
+            $this->selectedEmployees = $employees->pluck('employee_id')->map(fn($id) => (string) $id)->toArray();
+        } else {
+            $this->selectedEmployees = [];
+        }
+    }
+
+    public function updatedSelectedEmployees()
+    {
+        $this->selectAll = false;
+    }
+
+    public function updatedSearch()
+    {
+        $this->selectedEmployees = [];
+        $this->selectAll = false;
+    }
+
+    public function deleteSelected()
+    {
+        if (empty($this->selectedEmployees)) return;
+
+        $count = 0;
+        foreach ($this->selectedEmployees as $id) {
+            $employee = Employee::find($id);
+            if ($employee) {
+                $employee->softDelete();
+                $this->logActivity("Deleted employee ID {$id}: {$employee->firstname} {$employee->lastname}");
+                $count++;
+            }
+        }
+
+        $this->selectedEmployees = [];
+        $this->selectAll = false;
+        $this->flashMessage = "{$count} employee(s) deleted successfully!";
     }
 
     public function delete($id)
@@ -402,69 +456,98 @@ new class extends Component
 
     <!-- Employee List -->
     <div class="bg-white rounded-lg shadow-sm">
-        <div class="p-6">
-            <h2 class="text-lg font-semibold text-gray-900 mb-4">Employees List</h2>
-            
-            <div class="overflow-x-auto">
-                <table class="w-full">
-                    <thead>
-                        <tr class="bg-gray-50">
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Employee Name</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Position</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Email</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Role</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-200">
-                        @forelse($employees as $employee)
-                            <tr class="hover:bg-gray-50">
-                                <td class="px-4 py-3">
-                                    <div class="flex items-center">
-                                        <div class="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center text-white text-xs font-bold mr-3">
-                                            {{ strtoupper(substr($employee->firstname, 0, 1) . substr($employee->lastname, 0, 1)) }}
-                                        </div>
-                                        <span class="text-sm text-gray-900 font-medium">{{ $employee->firstname }} {{ $employee->middlename }} {{ $employee->lastname }}</span>
-                                    </div>
-                                </td>
-                                <td class="px-4 py-3 text-sm text-gray-700">{{ $employee->position ?? 'N/A' }}</td>
-                                <td class="px-4 py-3 text-sm text-gray-700">{{ $employee->username }}</td>
-                                <td class="px-4 py-3 text-sm text-gray-700">
-                                    @if($employee->role)
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                            {{ $employee->role->role_name }}
-                                        </span>
-                                    @endif
-                                </td>
-                                <td class="px-4 py-3">
-                                    <div class="flex items-center space-x-2">
-                                        <button wire:click="edit({{ $employee->employee_id }})"
-                                                style="background-color: #DC143C;"
-                                                class="px-4 py-1.5 text-white text-sm font-medium rounded-lg hover:opacity-90 transition-opacity">
-                                            Edit
-                                        </button>
-                                        <button wire:click="delete({{ $employee->employee_id }})" 
-                                                class="px-4 py-1.5 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors">
-                                            Delete
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="5" class="px-4 py-8 text-center text-gray-500">No employees found.</td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
+        <div class="px-6 py-4 border-b border-gray-200">
+            <div class="flex items-center justify-between">
+                <h2 class="text-lg font-semibold text-gray-900">Employees Directory</h2>
+                <!-- Delete Selected Button -->
+                <div x-show="$wire.selectedEmployees.length > 0" x-cloak x-transition>
+                    <button type="button" 
+                            @click="if(confirm('Are you sure you want to delete ' + $wire.selectedEmployees.length + ' selected employee(s)?')) { $wire.deleteSelected() }"
+                            class="inline-flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                        </svg>
+                        Delete Selected (<span x-text="$wire.selectedEmployees.length"></span>)
+                    </button>
+                </div>
             </div>
-
-            @if($perPage !== 'all')
-            <div class="mt-6">
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left w-10">
+                            <input type="checkbox" wire:model.live="selectAll"
+                                   class="h-4 w-4 rounded border-gray-300 text-pink-600 focus:ring-pink-500">
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee Name</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Position</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    @forelse($employees as $employee)
+                        <tr wire:key="employee-{{ $employee->employee_id }}" 
+                            class="hover:bg-gray-50 cursor-pointer transition-colors {{ in_array((string) $employee->employee_id, $selectedEmployees) ? 'bg-pink-50' : '' }}">
+                            <td class="px-6 py-4" wire:click.stop>
+                                <input type="checkbox" wire:model.live="selectedEmployees" value="{{ $employee->employee_id }}"
+                                       class="h-4 w-4 rounded border-gray-300 text-pink-600 focus:ring-pink-500">
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex items-center">
+                                    <div class="w-8 h-8 bg-pink-500 rounded-full flex items-center justify-center text-white text-xs font-bold mr-3">
+                                        {{ strtoupper(substr($employee->firstname, 0, 1) . substr($employee->lastname, 0, 1)) }}
+                                    </div>
+                                    <div>
+                                        <div class="font-medium text-gray-900">{{ $employee->firstname }} {{ $employee->middlename }} {{ $employee->lastname }}</div>
+                                        <div class="text-xs text-gray-500">ID: {{ $employee->employee_id }}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {{ $employee->position ?? 'N/A' }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {{ $employee->username }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                @if($employee->role)
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                        {{ $employee->role->role_name }}
+                                    </span>
+                                @endif
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <div class="flex items-center space-x-2">
+                                    <button wire:click.stop="edit({{ $employee->employee_id }})"
+                                            class="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pink-500">
+                                        Edit
+                                    </button>
+                                    <button wire:click.stop="delete({{ $employee->employee_id }})"
+                                            class="inline-flex items-center px-3 py-1.5 border border-red-300 rounded-md text-sm font-medium text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                                        Delete
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="6" class="px-6 py-12 text-center text-gray-500">
+                                No employees found
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+        
+        @if($perPage !== 'all' && $employees instanceof \Illuminate\Pagination\LengthAwarePaginator && $employees->hasPages())
+            <div class="px-6 py-4 border-t border-gray-200">
                 {{ $employees->links() }}
             </div>
-            @endif
-        </div>
+        @endif
     </div>
 
     <!-- Edit Employee Modal -->

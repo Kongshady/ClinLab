@@ -6,6 +6,9 @@ use App\Models\LabResult;
 use App\Models\LabTestOrder;
 use App\Models\Certificate;
 use App\Models\CertificateIssue;
+use App\Models\TestRequest;
+use App\Models\TestRequestItem;
+use App\Models\Test;
 use Barryvdh\DomPDF\Facade\Pdf;
 
 new class extends Component
@@ -44,12 +47,22 @@ new class extends Component
     public $verifyResult = null;
     public $verifyLoading = false;
 
+    // Test Requests
+    public $testRequests = [];
+    public $showRequestForm = false;
+    public $requestSelectedTests = [];
+    public $requestPurpose = '';
+    public $requestPreferredDate = '';
+    public $requestTestSearch = '';
+    public $viewingRequest = null;
+
     public function mount()
     {
         $user = auth()->user();
         $this->patient = Patient::where('user_id', $user->id)->first();
         $this->loadResults();
         $this->loadCertificates();
+        $this->loadTestRequests();
     }
 
     public function loadResults()
@@ -312,6 +325,105 @@ new class extends Component
         $this->verifyResult = null;
     }
 
+    // ========== TEST REQUEST METHODS ==========
+
+    public function loadTestRequests()
+    {
+        if ($this->patient) {
+            $this->testRequests = TestRequest::with(['items.test.section', 'reviewer'])
+                ->where('patient_id', $this->patient->patient_id)
+                ->orderBy('datetime_added', 'desc')
+                ->get()
+                ->toArray();
+        }
+    }
+
+    public function openRequestForm()
+    {
+        $this->reset(['requestSelectedTests', 'requestPurpose', 'requestPreferredDate', 'requestTestSearch']);
+        $this->showRequestForm = true;
+    }
+
+    public function closeRequestForm()
+    {
+        $this->showRequestForm = false;
+        $this->reset(['requestSelectedTests', 'requestPurpose', 'requestPreferredDate', 'requestTestSearch']);
+        $this->resetValidation();
+    }
+
+    public function toggleRequestTest($testId)
+    {
+        if (in_array($testId, $this->requestSelectedTests)) {
+            $this->requestSelectedTests = array_values(array_diff($this->requestSelectedTests, [$testId]));
+        } else {
+            $this->requestSelectedTests[] = $testId;
+        }
+    }
+
+    public function submitTestRequest()
+    {
+        $this->validate([
+            'requestSelectedTests' => 'required|array|min:1',
+            'requestPurpose' => 'nullable|string|max:500',
+            'requestPreferredDate' => 'nullable|date|after_or_equal:today',
+        ], [
+            'requestSelectedTests.required' => 'Please select at least one test.',
+            'requestSelectedTests.min' => 'Please select at least one test.',
+            'requestPreferredDate.after_or_equal' => 'Preferred date must be today or later.',
+        ]);
+
+        $request = TestRequest::create([
+            'patient_id' => $this->patient->patient_id,
+            'requested_by_user_id' => auth()->id(),
+            'purpose' => $this->requestPurpose ?: null,
+            'preferred_date' => $this->requestPreferredDate ?: null,
+            'status' => 'PENDING',
+            'datetime_added' => now(),
+        ]);
+
+        foreach ($this->requestSelectedTests as $testId) {
+            TestRequestItem::create([
+                'request_id' => $request->id,
+                'test_id' => $testId,
+                'datetime_added' => now(),
+            ]);
+        }
+
+        $this->closeRequestForm();
+        $this->loadTestRequests();
+        session()->flash('request_submitted', 'Test request submitted successfully! Staff will review your request.');
+    }
+
+    public function cancelTestRequest($requestId)
+    {
+        $request = TestRequest::where('id', $requestId)
+            ->where('patient_id', $this->patient->patient_id)
+            ->where('status', 'PENDING')
+            ->first();
+
+        if ($request) {
+            $request->update([
+                'status' => 'CANCELLED',
+                'datetime_updated' => now(),
+            ]);
+            $this->loadTestRequests();
+            session()->flash('request_cancelled', 'Request cancelled successfully.');
+        }
+    }
+
+    public function viewRequestDetail($requestId)
+    {
+        $this->viewingRequest = TestRequest::with(['items.test.section', 'reviewer'])
+            ->where('id', $requestId)
+            ->where('patient_id', $this->patient->patient_id)
+            ->first();
+    }
+
+    public function closeRequestDetail()
+    {
+        $this->viewingRequest = null;
+    }
+
     public function switchTab($tab)
     {
         $this->activeTab = $tab;
@@ -320,6 +432,8 @@ new class extends Component
         $this->selectedOrder = null;
         $this->editMode = false;
         $this->verifyResult = null;
+        $this->viewingRequest = null;
+        $this->showRequestForm = false;
     }
 
     public function viewResult($id)
@@ -446,7 +560,24 @@ new class extends Component
 
     public function with(): array
     {
-        return [];
+        $availableTests = collect();
+        if ($this->showRequestForm) {
+            $query = Test::with('section')
+                ->where('is_deleted', 0)
+                ->orderBy('label');
+            if ($this->requestTestSearch) {
+                $query->where(function($q) {
+                    $q->where('label', 'like', '%' . $this->requestTestSearch . '%')
+                      ->orWhereHas('section', function($sq) {
+                          $sq->where('section_name', 'like', '%' . $this->requestTestSearch . '%');
+                      });
+                });
+            }
+            $availableTests = $query->get();
+        }
+        return [
+            'availableTests' => $availableTests,
+        ];
     }
 };
 ?>
@@ -541,6 +672,20 @@ new class extends Component
                         @endif
                     </button>
 
+                    <button wire:click="switchTab('requests')"
+                            class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all
+                                {{ $activeTab === 'requests' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900' }}">
+                        <svg class="w-5 h-5 {{ $activeTab === 'requests' ? 'text-blue-500' : 'text-gray-400' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        Request Test
+                        @if(count($testRequests) > 0)
+                            <span class="ml-auto text-xs px-2 py-0.5 rounded-full {{ $activeTab === 'requests' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500' }}">
+                                {{ count($testRequests) }}
+                            </span>
+                        @endif
+                    </button>
+
                     <button wire:click="switchTab('verify')"
                             class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all
                                 {{ $activeTab === 'verify' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900' }}">
@@ -562,7 +707,7 @@ new class extends Component
             </nav>
 
             {{-- Quick Stats --}}
-            <div class="grid grid-cols-3 gap-3">
+            <div class="grid grid-cols-2 gap-3">
                 <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 text-center">
                     <p class="text-2xl font-bold text-blue-600">{{ count($labOrders) }}</p>
                     <p class="text-xs text-gray-500 mt-0.5">Orders</p>
@@ -570,6 +715,10 @@ new class extends Component
                 <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 text-center">
                     <p class="text-2xl font-bold text-emerald-600">{{ collect($labOrders)->where('status', 'completed')->count() }}</p>
                     <p class="text-xs text-gray-500 mt-0.5">Completed</p>
+                </div>
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 text-center">
+                    <p class="text-2xl font-bold text-amber-600">{{ collect($testRequests)->where('status', 'PENDING')->count() }}</p>
+                    <p class="text-xs text-gray-500 mt-0.5">Pending Requests</p>
                 </div>
                 <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 text-center">
                     <p class="text-2xl font-bold text-violet-600">{{ count($certificates) }}</p>
@@ -1234,6 +1383,288 @@ new class extends Component
                         </form>
                     @endif
                 </div>
+            </div>
+            @endif
+
+            {{-- ===== REQUEST TEST TAB ===== --}}
+            @if($activeTab === 'requests')
+            <div>
+                {{-- Flash Messages --}}
+                @if(session('request_submitted'))
+                <div class="mb-5 p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-3">
+                    <svg class="w-5 h-5 text-emerald-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <p class="text-sm text-emerald-700 font-medium">{{ session('request_submitted') }}</p>
+                </div>
+                @endif
+                @if(session('request_cancelled'))
+                <div class="mb-5 p-4 bg-gray-50 border border-gray-200 rounded-xl flex items-center gap-3">
+                    <svg class="w-5 h-5 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <p class="text-sm text-gray-700 font-medium">{{ session('request_cancelled') }}</p>
+                </div>
+                @endif
+
+                {{-- Page Header --}}
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden mb-5">
+                    <div class="bg-blue-500 px-6 py-5">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h2 class="text-lg font-bold text-white">Test Requests</h2>
+                                    <p class="text-sm text-white/70">Request lab tests for staff review</p>
+                                </div>
+                            </div>
+                            <button wire:click="openRequestForm"
+                                    class="inline-flex items-center gap-2 px-4 py-2.5 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white text-sm font-medium rounded-xl transition-all">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                                New Request
+                            </button>
+                        </div>
+                    </div>
+
+                    {{-- Status Summary --}}
+                    @if(count($testRequests) > 0)
+                    <div class="grid grid-cols-4 divide-x divide-gray-100">
+                        <div class="px-4 py-3 text-center">
+                            <span class="text-lg font-bold text-gray-900">{{ count($testRequests) }}</span>
+                            <p class="text-xs text-gray-500">Total</p>
+                        </div>
+                        <div class="px-4 py-3 text-center">
+                            <span class="text-lg font-bold text-amber-600">{{ collect($testRequests)->where('status', 'PENDING')->count() }}</span>
+                            <p class="text-xs text-gray-500">Pending</p>
+                        </div>
+                        <div class="px-4 py-3 text-center">
+                            <span class="text-lg font-bold text-emerald-600">{{ collect($testRequests)->where('status', 'APPROVED')->count() }}</span>
+                            <p class="text-xs text-gray-500">Approved</p>
+                        </div>
+                        <div class="px-4 py-3 text-center">
+                            <span class="text-lg font-bold text-red-600">{{ collect($testRequests)->where('status', 'REJECTED')->count() }}</span>
+                            <p class="text-xs text-gray-500">Rejected</p>
+                        </div>
+                    </div>
+                    @endif
+                </div>
+
+                {{-- Request Form Modal --}}
+                @if($showRequestForm)
+                <div class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4" wire:click.self="closeRequestForm">
+                    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+                        {{-- Modal Header --}}
+                        <div class="px-6 py-4 bg-blue-500 flex items-center justify-between flex-shrink-0">
+                            <div class="flex items-center gap-3">
+                                <div class="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center">
+                                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                </div>
+                                <h3 class="text-lg font-bold text-white">Request Laboratory Test</h3>
+                            </div>
+                            <button wire:click="closeRequestForm" class="w-8 h-8 flex items-center justify-center rounded-lg text-white/60 hover:text-white hover:bg-white/20 transition-colors">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                            </button>
+                        </div>
+
+                        {{-- Modal Body --}}
+                        <div class="flex-1 overflow-y-auto p-6 space-y-5">
+                            {{-- Purpose --}}
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1.5">Purpose <span class="text-gray-400 font-normal">(optional)</span></label>
+                                <textarea wire:model="requestPurpose" rows="2" placeholder="e.g., Pre-employment medical, Annual checkup, School requirement..."
+                                    class="w-full rounded-xl border-gray-200 focus:border-blue-500 focus:ring-blue-500 text-sm px-4 py-3 placeholder-gray-400"></textarea>
+                                @error('requestPurpose') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
+                            </div>
+
+                            {{-- Preferred Date --}}
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1.5">Preferred Date <span class="text-gray-400 font-normal">(optional)</span></label>
+                                <input type="date" wire:model="requestPreferredDate" min="{{ date('Y-m-d') }}"
+                                    class="w-full rounded-xl border-gray-200 focus:border-blue-500 focus:ring-blue-500 text-sm px-4 py-3">
+                                @error('requestPreferredDate') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
+                            </div>
+
+                            {{-- Test Selection --}}
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1.5">Select Tests <span class="text-red-500">*</span></label>
+                                @error('requestSelectedTests') <p class="text-xs text-red-500 mb-2">{{ $message }}</p> @enderror
+
+                                {{-- Selected Tests Preview --}}
+                                @if(count($requestSelectedTests) > 0)
+                                <div class="mb-3 flex flex-wrap gap-2">
+                                    @foreach($availableTests->whereIn('test_id', $requestSelectedTests) as $selectedTest)
+                                    <span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 text-xs font-medium rounded-lg border border-blue-200">
+                                        {{ $selectedTest->label }}
+                                        <button wire:click="toggleRequestTest({{ $selectedTest->test_id }})" class="text-blue-400 hover:text-blue-600">
+                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                        </button>
+                                    </span>
+                                    @endforeach
+                                    <span class="text-xs text-gray-500 self-center">{{ count($requestSelectedTests) }} selected</span>
+                                </div>
+                                @endif
+
+                                {{-- Search --}}
+                                <div class="relative mb-3">
+                                    <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                                    <input type="text" wire:model.live.debounce.300ms="requestTestSearch" placeholder="Search tests..."
+                                        class="w-full pl-10 pr-4 py-2.5 rounded-xl border-gray-200 focus:border-blue-500 focus:ring-blue-500 text-sm">
+                                </div>
+
+                                {{-- Test List --}}
+                                <div class="border border-gray-200 rounded-xl max-h-60 overflow-y-auto divide-y divide-gray-100">
+                                    @forelse($availableTests as $test)
+                                    <label class="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 cursor-pointer transition-colors {{ in_array($test->test_id, $requestSelectedTests) ? 'bg-blue-50/50' : '' }}">
+                                        <input type="checkbox"
+                                            wire:click="toggleRequestTest({{ $test->test_id }})"
+                                            {{ in_array($test->test_id, $requestSelectedTests) ? 'checked' : '' }}
+                                            class="rounded border-gray-300 text-blue-500 focus:ring-blue-500">
+                                        <div class="flex-1 min-w-0">
+                                            <p class="text-sm font-medium text-gray-900">{{ $test->label }}</p>
+                                            <p class="text-xs text-gray-500">{{ $test->section->section_name ?? 'General' }}
+                                                @if($test->current_price) &middot; ₱{{ number_format($test->current_price, 2) }} @endif
+                                            </p>
+                                        </div>
+                                    </label>
+                                    @empty
+                                    <div class="px-4 py-8 text-center text-sm text-gray-500">
+                                        @if($requestTestSearch)
+                                            No tests found matching "{{ $requestTestSearch }}"
+                                        @else
+                                            No tests available
+                                        @endif
+                                    </div>
+                                    @endforelse
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- Modal Footer --}}
+                        <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex items-center justify-between flex-shrink-0">
+                            <button wire:click="closeRequestForm" class="px-5 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-200 hover:bg-gray-100 rounded-xl transition-colors">
+                                Cancel
+                            </button>
+                            <button wire:click="submitTestRequest"
+                                    class="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-blue-500 hover:bg-blue-600 rounded-xl shadow-sm shadow-blue-500/25 transition-all"
+                                    wire:loading.attr="disabled">
+                                <svg wire:loading wire:target="submitTestRequest" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                                <svg wire:loading.remove wire:target="submitTestRequest" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+                                Submit Request
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                @endif
+
+                {{-- Requests List --}}
+                @if(count($testRequests) > 0)
+                <div class="space-y-3">
+                    @foreach($testRequests as $request)
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
+                        <div class="px-5 py-4">
+                            <div class="flex items-start justify-between mb-3">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold
+                                        {{ $request['status'] === 'PENDING' ? 'bg-amber-100 text-amber-600' : '' }}
+                                        {{ $request['status'] === 'APPROVED' ? 'bg-emerald-100 text-emerald-600' : '' }}
+                                        {{ $request['status'] === 'REJECTED' ? 'bg-red-100 text-red-600' : '' }}
+                                        {{ $request['status'] === 'CANCELLED' ? 'bg-gray-100 text-gray-500' : '' }}">
+                                        @if($request['status'] === 'PENDING')
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                        @elseif($request['status'] === 'APPROVED')
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                        @elseif($request['status'] === 'REJECTED')
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                        @else
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
+                                        @endif
+                                    </div>
+                                    <div>
+                                        <p class="text-sm font-semibold text-gray-900">Request #{{ $request['id'] }}</p>
+                                        <p class="text-xs text-gray-500">{{ \Carbon\Carbon::parse($request['datetime_added'])->format('M d, Y \a\t h:i A') }}</p>
+                                    </div>
+                                </div>
+                                <span class="inline-flex px-2.5 py-1 text-xs font-semibold rounded-full
+                                    {{ $request['status'] === 'PENDING' ? 'bg-amber-100 text-amber-700' : '' }}
+                                    {{ $request['status'] === 'APPROVED' ? 'bg-emerald-100 text-emerald-700' : '' }}
+                                    {{ $request['status'] === 'REJECTED' ? 'bg-red-100 text-red-700' : '' }}
+                                    {{ $request['status'] === 'CANCELLED' ? 'bg-gray-100 text-gray-500' : '' }}">
+                                    {{ $request['status'] }}
+                                </span>
+                            </div>
+
+                            {{-- Requested Tests --}}
+                            <div class="mb-3">
+                                <div class="flex flex-wrap gap-1.5">
+                                    @foreach($request['items'] as $item)
+                                    <span class="inline-flex px-2.5 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded-lg">
+                                        {{ $item['test']['label'] ?? 'Unknown' }}
+                                    </span>
+                                    @endforeach
+                                </div>
+                            </div>
+
+                            {{-- Purpose --}}
+                            @if($request['purpose'])
+                            <p class="text-sm text-gray-600 mb-3">
+                                <span class="font-medium text-gray-500">Purpose:</span> {{ $request['purpose'] }}
+                            </p>
+                            @endif
+
+                            {{-- Preferred Date --}}
+                            @if($request['preferred_date'])
+                            <p class="text-xs text-gray-500 mb-3">
+                                <span class="font-medium">Preferred date:</span> {{ \Carbon\Carbon::parse($request['preferred_date'])->format('M d, Y') }}
+                            </p>
+                            @endif
+
+                            {{-- Staff Remarks (if rejected) --}}
+                            @if($request['status'] === 'REJECTED' && $request['staff_remarks'])
+                            <div class="p-3 bg-red-50 border border-red-100 rounded-xl mb-3">
+                                <p class="text-xs font-semibold text-red-600 mb-1">Staff Remarks:</p>
+                                <p class="text-sm text-red-700">{{ $request['staff_remarks'] }}</p>
+                            </div>
+                            @endif
+
+                            {{-- Reviewed Info --}}
+                            @if($request['reviewed_at'] && $request['reviewer'])
+                            <p class="text-xs text-gray-400">
+                                Reviewed by {{ $request['reviewer']['name'] }} on {{ \Carbon\Carbon::parse($request['reviewed_at'])->format('M d, Y \a\t h:i A') }}
+                            </p>
+                            @endif
+
+                            {{-- Actions --}}
+                            @if($request['status'] === 'PENDING')
+                            <div class="mt-3 pt-3 border-t border-gray-100 flex items-center justify-end gap-2">
+                                <button wire:click="cancelTestRequest({{ $request['id'] }})"
+                                        wire:confirm="Are you sure you want to cancel this request?"
+                                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                    Cancel Request
+                                </button>
+                            </div>
+                            @endif
+                        </div>
+                    </div>
+                    @endforeach
+                </div>
+                @else
+                {{-- Empty State --}}
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-12 text-center">
+                    <div class="w-16 h-16 rounded-full bg-blue-50 flex items-center justify-center mx-auto mb-4">
+                        <svg class="w-8 h-8 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    </div>
+                    <h3 class="text-lg font-bold text-gray-900 mb-2">No Test Requests Yet</h3>
+                    <p class="text-sm text-gray-500 mb-5">Submit a test request for staff review and approval.</p>
+                    <button wire:click="openRequestForm"
+                            class="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-xl shadow-sm shadow-blue-500/25 transition-all">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                        Request a Test
+                    </button>
+                </div>
+                @endif
             </div>
             @endif
         </div>
