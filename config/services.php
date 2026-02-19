@@ -41,4 +41,12 @@ return [
         'redirect' => env('GOOGLE_REDIRECT_URI', '/auth/google/callback'),
     ],
 
+    'uic_api' => [
+        'base' => env('UIC_API_BASE'),
+        'unified_list' => env('UIC_API_UNIFIED_LIST'),
+        'client_id' => env('UIC_API_CLIENT_ID'),
+        'client_secret' => env('UIC_API_CLIENT_SECRET'),
+        'timeout' => (int) env('UIC_API_TIMEOUT', 60),
+    ],
+
 ];

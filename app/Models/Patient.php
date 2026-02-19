@@ -21,6 +21,7 @@ class Patient extends Model
         'contact_number',
         'address',
         'email',
+        'external_ref_id',
         'status_code',
     ];
 
@@ -82,5 +83,13 @@ class Patient extends Model
     public function testRequests()
     {
         return $this->hasMany(TestRequest::class, 'patient_id', 'patient_id');
+    }
+
+    /**
+     * Get the linked UIC directory record.
+     */
+    public function directoryRecord()
+    {
+        return $this->belongsTo(UicDirectoryPerson::class, 'external_ref_id', 'external_ref_id');
     }
 }

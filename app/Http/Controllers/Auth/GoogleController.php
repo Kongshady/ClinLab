@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\Patient;
+use App\Models\UicDirectoryPerson;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
@@ -94,41 +95,74 @@ class GoogleController extends Controller
     }
 
     /**
-     * Link user account to existing patient record or create a new one.
+     * Link user account to patient record using UIC directory data.
+     * Falls back to Google profile if not found in directory.
      */
     private function linkPatientProfile(User $user, $googleUser): void
     {
-        // Try to find existing patient by email or user_id
+        // Try to find existing patient by user_id or email
         $patient = Patient::where('user_id', $user->id)
             ->orWhere('email', $user->email)
             ->first();
 
-        if ($patient) {
-            // Link existing patient record
-            $patient->update([
-                'user_id' => $user->id,
-                'email' => $user->email,
-            ]);
-        } else {
-            // Parse name from Google
-            $nameParts = explode(' ', $googleUser->getName(), 3);
-            $firstname = $nameParts[0] ?? '';
-            $middlename = count($nameParts) > 2 ? $nameParts[1] : null;
-            $lastname = count($nameParts) > 2 ? $nameParts[2] : ($nameParts[1] ?? '');
+        // Look up in local UIC directory (synced from API)
+        $directoryPerson = UicDirectoryPerson::where('email', strtolower($user->email))->first();
 
-            // Create new patient profile
-            Patient::create([
+        if ($patient) {
+            // Patient record exists — enrich with directory data if available
+            $updates = [
                 'user_id' => $user->id,
-                'patient_type' => 'Internal',
-                'firstname' => $firstname,
-                'middlename' => $middlename,
-                'lastname' => $lastname,
-                'birthdate' => '2000-01-01', // Placeholder - patient should update
-                'gender' => 'N/A',
                 'email' => $user->email,
-                'status_code' => 1,
-                'is_deleted' => 0,
-            ]);
+            ];
+
+            if ($directoryPerson) {
+                $updates['firstname'] = $directoryPerson->first_name;
+                $updates['middle_name'] = $directoryPerson->middle_name;
+                $updates['lastname'] = $directoryPerson->last_name;
+                $updates['external_ref_id'] = $directoryPerson->external_ref_id;
+                $updates['patient_type'] = 'Internal';
+            }
+
+            $patient->update($updates);
+        } else {
+            // Create new patient record
+            if ($directoryPerson) {
+                // Use official UIC directory data
+                Patient::create([
+                    'user_id'         => $user->id,
+                    'patient_type'    => 'Internal',
+                    'firstname'       => $directoryPerson->first_name,
+                    'middlename'      => $directoryPerson->middle_name,
+                    'lastname'        => $directoryPerson->last_name,
+                    'birthdate'       => '2000-01-01', // Placeholder — not in directory
+                    'gender'          => 'N/A',
+                    'email'           => $user->email,
+                    'external_ref_id' => $directoryPerson->external_ref_id,
+                    'status_code'     => 1,
+                    'is_deleted'      => 0,
+                ]);
+            } else {
+                // Fallback: parse name from Google profile
+                $nameParts = explode(' ', $googleUser->getName(), 3);
+                $firstname = $nameParts[0] ?? '';
+                $middlename = count($nameParts) > 2 ? $nameParts[1] : null;
+                $lastname = count($nameParts) > 2 ? $nameParts[2] : ($nameParts[1] ?? '');
+
+                Patient::create([
+                    'user_id'      => $user->id,
+                    'patient_type' => 'Internal',
+                    'firstname'    => $firstname,
+                    'middlename'   => $middlename,
+                    'lastname'     => $lastname,
+                    'birthdate'    => '2000-01-01',
+                    'gender'       => 'N/A',
+                    'email'        => $user->email,
+                    'status_code'  => 1,
+                    'is_deleted'   => 0,
+                ]);
+
+                Log::info("[Google Login] No UIC directory match for {$user->email} — created patient from Google profile.");
+            }
         }
     }
 }

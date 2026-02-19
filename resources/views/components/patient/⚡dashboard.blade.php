@@ -9,6 +9,7 @@ use App\Models\CertificateIssue;
 use App\Models\TestRequest;
 use App\Models\TestRequestItem;
 use App\Models\Test;
+use App\Models\UicDirectoryPerson;
 use Barryvdh\DomPDF\Facade\Pdf;
 
 new class extends Component
@@ -56,10 +57,21 @@ new class extends Component
     public $requestTestSearch = '';
     public $viewingRequest = null;
 
+    // UIC Directory data (read-only)
+    public $directoryRecord = null;
+
     public function mount()
     {
         $user = auth()->user();
         $this->patient = Patient::where('user_id', $user->id)->first();
+
+        // Load linked UIC directory record
+        if ($this->patient && $this->patient->external_ref_id) {
+            $this->directoryRecord = UicDirectoryPerson::where('external_ref_id', $this->patient->external_ref_id)->first();
+        } elseif ($this->patient && $this->patient->email) {
+            $this->directoryRecord = UicDirectoryPerson::where('email', strtolower($this->patient->email))->first();
+        }
+
         $this->loadResults();
         $this->loadCertificates();
         $this->loadTestRequests();
@@ -1288,6 +1300,41 @@ new class extends Component
                         <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
                         {{ session('profile_saved') }}
                     </div>
+                @endif
+
+                {{-- UIC Directory Info (read-only) --}}
+                @if($directoryRecord)
+                <div class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-200 overflow-hidden mb-5">
+                    <div class="px-6 py-3 bg-blue-100/60 border-b border-blue-200 flex items-center gap-2">
+                        <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                        <span class="text-sm font-semibold text-blue-800">UIC Official Record</span>
+                        <span class="ml-auto text-xs text-blue-500">Synced from university directory</span>
+                    </div>
+                    <div class="divide-y divide-blue-100">
+                        <div class="flex items-center px-6 py-3">
+                            <span class="text-sm text-blue-600 w-44 flex-shrink-0">ID Number</span>
+                            <span class="text-sm font-semibold text-gray-900 font-mono">{{ $directoryRecord->external_ref_id }}</span>
+                        </div>
+                        <div class="flex items-center px-6 py-3">
+                            <span class="text-sm text-blue-600 w-44 flex-shrink-0">Full Name</span>
+                            <span class="text-sm font-medium text-gray-900">{{ $directoryRecord->full_name }}</span>
+                        </div>
+                        <div class="flex items-center px-6 py-3">
+                            <span class="text-sm text-blue-600 w-44 flex-shrink-0">Email</span>
+                            <span class="text-sm font-medium text-gray-900">{{ $directoryRecord->email }}</span>
+                        </div>
+                        <div class="flex items-center px-6 py-3">
+                            <span class="text-sm text-blue-600 w-44 flex-shrink-0">Type</span>
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold {{ $directoryRecord->type === 'student' ? 'bg-indigo-100 text-indigo-800' : 'bg-emerald-100 text-emerald-800' }}">{{ ucfirst($directoryRecord->type) }}</span>
+                        </div>
+                        @if($directoryRecord->department_or_course)
+                        <div class="flex items-center px-6 py-3">
+                            <span class="text-sm text-blue-600 w-44 flex-shrink-0">{{ $directoryRecord->type === 'student' ? 'Course' : 'Department' }}</span>
+                            <span class="text-sm font-medium text-gray-900">{{ $directoryRecord->department_or_course }}</span>
+                        </div>
+                        @endif
+                    </div>
+                </div>
                 @endif
 
                 <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">

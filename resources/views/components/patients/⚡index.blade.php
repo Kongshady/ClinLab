@@ -5,6 +5,7 @@ use Livewire\WithPagination;
 use Livewire\Attributes\Validate;
 use App\Models\Patient;
 use App\Models\LabResult;
+use App\Models\UicDirectoryPerson;
 use App\Traits\LogsActivity;
 
 new class extends Component
@@ -71,6 +72,48 @@ new class extends Component
     // Form visibility toggle
     public $showForm = false;
 
+    // UIC Directory lookup
+    public $uicSearch = '';
+    public $uicResults = [];
+    public $selectedUicPerson = null;
+
+    public function searchUicDirectory()
+    {
+        if (strlen($this->uicSearch) < 2) {
+            $this->uicResults = [];
+            return;
+        }
+        $this->uicResults = UicDirectoryPerson::search($this->uicSearch)
+            ->take(10)
+            ->get()
+            ->toArray();
+    }
+
+    public function selectUicPerson($personId)
+    {
+        $person = UicDirectoryPerson::find($personId);
+        if (!$person) return;
+
+        $this->selectedUicPerson = $person->toArray();
+        $this->firstname = $person->first_name;
+        $this->middlename = $person->middle_name ?? '';
+        $this->lastname = $person->last_name;
+        $this->email = $person->email ?? '';
+        $this->birthdate = $person->birth_date ? $person->birth_date->format('Y-m-d') : '';
+        $this->gender = $person->gender ?? '';
+        $this->address = $person->home_address ?? '';
+        $this->patient_type = 'Internal';
+        $this->uicResults = [];
+        $this->showForm = true;
+    }
+
+    public function clearUicSelection()
+    {
+        $this->selectedUicPerson = null;
+        $this->uicSearch = '';
+        $this->uicResults = [];
+    }
+
     public function mount()
     {
         if (session('success')) {
@@ -87,7 +130,7 @@ new class extends Component
             $this->reset([
                 'firstname', 'middlename', 'lastname', 
                 'birthdate', 'gender', 'contact_number', 'address',
-                'email', 'patient_type'
+                'email', 'patient_type', 'selectedUicPerson', 'uicSearch', 'uicResults'
             ]);
             $this->resetErrorBag();
         }
@@ -127,12 +170,13 @@ new class extends Component
             'contact_number' => $this->contact_number,
             'address' => $this->address,
             'email' => $this->email,
+            'external_ref_id' => $this->selectedUicPerson['external_ref_id'] ?? null,
         ]);
 
         $this->reset([
             'firstname', 'middlename', 'lastname', 
             'birthdate', 'gender', 'contact_number', 'address',
-            'email', 'patient_type'
+            'email', 'patient_type', 'selectedUicPerson', 'uicSearch', 'uicResults'
         ]);
         
         $this->logActivity("Created patient: {$this->firstname} {$this->lastname}");
@@ -416,7 +460,67 @@ new class extends Component
             </button>
         </div>
         @if($showForm)
-        <form wire:submit.prevent="save" class="p-6">
+        <div class="p-6 pb-0">
+            <!-- UIC Directory Search -->
+            <div class="mb-5 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <h4 class="text-sm font-semibold text-blue-800 mb-2 flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    Search UIC Directory
+                </h4>
+                @if($selectedUicPerson)
+                    <div class="flex items-center justify-between bg-white p-3 rounded-md border border-blue-300">
+                        <div>
+                            <span class="text-sm font-medium text-gray-900">{{ $selectedUicPerson['first_name'] }} {{ $selectedUicPerson['middle_name'] ?? '' }} {{ $selectedUicPerson['last_name'] }}</span>
+                            <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium {{ $selectedUicPerson['type'] === 'Student' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800' }}">
+                                {{ $selectedUicPerson['type'] }}
+                            </span>
+                            @if($selectedUicPerson['email'])
+                                <span class="ml-2 text-xs text-gray-500">{{ $selectedUicPerson['email'] }}</span>
+                            @endif
+                        </div>
+                        <button type="button" wire:click="clearUicSelection" class="text-red-500 hover:text-red-700 text-sm font-medium">
+                            Clear
+                        </button>
+                    </div>
+                @else
+                    <div class="relative" x-data="{ open: false }" @click.outside="open = false">
+                        <input type="text" wire:model.live.debounce.300ms="uicSearch" wire:keyup="searchUicDirectory"
+                               @focus="open = true"
+                               placeholder="Search by name, email, or ID number..."
+                               class="w-full px-3 py-2 border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                        @if(count($uicResults) > 0)
+                            <div class="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-y-auto" x-show="open">
+                                @foreach($uicResults as $person)
+                                    <button type="button" wire:click="selectUicPerson({{ $person['id'] }})"
+                                            class="w-full text-left px-4 py-2.5 hover:bg-blue-50 border-b border-gray-100 last:border-0 flex items-center justify-between">
+                                        <div>
+                                            <span class="text-sm font-medium text-gray-900">{{ $person['first_name'] }} {{ $person['middle_name'] ?? '' }} {{ $person['last_name'] }}</span>
+                                            @if($person['email'])
+                                                <span class="block text-xs text-gray-500">{{ $person['email'] }}</span>
+                                            @endif
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            @if($person['department_or_course'])
+                                                <span class="text-xs text-gray-400">{{ $person['department_or_course'] }}</span>
+                                            @endif
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium {{ $person['type'] === 'Student' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800' }}">
+                                                {{ $person['type'] }}
+                                            </span>
+                                        </div>
+                                    </button>
+                                @endforeach
+                            </div>
+                        @elseif(strlen($uicSearch) >= 2 && count($uicResults) === 0)
+                            <div class="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg" x-show="open">
+                                <div class="px-4 py-3 text-sm text-gray-500">No UIC records found. You may enter details manually below.</div>
+                            </div>
+                        @endif
+                    </div>
+                @endif
+                <p class="text-xs text-blue-600 mt-1.5">Search the local UIC directory to auto-fill patient details, or enter manually below.</p>
+            </div>
+        </div>
+        <form wire:submit.prevent="save" class="px-6 pb-6">
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">First Name *</label>
