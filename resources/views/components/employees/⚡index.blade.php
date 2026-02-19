@@ -421,7 +421,7 @@ new class extends Component
                             <tr class="hover:bg-gray-50">
                                 <td class="px-4 py-3">
                                     <div class="flex items-center">
-                                        <div class="w-8 h-8 bg-gradient-to-br from-blue-500 to-cyan-400 rounded-lg flex items-center justify-center text-white text-xs font-bold mr-3">
+                                        <div class="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center text-white text-xs font-bold mr-3">
                                             {{ strtoupper(substr($employee->firstname, 0, 1) . substr($employee->lastname, 0, 1)) }}
                                         </div>
                                         <span class="text-sm text-gray-900 font-medium">{{ $employee->firstname }} {{ $employee->middlename }} {{ $employee->lastname }}</span>

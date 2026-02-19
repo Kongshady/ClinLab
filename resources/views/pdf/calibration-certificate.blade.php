@@ -9,17 +9,17 @@
         .page { padding: 30px 40px; position: relative; }
 
         /* Border */
-        .border-frame { border: 3px double #d1324a; padding: 25px 30px; min-height: 700px; }
+        .border-frame { border: 3px double #d2334c; padding: 25px 30px; min-height: 700px; }
 
         /* Header */
         .header { text-align: center; margin-bottom: 25px; }
-        .header h1 { font-size: 18px; color: #d1324a; letter-spacing: 2px; margin-bottom: 2px; }
+        .header h1 { font-size: 18px; color: #d2334c; letter-spacing: 2px; margin-bottom: 2px; }
         .header h2 { font-size: 13px; color: #444; font-weight: normal; margin-bottom: 5px; }
-        .header .cert-title { font-size: 20px; font-weight: bold; color: #d1324a; text-transform: uppercase; letter-spacing: 3px; margin-top: 10px; border-top: 2px solid #d1324a; border-bottom: 2px solid #d1324a; padding: 8px 0; }
+        .header .cert-title { font-size: 20px; font-weight: bold; color: #d2334c; text-transform: uppercase; letter-spacing: 3px; margin-top: 10px; border-top: 2px solid #d2334c; border-bottom: 2px solid #d2334c; padding: 8px 0; }
         .header .cert-no { font-size: 11px; color: #888; margin-top: 8px; font-weight: bold; }
 
         /* Info Sections */
-        .section-title { font-size: 11px; font-weight: bold; color: #d1324a; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; border-bottom: 1px solid #eee; padding-bottom: 3px; margin-top: 18px; }
+        .section-title { font-size: 11px; font-weight: bold; color: #d2334c; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; border-bottom: 1px solid #eee; padding-bottom: 3px; margin-top: 18px; }
 
         .info-table { width: 100%; margin-bottom: 15px; }
         .info-table td { padding: 4px 8px; font-size: 10px; border: none; vertical-align: top; }
@@ -27,7 +27,7 @@
         .info-table .value { color: #222; font-weight: bold; }
 
         /* Result */
-        .result-box { border: 2px solid #d1324a; border-radius: 4px; padding: 12px 15px; text-align: center; margin: 18px 0; }
+        .result-box { border: 2px solid #d2334c; border-radius: 4px; padding: 12px 15px; text-align: center; margin: 18px 0; }
         .result-label { font-size: 9px; text-transform: uppercase; color: #888; font-weight: bold; }
         .result-value { font-size: 18px; font-weight: bold; margin-top: 3px; }
         .result-pass { color: #155724; }

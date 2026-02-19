@@ -12,7 +12,7 @@
                     colors: {
                         blue: {
                             50: '#fef2f4', 100: '#fde6ea', 200: '#fbd0d8', 300: '#f7a9b6', 400: '#f27d91',
-                            500: '#d1324a', 600: '#c42841', 700: '#a52038', 800: '#891d33', 900: '#7b1d31', 950: '#450a19',
+                            500: '#d2334c', 600: '#c42841', 700: '#a52038', 800: '#891d33', 900: '#7b1d31', 950: '#450a19',
                         },
                         cyan: {
                             50: '#fff5f6', 100: '#ffe0e4', 200: '#ffc7cf', 300: '#ffa3b1', 400: '#e8607a',
@@ -29,12 +29,12 @@
         body { font-family: 'Inter', sans-serif; }
     </style>
 </head>
-<body class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 flex flex-col">
+<body class="min-h-screen bg-gray-50 flex flex-col">
 
     {{-- Header --}}
     <header class="bg-white/80 backdrop-blur-sm border-b border-gray-200 sticky top-0 z-10">
         <div class="max-w-4xl mx-auto px-6 py-4 flex items-center gap-3">
-            <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-600 to-cyan-500 flex items-center justify-center shadow-sm">
+            <div class="w-9 h-9 rounded-lg bg-blue-500 flex items-center justify-center shadow-sm">
                 <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/>
                 </svg>
@@ -66,7 +66,7 @@
                                class="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white transition-all"
                                required>
                         <button type="submit"
-                                class="px-6 py-3 bg-gradient-to-r from-blue-600 to-cyan-400 hover:from-blue-700 hover:to-cyan-500 text-white font-medium text-sm rounded-xl shadow-sm transition-all">
+                                class="px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white font-medium text-sm rounded-xl shadow-sm transition-all">
                             Verify
                         </button>
                     </form>

@@ -23,25 +23,25 @@
                             200: '#fbd0d8',
                             300: '#f7a9b6',
                             400: '#f27d91',
-                            500: '#d1324a',
-                            600: '#c42841',
+                            500: '#d2334c',
+                            600: '#bd2d44',
                             700: '#a52038',
                             800: '#891d33',
                             900: '#7b1d31',
                             950: '#450a19',
                         },
                         cyan: {
-                            50: '#fff5f6',
-                            100: '#ffe0e4',
-                            200: '#ffc7cf',
-                            300: '#ffa3b1',
-                            400: '#e8607a',
-                            500: '#d94863',
-                            600: '#c4354f',
-                            700: '#a52a41',
-                            800: '#8c2539',
-                            900: '#782234',
-                            950: '#430d19',
+                            50: '#fef2f4',
+                            100: '#fde6ea',
+                            200: '#fbd0d8',
+                            300: '#f7a9b6',
+                            400: '#d2334c',
+                            500: '#d2334c',
+                            600: '#bd2d44',
+                            700: '#a52038',
+                            800: '#891d33',
+                            900: '#7b1d31',
+                            950: '#450a19',
                         },
                     },
                 }
@@ -52,7 +52,7 @@
 </head>
 <body class="bg-gray-50 min-h-screen">
     <!-- Top Navigation -->
-    <nav class="bg-gradient-to-r from-[#891d33] via-[#d1324a] to-[#891d33] shadow-lg sticky top-0 z-40">
+    <nav class="bg-[#d2334c] shadow-lg sticky top-0 z-40">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-14">
                 <!-- Logo -->

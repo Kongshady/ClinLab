@@ -145,7 +145,7 @@ new class extends Component
     <div class="max-w-7xl mx-auto">
         <!-- Header -->
         <div class="mb-6">
-            <h1 class="text-3xl font-bold bg-gradient-to-r from-blue-600 to-cyan-400 bg-clip-text text-transparent">
+            <h1 class="text-3xl font-bold bg-blue-500 bg-clip-text text-transparent">
                 Certificate Templates
             </h1>
             <p class="text-slate-600 mt-1">Manage certificate templates for calibration, maintenance, and safety compliance</p>
@@ -177,7 +177,7 @@ new class extends Component
                 </div>
                 <button 
                     wire:click="openModal"
-                    class="px-6 py-2 bg-gradient-to-r from-blue-600 to-cyan-400 text-white rounded-lg hover:from-blue-700 hover:to-cyan-500 transition-all shadow-md hover:shadow-lg whitespace-nowrap"
+                    class="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-all shadow-md hover:shadow-lg whitespace-nowrap"
                 >
                     + New Template
                 </button>
@@ -188,7 +188,7 @@ new class extends Component
         <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
             <div class="overflow-x-auto">
                 <table class="w-full">
-                    <thead class="bg-gradient-to-r from-slate-50 to-slate-100">
+                    <thead class="bg-slate-50">
                         <tr>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wide">Name</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wide">Type</th>
@@ -348,7 +348,7 @@ new class extends Component
                             </button>
                             <button 
                                 type="submit"
-                                class="px-6 py-2 bg-gradient-to-r from-blue-600 to-cyan-400 text-white rounded-lg hover:from-blue-700 hover:to-cyan-500 transition-all shadow-md"
+                                class="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-all shadow-md"
                             >
                                 {{ $editMode ? 'Update' : 'Create' }} Template
                             </button>

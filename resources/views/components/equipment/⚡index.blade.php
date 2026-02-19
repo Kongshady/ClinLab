@@ -522,22 +522,22 @@ new class extends Component
 <div class="p-6">
     <div class="mb-6 flex items-center justify-between">
         <h1 class="text-2xl font-bold text-gray-900 flex items-center">
-            <svg class="w-7 h-7 mr-2" style="color:#d1324a" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-7 h-7 mr-2" style="color:#d2334c" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/>
             </svg>
             Equipment Management
         </h1>
         <div class="flex gap-3">
             <button type="button" wire:click="openMaintenanceModal()" 
-                    class="px-4 py-2 rounded-lg text-sm font-semibold transition-colors text-white" style="background-color:#d1324a" onmouseover="this.style.backgroundColor='#9f1239'" onmouseout="this.style.backgroundColor='#d1324a'">
+                    class="px-4 py-2 rounded-lg text-sm font-semibold transition-colors text-white" style="background-color:#d2334c" onmouseover="this.style.backgroundColor='#9f1239'" onmouseout="this.style.backgroundColor='#d2334c'">
                 Record Maintenance
             </button>
             <button type="button" wire:click="openUsageModal" 
-                    class="px-4 py-2 rounded-lg text-sm font-semibold transition-colors text-white" style="background-color:#d1324a" onmouseover="this.style.backgroundColor='#9f1239'" onmouseout="this.style.backgroundColor='#d1324a'">
+                    class="px-4 py-2 rounded-lg text-sm font-semibold transition-colors text-white" style="background-color:#d2334c" onmouseover="this.style.backgroundColor='#9f1239'" onmouseout="this.style.backgroundColor='#d2334c'">
                 Record Equipment Usage
             </button>
             <button type="button" wire:click="openEquipmentModal" 
-                    class="px-4 py-2 rounded-lg text-sm font-semibold transition-colors border-2 hover:bg-gray-50" style="border-color:#d1324a; color:#d1324a">
+                    class="px-4 py-2 rounded-lg text-sm font-semibold transition-colors border-2 hover:bg-gray-50" style="border-color:#d2334c; color:#d2334c">
                 Add Equipment
             </button>
         </div>
@@ -558,7 +558,7 @@ new class extends Component
     <div class="bg-white rounded-xl shadow-sm mb-6">
         <div class="px-6 py-4 border-b border-gray-200 flex items-center gap-3">
             <div class="p-1.5 rounded-lg" style="background-color:#fef2f2">
-                <svg class="w-5 h-5" style="color:#d1324a" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-5 h-5" style="color:#d2334c" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
                 </svg>
             </div>
@@ -652,7 +652,7 @@ new class extends Component
                                     </span>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm">
-                                    <button type="button" wire:click="openMaintenanceModal({{ $alert['equipment_id'] }})" class="px-3 py-1.5 text-white text-xs font-semibold rounded-lg transition-colors" style="background-color:#d1324a" onmouseover="this.style.backgroundColor='#9f1239'" onmouseout="this.style.backgroundColor='#d1324a'">
+                                    <button type="button" wire:click="openMaintenanceModal({{ $alert['equipment_id'] }})" class="px-3 py-1.5 text-white text-xs font-semibold rounded-lg transition-colors" style="background-color:#d2334c" onmouseover="this.style.backgroundColor='#9f1239'" onmouseout="this.style.backgroundColor='#d2334c'">
                                         Record
                                     </button>
                                 </td>
@@ -728,7 +728,7 @@ new class extends Component
                                         </span>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                                        <button type="button" wire:click="openDetailsModal({{ $item->equipment_id }})" class="inline-block px-4 py-1.5 text-white text-sm font-medium rounded-lg transition-colors" style="background-color:#d1324a" onmouseover="this.style.backgroundColor='#9f1239'" onmouseout="this.style.backgroundColor='#d1324a'">Details</button>
+                                        <button type="button" wire:click="openDetailsModal({{ $item->equipment_id }})" class="inline-block px-4 py-1.5 text-white text-sm font-medium rounded-lg transition-colors" style="background-color:#d2334c" onmouseover="this.style.backgroundColor='#9f1239'" onmouseout="this.style.backgroundColor='#d2334c'">Details</button>
                                         <button type="button" wire:click="edit({{ $item->equipment_id }})" class="px-4 py-1.5 text-white text-sm font-medium rounded-lg transition-colors" style="background-color:#be123c" onmouseover="this.style.backgroundColor='#881337'" onmouseout="this.style.backgroundColor='#be123c'">Edit</button>
                                         <button type="button" wire:click="confirmDelete({{ $item->equipment_id }})" class="px-4 py-1.5 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors">Delete</button>
                                     </td>
@@ -755,7 +755,7 @@ new class extends Component
     <div class="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4" style="background-color: rgba(15,23,42,0.75); backdrop-filter: blur(4px);">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col" wire:click.stop>
             {{-- Header — Crimson --}}
-            <div class="flex items-center justify-between px-7 py-5 rounded-t-2xl" style="background: linear-gradient(135deg,#9f1239 0%,#d1324a 100%);">
+            <div class="flex items-center justify-between px-7 py-5 rounded-t-2xl" style="background: #d2334c;">
                 <div class="flex items-center gap-3">
                     <div class="bg-white/20 rounded-xl p-2.5">
                         <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -953,7 +953,7 @@ new class extends Component
                 </div>
                 <div class="flex justify-end gap-3 pt-4 border-t border-gray-100">
                     <button type="button" wire:click="closeUsageModal" class="px-5 py-2.5 border border-gray-200 hover:bg-gray-50 text-gray-600 text-sm font-semibold rounded-xl transition-colors">Cancel</button>
-                    <button type="submit" class="px-5 py-2.5 text-white text-sm font-semibold rounded-xl transition-colors" style="background-color:#d1324a" onmouseover="this.style.backgroundColor='#9f1239'" onmouseout="this.style.backgroundColor='#d1324a'">Record Usage</button>
+                    <button type="submit" class="px-5 py-2.5 text-white text-sm font-semibold rounded-xl transition-colors" style="background-color:#d2334c" onmouseover="this.style.backgroundColor='#9f1239'" onmouseout="this.style.backgroundColor='#d2334c'">Record Usage</button>
                 </div>
             </form>
         </div>
@@ -965,7 +965,7 @@ new class extends Component
     <div class="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4" style="background-color: rgba(15,23,42,0.75); backdrop-filter: blur(4px);">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col" wire:click.stop>
             {{-- Header — Crimson --}}
-            <div class="flex items-center justify-between px-7 py-5 rounded-t-2xl" style="background: linear-gradient(135deg,#9f1239 0%,#d1324a 100%);">
+            <div class="flex items-center justify-between px-7 py-5 rounded-t-2xl" style="background: #d2334c;">
                 <div class="flex items-center gap-3">
                     <div class="bg-white/20 rounded-xl p-2.5">
                         <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1037,7 +1037,7 @@ new class extends Component
                 </div>
                 <div class="flex justify-end gap-3 pt-4 border-t border-gray-100">
                     <button type="button" wire:click="closeEquipmentModal" class="px-5 py-2.5 border border-gray-200 hover:bg-gray-50 text-gray-600 text-sm font-semibold rounded-xl transition-colors">Cancel</button>
-                    <button type="submit" class="px-5 py-2.5 text-white text-sm font-semibold rounded-xl transition-colors" style="background-color:#d1324a" onmouseover="this.style.backgroundColor='#9f1239'" onmouseout="this.style.backgroundColor='#d1324a'">Add Equipment</button>
+                    <button type="submit" class="px-5 py-2.5 text-white text-sm font-semibold rounded-xl transition-colors" style="background-color:#d2334c" onmouseover="this.style.backgroundColor='#9f1239'" onmouseout="this.style.backgroundColor='#d2334c'">Add Equipment</button>
                 </div>
             </form>
         </div>
@@ -1049,7 +1049,7 @@ new class extends Component
     <div class="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4" style="background-color: rgba(15,23,42,0.75); backdrop-filter: blur(4px);">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col" wire:click.stop>
             {{-- Header — Crimson Dark --}}
-            <div class="flex items-center justify-between px-7 py-5 rounded-t-2xl" style="background: linear-gradient(135deg,#881337 0%,#be123c 100%);">
+            <div class="flex items-center justify-between px-7 py-5 rounded-t-2xl" style="background: #d2334c;">
                 <div class="flex items-center gap-3">
                     <div class="bg-white/20 rounded-xl p-2.5">
                         <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1133,7 +1133,7 @@ new class extends Component
     <div class="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4" style="background-color: rgba(15,23,42,0.75); backdrop-filter: blur(4px);">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col" wire:click.stop>
             {{-- Header — Crimson --}}
-            <div class="flex items-center justify-between px-7 py-5 rounded-t-2xl" style="background: linear-gradient(135deg,#9f1239 0%,#d1324a 100%);">
+            <div class="flex items-center justify-between px-7 py-5 rounded-t-2xl" style="background: #d2334c;">
                 <div class="flex items-center gap-3">
                     <div class="bg-white/20 rounded-xl p-2.5">
                         <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1155,31 +1155,31 @@ new class extends Component
                 <div class="rounded-xl p-5" style="background-color:#fef2f2; border: 1px solid #fecaca;">
                     <div class="grid grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-3">
                         <div>
-                            <p class="text-xs font-semibold uppercase tracking-wider" style="color:#d1324a">Model</p>
+                            <p class="text-xs font-semibold uppercase tracking-wider" style="color:#d2334c">Model</p>
                             <p class="text-sm font-bold text-gray-900 mt-0.5">{{ $detailsEquipment->model ?? 'N/A' }}</p>
                         </div>
                         <div>
-                            <p class="text-xs font-semibold uppercase tracking-wider" style="color:#d1324a">Serial No.</p>
+                            <p class="text-xs font-semibold uppercase tracking-wider" style="color:#d2334c">Serial No.</p>
                             <p class="text-sm font-bold text-gray-900 mt-0.5">{{ $detailsEquipment->serial_no ?? 'N/A' }}</p>
                         </div>
                         <div>
-                            <p class="text-xs font-semibold uppercase tracking-wider" style="color:#d1324a">Section</p>
+                            <p class="text-xs font-semibold uppercase tracking-wider" style="color:#d2334c">Section</p>
                             <p class="text-sm font-bold text-gray-900 mt-0.5">{{ $detailsEquipment->section->label ?? 'N/A' }}</p>
                         </div>
                         <div>
-                            <p class="text-xs font-semibold uppercase tracking-wider" style="color:#d1324a">Status</p>
+                            <p class="text-xs font-semibold uppercase tracking-wider" style="color:#d2334c">Status</p>
                             <p class="text-sm font-bold mt-0.5 {{ $detailsEquipment->status === 'Operational' ? 'text-emerald-700' : ($detailsEquipment->status === 'Under Maintenance' ? 'text-amber-700' : 'text-red-700') }}">{{ $detailsEquipment->status }}</p>
                         </div>
                         <div>
-                            <p class="text-xs font-semibold uppercase tracking-wider" style="color:#d1324a">Purchase Date</p>
+                            <p class="text-xs font-semibold uppercase tracking-wider" style="color:#d2334c">Purchase Date</p>
                             <p class="text-sm text-gray-900 mt-0.5">{{ $detailsEquipment->purchase_date ? $detailsEquipment->purchase_date->format('M d, Y') : 'N/A' }}</p>
                         </div>
                         <div>
-                            <p class="text-xs font-semibold uppercase tracking-wider" style="color:#d1324a">Supplier</p>
+                            <p class="text-xs font-semibold uppercase tracking-wider" style="color:#d2334c">Supplier</p>
                             <p class="text-sm text-gray-900 mt-0.5">{{ $detailsEquipment->supplier ?? 'N/A' }}</p>
                         </div>
                         <div class="lg:col-span-2">
-                            <p class="text-xs font-semibold uppercase tracking-wider" style="color:#d1324a">Remarks</p>
+                            <p class="text-xs font-semibold uppercase tracking-wider" style="color:#d2334c">Remarks</p>
                             <p class="text-sm text-gray-900 mt-0.5">{{ $detailsEquipment->remarks ?? 'N/A' }}</p>
                         </div>
                     </div>
@@ -1188,7 +1188,7 @@ new class extends Component
                 {{-- Maintenance History --}}
                 <div>
                     <h4 class="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
-                        <svg class="w-4 h-4" style="color: #d1324a" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                        <svg class="w-4 h-4" style="color: #d2334c" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                         Maintenance History ({{ count($detailsMaintenanceHistory) }})
                     </h4>
                     @if(count($detailsMaintenanceHistory) > 0)
@@ -1234,7 +1234,7 @@ new class extends Component
                 {{-- Calibration History --}}
                 <div>
                     <h4 class="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
-                        <svg class="w-4 h-4" style="color: #d1324a" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                        <svg class="w-4 h-4" style="color: #d2334c" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
                         Calibration History ({{ count($detailsCalibrationHistory) }})
                     </h4>
                     @if(count($detailsCalibrationHistory) > 0)
@@ -1283,7 +1283,7 @@ new class extends Component
                 {{-- Usage History --}}
                 <div>
                     <h4 class="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
-                        <svg class="w-4 h-4" style="color: #d1324a" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        <svg class="w-4 h-4" style="color: #d2334c" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                         Usage History ({{ count($detailsUsageHistory) }})
                     </h4>
                     @if(count($detailsUsageHistory) > 0)
@@ -1340,7 +1340,7 @@ new class extends Component
     <div class="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4" style="background-color: rgba(15,23,42,0.75); backdrop-filter: blur(4px);">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col" wire:click.stop>
             {{-- Header — Crimson --}}
-            <div class="flex items-center justify-between px-7 py-5 rounded-t-2xl" style="background: linear-gradient(135deg,#9f1239 0%,#d1324a 100%);">
+            <div class="flex items-center justify-between px-7 py-5 rounded-t-2xl" style="background: #d2334c;">
                 <div class="flex items-center gap-3">
                     <div class="bg-white/20 rounded-xl p-2.5">
                         <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1426,7 +1426,7 @@ new class extends Component
                 </div>
                 <div class="flex justify-end gap-3 pt-4 border-t border-gray-100">
                     <button type="button" wire:click="closeMaintenanceModal" class="px-5 py-2.5 border border-gray-200 hover:bg-gray-50 text-gray-600 text-sm font-semibold rounded-xl transition-colors">Cancel</button>
-                    <button type="submit" class="px-5 py-2.5 text-white text-sm font-semibold rounded-xl transition-colors" style="background-color:#d1324a" onmouseover="this.style.backgroundColor='#9f1239'" onmouseout="this.style.backgroundColor='#d1324a'">Save Maintenance Record</button>
+                    <button type="submit" class="px-5 py-2.5 text-white text-sm font-semibold rounded-xl transition-colors" style="background-color:#d2334c" onmouseover="this.style.backgroundColor='#9f1239'" onmouseout="this.style.backgroundColor='#d2334c'">Save Maintenance Record</button>
                 </div>
             </form>
         </div>

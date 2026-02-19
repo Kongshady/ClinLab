@@ -140,6 +140,7 @@ Route::middleware('auth')->group(function () {
     // Analytics
     Route::middleware(['permission:reports.access'])->group(function () {
         Route::get('reports', [ReportsController::class, 'index'])->name('reports.index');
+        Route::get('reports/download-pdf', [ReportsController::class, 'downloadPdf'])->name('reports.download-pdf');
         Route::get('reports/patients', [ReportsController::class, 'patients'])->name('reports.patients');
         Route::get('reports/transactions', [ReportsController::class, 'transactions'])->name('reports.transactions');
         Route::get('reports/inventory', [ReportsController::class, 'inventory'])->name('reports.inventory');

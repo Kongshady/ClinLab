@@ -12,7 +12,6 @@ use App\Models\Section;
 use App\Models\Test;
 use App\Exports\ReportExport;
 use Maatwebsite\Excel\Facades\Excel;
-use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 
 new class extends Component
@@ -77,99 +76,14 @@ new class extends Component
             return;
         }
 
-        $sectionName = $this->sectionId 
-            ? Section::find($this->sectionId)?->label ?? 'Unknown' 
-            : 'All Sections';
+        $url = route('reports.download-pdf', [
+            'report_type' => $this->reportType,
+            'start_date'  => $this->startDate,
+            'end_date'    => $this->endDate,
+            'section_id'  => $this->sectionId ?: '',
+        ]);
 
-        $typeName = match ($this->reportType) {
-            'equipment_maintenance' => 'Equipment_Maintenance',
-            'calibration_records' => 'Calibration_Records',
-            'inventory_movement' => 'Inventory_Movement',
-            'low_stock_alert' => 'Low_Stock_Alert',
-            'laboratory_results' => 'Laboratory_Results',
-            default => 'Report',
-        };
-
-        $reportTitle = str_replace('_', ' ', $typeName) . ' Report';
-
-        // Build data for PDF (unpaginated)
-        $data = collect();
-        switch ($this->reportType) {
-            case 'equipment_maintenance':
-                $data = Equipment::with(['section'])
-                    ->when($this->sectionId, fn($q) => $q->where('section_id', $this->sectionId))
-                    ->whereBetween('created_at', [$this->startDate, $this->endDate])
-                    ->orderBy('created_at', 'desc')
-                    ->get();
-                $pdfView = 'pdf.maintenance-report';
-                break;
-
-            case 'calibration_records':
-                $data = CalibrationRecord::with(['equipment', 'equipment.section', 'performedBy'])
-                    ->when($this->sectionId, fn($q) => $q->whereHas('equipment', fn($r) => $r->where('section_id', $this->sectionId)))
-                    ->whereBetween('calibration_date', [$this->startDate, $this->endDate])
-                    ->orderBy('calibration_date', 'desc')
-                    ->get();
-                $pdfView = 'pdf.maintenance-report';
-                break;
-
-            case 'inventory_movement':
-                $ins = StockIn::with(['item', 'item.section'])
-                    ->when($this->sectionId, fn($q) => $q->whereHas('item', fn($r) => $r->where('section_id', $this->sectionId)))
-                    ->whereBetween('datetime_added', [$this->startDate, $this->endDate . ' 23:59:59'])
-                    ->get()
-                    ->map(fn($s) => (object)['date' => $s->datetime_added, 'item' => $s->item, 'type' => 'Stock In', 'quantity' => $s->quantity, 'supplier' => $s->supplier, 'reference_number' => $s->reference_number, 'remarks' => $s->remarks]);
-
-                $outs = StockOut::with(['item', 'item.section'])
-                    ->when($this->sectionId, fn($q) => $q->whereHas('item', fn($r) => $r->where('section_id', $this->sectionId)))
-                    ->whereBetween('datetime_added', [$this->startDate, $this->endDate . ' 23:59:59'])
-                    ->get()
-                    ->map(fn($s) => (object)['date' => $s->datetime_added, 'item' => $s->item, 'type' => 'Stock Out', 'quantity' => $s->quantity, 'supplier' => null, 'reference_number' => $s->reference_number, 'remarks' => $s->remarks]);
-
-                $data = $ins->merge($outs)->sortByDesc('date');
-                $pdfView = 'pdf.inventory-report';
-                break;
-
-            case 'low_stock_alert':
-                $data = Item::with(['section'])
-                    ->leftJoin('stock_in', 'item.item_id', '=', 'stock_in.item_id')
-                    ->leftJoin('stock_out', 'item.item_id', '=', 'stock_out.item_id')
-                    ->select('item.*', \DB::raw('COALESCE(SUM(stock_in.quantity), 0) - COALESCE(SUM(stock_out.quantity), 0) as current_stock'))
-                    ->groupBy('item.item_id', 'item.section_id', 'item.item_type_id', 'item.label', 'item.status_code', 'item.unit', 'item.reorder_level', 'item.is_deleted', 'item.deleted_at', 'item.deleted_by')
-                    ->when($this->sectionId, fn($q) => $q->where('item.section_id', $this->sectionId))
-                    ->where('item.is_deleted', 0)
-                    ->havingRaw('(COALESCE(SUM(stock_in.quantity), 0) - COALESCE(SUM(stock_out.quantity), 0)) <= item.reorder_level')
-                    ->orderByRaw('(COALESCE(SUM(stock_in.quantity), 0) - COALESCE(SUM(stock_out.quantity), 0)) ASC')
-                    ->get();
-                $pdfView = 'pdf.inventory-report';
-                break;
-
-            case 'laboratory_results':
-                $data = LabResult::with(['patient', 'test', 'performedBy'])
-                    ->whereBetween('result_date', [$this->startDate, $this->endDate])
-                    ->orderBy('result_date', 'desc')
-                    ->get();
-                $pdfView = 'pdf.maintenance-report';
-                break;
-
-            default:
-                return;
-        }
-
-        $pdf = Pdf::loadView($pdfView, [
-            'data' => $data,
-            'reportType' => $this->reportType,
-            'reportTitle' => $reportTitle,
-            'startDate' => $this->startDate,
-            'endDate' => $this->endDate,
-            'sectionName' => $sectionName,
-        ])->setPaper('a4', $data->count() > 20 ? 'landscape' : 'portrait');
-
-        $filename = $typeName . '_' . $this->startDate . '_to_' . $this->endDate . '.pdf';
-
-        return response()->streamDownload(function () use ($pdf) {
-            echo $pdf->output();
-        }, $filename);
+        return $this->js("window.open('" . $url . "', '_blank')");
     }
 
     public function updatedReportType()

@@ -27,25 +27,25 @@
                             200: '#fbd0d8',
                             300: '#f7a9b6',
                             400: '#f27d91',
-                            500: '#d1324a',
-                            600: '#c42841',
+                            500: '#d2334c',
+                            600: '#bd2d44',
                             700: '#a52038',
                             800: '#891d33',
                             900: '#7b1d31',
                             950: '#450a19',
                         },
                         cyan: {
-                            50: '#fff5f6',
-                            100: '#ffe0e4',
-                            200: '#ffc7cf',
-                            300: '#ffa3b1',
-                            400: '#e8607a',
-                            500: '#d94863',
-                            600: '#c4354f',
-                            700: '#a52a41',
-                            800: '#8c2539',
-                            900: '#782234',
-                            950: '#430d19',
+                            50: '#fef2f4',
+                            100: '#fde6ea',
+                            200: '#fbd0d8',
+                            300: '#f7a9b6',
+                            400: '#d2334c',
+                            500: '#d2334c',
+                            600: '#bd2d44',
+                            700: '#a52038',
+                            800: '#891d33',
+                            900: '#7b1d31',
+                            950: '#450a19',
                         },
                     },
                 }
@@ -104,7 +104,7 @@
             left: calc(100% + 12px);
             top: 50%;
             transform: translateY(-50%);
-            background: #d1324a;
+            background: #d2334c;
             color: white;
             padding: 6px 12px;
             border-radius: 6px;
@@ -122,7 +122,7 @@
             top: 50%;
             transform: translateY(-50%);
             border: 5px solid transparent;
-            border-right-color: #d1324a;
+            border-right-color: #d2334c;
         }
 
         /* Scrollbar styles */
@@ -139,7 +139,7 @@
 <body class="bg-gray-50 font-sans antialiased">
     <div class="flex h-screen overflow-hidden" x-data="{ sidebarOpen: localStorage.getItem('sidebarOpen') !== 'false' }" x-init="$watch('sidebarOpen', val => localStorage.setItem('sidebarOpen', val))" x-cloak>
         <!-- Sidebar -->
-        <aside :class="sidebarOpen ? 'w-64' : 'w-20 sidebar-collapsed'" class="bg-gradient-to-b from-[#891d33] via-[#7b1d31] to-[#450a19] flex flex-col shadow-xl sidebar-transition">
+        <aside :class="sidebarOpen ? 'w-64' : 'w-20 sidebar-collapsed'" class="bg-[#d2334c] flex flex-col shadow-xl sidebar-transition">
             <!-- Logo/Brand -->
             <div class="border-b border-white/10 transition-all duration-300" :class="sidebarOpen ? 'p-5' : 'p-3'">
                 <div class="flex items-center" :class="sidebarOpen ? 'space-x-3' : 'justify-center'">
@@ -376,7 +376,7 @@
         <div class="flex-1 flex flex-col overflow-hidden">
             <!-- Top Header -->
             <header class="bg-white border-b border-gray-200 shadow-sm relative overflow-hidden">
-                <div class="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#d1324a] via-[#e8607a] to-[#d1324a]"></div>
+                <div class="absolute inset-x-0 top-0 h-1 bg-[#d2334c]"></div>
                 <div class="flex items-center justify-between p-4">
                     <div>
                         <h2 class="text-xl font-semibold text-gray-900">{{ $title ?? 'ClinLab System' }}</h2>

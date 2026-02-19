@@ -91,7 +91,7 @@ $recentActivities = ActivityLog::with('employee')->orderBy('datetime_added', 'de
             <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">Overview</h2>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 <!-- Patients Card -->
-                <div class="bg-gradient-to-br from-blue-500 to-cyan-400 rounded-xl shadow-lg p-6 text-white transform hover:scale-105 transition-transform duration-200">
+                <div class="bg-blue-500 rounded-xl shadow-lg p-6 text-white transform hover:scale-105 transition-transform duration-200">
                     <div class="flex items-center justify-between mb-4">
                         <div>
                             <p class="text-blue-100 text-sm font-medium mb-1">Total Patients</p>
@@ -117,7 +117,7 @@ $recentActivities = ActivityLog::with('employee')->orderBy('datetime_added', 'de
                 </div>
 
                 <!-- Inventory Card -->
-                <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-6 text-white transform hover:scale-105 transition-transform duration-200">
+                <div class="bg-green-500 rounded-xl shadow-lg p-6 text-white transform hover:scale-105 transition-transform duration-200">
                     <div class="flex items-center justify-between mb-4">
                         <div>
                             <p class="text-green-100 text-sm font-medium mb-1">Inventory Items</p>
@@ -141,7 +141,7 @@ $recentActivities = ActivityLog::with('employee')->orderBy('datetime_added', 'de
                 </div>
 
                 <!-- Equipment Card -->
-                <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-6 text-white transform hover:scale-105 transition-transform duration-200">
+                <div class="bg-purple-500 rounded-xl shadow-lg p-6 text-white transform hover:scale-105 transition-transform duration-200">
                     <div class="flex items-center justify-between mb-4">
                         <div>
                             <p class="text-purple-100 text-sm font-medium mb-1">Equipment</p>
@@ -166,7 +166,7 @@ $recentActivities = ActivityLog::with('employee')->orderBy('datetime_added', 'de
                 </div>
 
                 <!-- Transactions Card -->
-                <div class="bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-xl shadow-lg p-6 text-white transform hover:scale-105 transition-transform duration-200">
+                <div class="bg-blue-500 rounded-xl shadow-lg p-6 text-white transform hover:scale-105 transition-transform duration-200">
                     <div class="flex items-center justify-between mb-4">
                         <div>
                             <p class="text-cyan-100 text-sm font-medium mb-1">Transactions</p>
@@ -218,7 +218,7 @@ $recentActivities = ActivityLog::with('employee')->orderBy('datetime_added', 'de
                             <tr class="hover:bg-gray-50 transition-colors">
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="flex items-center">
-                                        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold text-sm mr-3 shadow-sm">
+                                        <div class="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold text-sm mr-3 shadow-sm">
                                             @if($log->employee)
                                                 {{ strtoupper(substr($log->employee->firstname ?? 'S', 0, 1)) }}{{ strtoupper(substr($log->employee->lastname ?? 'Y', 0, 1)) }}
                                             @else

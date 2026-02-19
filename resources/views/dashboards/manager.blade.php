@@ -168,7 +168,7 @@ $recentActivities = Cache::remember('manager_recent_activities', 300, function()
                 @forelse($recentActivities as $activity)
                 <div class="flex items-start space-x-3 py-2 border-b border-gray-100 last:border-0">
                     <div class="flex-shrink-0">
-                        <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-400 rounded-full flex items-center justify-center text-white text-sm font-bold">
+                        <div class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-bold">
                             {{ strtoupper(substr($activity->employee->firstname ?? 'S', 0, 1)) }}{{ strtoupper(substr($activity->employee->lastname ?? 'Y', 0, 1)) }}
                         </div>
                     </div>

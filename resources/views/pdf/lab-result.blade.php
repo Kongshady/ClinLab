@@ -13,21 +13,21 @@
         .letterhead-logo { display: table-cell; width: 72px; vertical-align: middle; }
         .letterhead-logo img { width: 68px; height: 68px; }
         .letterhead-text { display: table-cell; vertical-align: middle; padding-left: 14px; }
-        .letterhead-text .institution { font-size: 15px; font-weight: bold; color: #d1324a; letter-spacing: 0.5px; }
+        .letterhead-text .institution { font-size: 15px; font-weight: bold; color: #d2334c; letter-spacing: 0.5px; }
         .letterhead-text .department { font-size: 11px; color: #444; margin-top: 2px; }
         .letterhead-text .address { font-size: 9px; color: #888; margin-top: 2px; }
         .letterhead-right { display: table-cell; vertical-align: middle; text-align: right; width: 160px; }
-        .doc-type { font-size: 10px; font-weight: bold; color: #d1324a; text-transform: uppercase; letter-spacing: 1px; }
+        .doc-type { font-size: 10px; font-weight: bold; color: #d2334c; text-transform: uppercase; letter-spacing: 1px; }
         .doc-no { font-size: 12px; font-weight: bold; color: #222; margin-top: 3px; }
         .doc-date { font-size: 9px; color: #888; margin-top: 2px; }
 
         /* Top accent line */
-        .rule-top { border: none; border-top: 3px solid #d1324a; margin: 10px 0 4px 0; }
+        .rule-top { border: none; border-top: 3px solid #d2334c; margin: 10px 0 4px 0; }
         .rule-thin { border: none; border-top: 1px solid #e0e0e0; margin: 4px 0 16px 0; }
 
         /* ── Patient Info strip ── */
-        .patient-strip { background: #fdf2f4; border-left: 4px solid #d1324a; padding: 10px 14px; margin-bottom: 18px; }
-        .patient-name { font-size: 14px; font-weight: bold; color: #d1324a; }
+        .patient-strip { background: #fdf2f4; border-left: 4px solid #d2334c; padding: 10px 14px; margin-bottom: 18px; }
+        .patient-name { font-size: 14px; font-weight: bold; color: #d2334c; }
         .patient-meta { font-size: 9px; color: #555; margin-top: 3px; }
         .patient-meta span { margin-right: 18px; }
         .patient-meta .sep { color: #ccc; margin-right: 18px; }
@@ -46,11 +46,11 @@
         .pill-cancelled { background: #f8d7da; color: #721c24; }
 
         /* ── Section heading ── */
-        .section-heading { font-size: 9px; font-weight: bold; text-transform: uppercase; letter-spacing: 1.5px; color: #d1324a; margin-bottom: 6px; }
+        .section-heading { font-size: 9px; font-weight: bold; text-transform: uppercase; letter-spacing: 1.5px; color: #d2334c; margin-bottom: 6px; }
 
         /* ── Results table ── */
         table.results { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 10px; }
-        table.results thead tr { background: #d1324a; }
+        table.results thead tr { background: #d2334c; }
         table.results thead th { color: #fff; font-size: 8.5px; text-transform: uppercase; letter-spacing: 0.5px; padding: 7px 10px; text-align: left; font-weight: bold; }
         table.results tbody td { padding: 7px 10px; color: #333; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
         table.results tbody tr:nth-child(even) td { background: #fdf6f7; }
@@ -82,7 +82,7 @@
         .verification-qr img { width: 72px; height: 72px; }
         .verification-info { display: table-cell; vertical-align: middle; padding-left: 14px; }
         .verification-info .serial-label { font-size: 7.5px; text-transform: uppercase; letter-spacing: 1px; color: #999; font-weight: bold; }
-        .verification-info .serial-value { font-size: 13px; font-weight: bold; color: #d1324a; margin-top: 2px; letter-spacing: 0.5px; font-family: monospace; }
+        .verification-info .serial-value { font-size: 13px; font-weight: bold; color: #d2334c; margin-top: 2px; letter-spacing: 0.5px; font-family: monospace; }
         .verification-info .verify-url { font-size: 8px; color: #888; margin-top: 4px; }
         .verification-info .verify-note { font-size: 7.5px; color: #aaa; margin-top: 3px; }
     </style>

@@ -333,7 +333,7 @@ new class extends Component
 <div class="p-6 space-y-6">
     <div class="flex items-center justify-between">
         <h1 class="text-2xl font-bold text-gray-900 flex items-center">
-            <svg class="w-7 h-7 mr-2" style="color:#d1324a" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-7 h-7 mr-2" style="color:#d2334c" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
             </svg>
             Calibration Management
@@ -361,7 +361,7 @@ new class extends Component
     <div class="bg-white rounded-xl shadow-sm border border-gray-200">
         <div class="px-6 py-4 border-b border-gray-200 flex items-center gap-3">
             <div class="p-1.5 rounded-lg" style="background-color:#fef2f2">
-                <svg class="w-5 h-5" style="color:#d1324a" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-5 h-5" style="color:#d2334c" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
                 </svg>
             </div>
@@ -421,7 +421,7 @@ new class extends Component
                             <td class="px-6 py-4 whitespace-nowrap text-sm">
                                 <button 
                                     wire:click="openModal({{ $alert->equipment_id }}, {{ $alert->procedure_id }})"
-                                    class="inline-flex items-center gap-1.5 px-4 py-2 text-white rounded-lg font-medium transition-colors text-xs" style="background-color:#d1324a" onmouseover="this.style.backgroundColor='#9f1239'" onmouseout="this.style.backgroundColor='#d1324a'">
+                                    class="inline-flex items-center gap-1.5 px-4 py-2 text-white rounded-lg font-medium transition-colors text-xs" style="background-color:#d2334c" onmouseover="this.style.backgroundColor='#9f1239'" onmouseout="this.style.backgroundColor='#d2334c'">
                                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                                     Record Calibration
                                 </button>
@@ -546,7 +546,7 @@ new class extends Component
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                 {{ \Carbon\Carbon::parse($record->calibration_date)->format('M d, Y') }}
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium" style="color:#d1324a">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium" style="color:#d2334c">
                                 {{ $record->equipment_name }}
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
@@ -625,7 +625,7 @@ new class extends Component
             <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col" wire:click.stop>
 
                 {{-- Modal Header — Crimson --}}
-                <div class="flex items-center justify-between px-7 py-5 rounded-t-2xl" style="background: linear-gradient(135deg,#9f1239 0%,#d1324a 100%);">
+                <div class="flex items-center justify-between px-7 py-5 rounded-t-2xl" style="background: #d2334c;">
                     <div class="flex items-center gap-3">
                         <div class="bg-white/20 rounded-xl p-2.5">
                             <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -653,18 +653,18 @@ new class extends Component
                     {{-- Equipment & Procedure Banner --}}
                     <div class="rounded-xl border p-4 flex gap-4" style="background-color:#fef2f2; border-color:#fecaca;">
                         <div class="flex-1">
-                            <p class="text-xs font-semibold uppercase tracking-wider" style="color:#d1324a">Equipment</p>
+                            <p class="text-xs font-semibold uppercase tracking-wider" style="color:#d2334c">Equipment</p>
                             <p class="text-sm font-bold text-gray-900 mt-0.5">{{ $selectedEquipment->name ?? '—' }}</p>
                         </div>
                         <div class="w-px" style="background-color:#fecaca"></div>
                         <div class="flex-1">
-                            <p class="text-xs font-semibold uppercase tracking-wider" style="color:#d1324a">Procedure</p>
+                            <p class="text-xs font-semibold uppercase tracking-wider" style="color:#d2334c">Procedure</p>
                             <p class="text-sm font-bold text-gray-900 mt-0.5">{{ $selectedProcedure->procedure_name ?? '—' }}</p>
                         </div>
                         @if($selectedProcedure && $selectedProcedure->standard_reference)
                         <div class="w-px" style="background-color:#fecaca"></div>
                         <div class="flex-1">
-                            <p class="text-xs font-semibold uppercase tracking-wider" style="color:#d1324a">Standard</p>
+                            <p class="text-xs font-semibold uppercase tracking-wider" style="color:#d2334c">Standard</p>
                             <p class="text-sm font-bold text-gray-900 mt-0.5">{{ $selectedProcedure->standard_reference }}</p>
                         </div>
                         @endif
@@ -678,7 +678,7 @@ new class extends Component
                                 Calibration Date *
                             </label>
                             <input type="date" wire:model="calibration_date"
-                                class="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:border-transparent bg-gray-50 focus:bg-white transition" style="--tw-ring-color:#d1324a">
+                                class="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:border-transparent bg-gray-50 focus:bg-white transition" style="--tw-ring-color:#d2334c">
                             @error('calibration_date') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                         </div>
                         <div>
@@ -687,7 +687,7 @@ new class extends Component
                                 Performed By *
                             </label>
                             <select wire:model="performed_by"
-                                class="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:border-transparent bg-gray-50 focus:bg-white transition" style="--tw-ring-color:#d1324a">
+                                class="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:border-transparent bg-gray-50 focus:bg-white transition" style="--tw-ring-color:#d2334c">
                                 <option value="">Select Employee</option>
                                 @foreach($employees as $employee)
                                     <option value="{{ $employee->employee_id }}">{{ $employee->full_name }}</option>
@@ -733,9 +733,9 @@ new class extends Component
                             Next Calibration Date
                         </label>
                         <input type="date" wire:model="next_calibration_date"
-                            class="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:border-transparent bg-gray-50 focus:bg-white transition" style="--tw-ring-color:#d1324a">
+                            class="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:border-transparent bg-gray-50 focus:bg-white transition" style="--tw-ring-color:#d2334c">
                         @if($next_calibration_date)
-                            <p class="text-xs mt-1 flex items-center gap-1" style="color:#d1324a">
+                            <p class="text-xs mt-1 flex items-center gap-1" style="color:#d2334c">
                                 <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>
                                 Auto-calculated from procedure frequency. You may adjust if needed.
                             </p>
@@ -750,7 +750,7 @@ new class extends Component
                             Notes / Observations
                         </label>
                         <textarea wire:model="notes" rows="3" placeholder="Describe findings, deviations, or additional observations..."
-                            class="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:border-transparent bg-gray-50 focus:bg-white transition resize-none" style="--tw-ring-color:#d1324a"></textarea>
+                            class="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:border-transparent bg-gray-50 focus:bg-white transition resize-none" style="--tw-ring-color:#d2334c"></textarea>
                         @error('notes') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                     </div>
 
@@ -762,7 +762,7 @@ new class extends Component
                         </button>
                         <button type="submit"
                             wire:loading.attr="disabled" wire:loading.class="opacity-60 cursor-not-allowed"
-                            class="inline-flex items-center justify-center gap-2 px-5 py-2.5 text-white text-sm font-semibold rounded-xl transition-colors" style="background-color:#d1324a" onmouseover="this.style.backgroundColor='#9f1239'" onmouseout="this.style.backgroundColor='#d1324a'">
+                            class="inline-flex items-center justify-center gap-2 px-5 py-2.5 text-white text-sm font-semibold rounded-xl transition-colors" style="background-color:#d2334c" onmouseover="this.style.backgroundColor='#9f1239'" onmouseout="this.style.backgroundColor='#d2334c'">
                             <svg wire:loading.remove wire:target="save" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
                             <svg wire:loading wire:target="save" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
                             <span wire:loading.remove wire:target="save">Save Calibration Record</span>
@@ -776,28 +776,21 @@ new class extends Component
 
     <!-- Add New Procedure Modal -->
     @if($showProcedureModal)
-        <div class="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4" style="background-color: rgba(15,23,42,0.75); backdrop-filter: blur(4px);">
-            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col" wire:click.stop>
+        <div class="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4" style="background-color: rgba(0,0,0,0.5);">
+            <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col" wire:click.stop>
 
-                {{-- Modal Header — Emerald --}}
-                <div class="flex items-center justify-between px-7 py-5 rounded-t-2xl" style="background: linear-gradient(135deg,#065f46 0%,#059669 100%);">
-                    <div class="flex items-center gap-3">
-                        <div class="bg-white/20 rounded-xl p-2.5">
-                            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-                            </svg>
-                        </div>
-                        <div>
-                            <h3 class="text-lg font-bold text-white">Add Calibration Procedure</h3>
-                            <p class="text-emerald-200 text-xs mt-0.5">Define a new calibration schedule for equipment</p>
-                        </div>
+                {{-- Modal Header --}}
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-xl font-semibold text-gray-900">Add Calibration Procedure</h3>
+                        <button wire:click="closeProcedureModal" class="text-gray-400 hover:text-gray-600">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        </button>
                     </div>
-                    <button wire:click="closeProcedureModal" class="text-white/70 hover:text-white transition-colors">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                    </button>
                 </div>
 
-                <form wire:submit.prevent="saveProcedure" class="p-7 overflow-y-auto flex-1 space-y-5">
+                <form wire:submit.prevent="saveProcedure" class="overflow-y-auto flex-1">
+                    <div class="p-6 space-y-5">
                     @if (session()->has('error'))
                         <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm flex items-center gap-2">
                             <svg class="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/></svg>
@@ -805,77 +798,68 @@ new class extends Component
                         </div>
                     @endif
 
-                    {{-- Section: Equipment --}}
-                    <div class="rounded-xl border border-gray-100 bg-gray-50 p-5 space-y-4">
-                        <h4 class="text-xs font-bold text-gray-400 uppercase tracking-widest">Equipment</h4>
+                    {{-- Equipment --}}
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Select Equipment <span class="text-red-500">*</span></label>
+                        <select wire:model="procedure_equipment_id"
+                            class="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">— Choose equipment —</option>
+                            @foreach($equipment as $equip)
+                                <option value="{{ $equip->equipment_id }}">{{ $equip->name }}{{ $equip->model ? '  (' . $equip->model . ')' : '' }}</option>
+                            @endforeach
+                        </select>
+                        @error('procedure_equipment_id') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                    </div>
+
+                    {{-- Procedure Name --}}
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Procedure Name <span class="text-red-500">*</span></label>
+                        <input type="text" wire:model="procedure_name" placeholder="e.g., General Calibration Check"
+                            class="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                        @error('procedure_name') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        {{-- Standard Reference --}}
                         <div>
-                            <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Select Equipment *</label>
-                            <select wire:model="procedure_equipment_id"
-                                class="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white transition">
-                                <option value="">— Choose equipment —</option>
-                                @foreach($equipment as $equip)
-                                    <option value="{{ $equip->equipment_id }}">{{ $equip->name }}{{ $equip->model ? '  (' . $equip->model . ')' : '' }}</option>
-                                @endforeach
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Standard Reference</label>
+                            <input type="text" wire:model="standard_reference" placeholder="e.g., ISO 17025, CLSI EP06"
+                                class="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                            @error('standard_reference') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                        </div>
+                        {{-- Frequency --}}
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Frequency <span class="text-red-500">*</span></label>
+                            <select wire:model="frequency"
+                                class="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="monthly">Monthly</option>
+                                <option value="quarterly">Quarterly</option>
+                                <option value="semi-annual">Semi-Annual</option>
+                                <option value="annual">Annual</option>
                             </select>
-                            @error('procedure_equipment_id') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                            @error('frequency') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                         </div>
                     </div>
 
-                    {{-- Section: Procedure Details --}}
-                    <div class="rounded-xl border border-gray-100 bg-gray-50 p-5 space-y-4">
-                        <h4 class="text-xs font-bold text-gray-400 uppercase tracking-widest">Procedure Details</h4>
-                        <div class="grid grid-cols-2 gap-4">
-                            <div class="col-span-2">
-                                <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Procedure Name *</label>
-                                <input type="text" wire:model="procedure_name" placeholder="e.g., General Calibration Check"
-                                    class="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white transition">
-                                @error('procedure_name') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
-                            </div>
-                            <div>
-                                <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Standard Reference</label>
-                                <input type="text" wire:model="standard_reference" placeholder="e.g., ISO 17025, CLSI EP06"
-                                    class="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white transition">
-                                @error('standard_reference') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
-                            </div>
-                            <div>
-                                <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Frequency *</label>
-                                <select wire:model="frequency"
-                                    class="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white transition">
-                                    <option value="monthly">Monthly</option>
-                                    <option value="quarterly">Quarterly</option>
-                                    <option value="semi-annual">Semi-Annual</option>
-                                    <option value="annual">Annual</option>
-                                </select>
-                                @error('frequency') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
-                            </div>
-                        </div>
+                    {{-- First Calibration Due Date --}}
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">First Calibration Due Date <span class="text-red-500">*</span></label>
+                        <input type="date" wire:model="procedure_next_due_date"
+                            class="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                        @error('procedure_next_due_date') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                    </div>
                     </div>
 
-                    {{-- Section: Schedule --}}
-                    <div class="rounded-xl border border-gray-100 bg-gray-50 p-5 space-y-4">
-                        <h4 class="text-xs font-bold text-gray-400 uppercase tracking-widest">Initial Schedule</h4>
-                        <div>
-                            <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
-                                <svg class="w-3.5 h-3.5 inline-block mr-1 -mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                                First Calibration Due Date *
-                            </label>
-                            <input type="date" wire:model="procedure_next_due_date"
-                                class="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white transition">
-                            @error('procedure_next_due_date') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
-                        </div>
-                    </div>
-
-                    {{-- Action Buttons --}}
-                    <div class="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                    {{-- Footer --}}
+                    <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end space-x-3 rounded-b-lg">
                         <button type="button" wire:click="closeProcedureModal"
-                            class="px-5 py-2.5 border border-gray-200 hover:bg-gray-50 text-gray-600 text-sm font-semibold rounded-xl transition-colors">
+                            class="px-5 py-2.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
                             Cancel
                         </button>
                         <button type="submit"
                             wire:loading.attr="disabled" wire:loading.class="opacity-60 cursor-not-allowed"
-                            class="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl transition-colors">
-                            <svg wire:loading.remove wire:target="saveProcedure" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                            <svg wire:loading wire:target="saveProcedure" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+                            style="background-color: #DC143C;"
+                            class="px-5 py-2.5 text-white text-sm rounded-md font-medium hover:opacity-90 transition-opacity">
                             <span wire:loading.remove wire:target="saveProcedure">Add Procedure</span>
                             <span wire:loading wire:target="saveProcedure">Saving...</span>
                         </button>
@@ -891,7 +875,7 @@ new class extends Component
             <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col" wire:click.stop>
 
                 {{-- Modal Header — Indigo --}}
-                <div class="flex items-center justify-between px-7 py-5 rounded-t-2xl" style="background: linear-gradient(135deg,#312e81 0%,#4f46e5 100%);">
+                <div class="flex items-center justify-between px-7 py-5 rounded-t-2xl" style="background: #4f46e5;">
                     <div class="flex items-center gap-3">
                         <div class="bg-white/20 rounded-xl p-2.5">
                             <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">

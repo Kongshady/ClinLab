@@ -474,7 +474,7 @@ new class extends Component
 
             {{-- Profile Card --}}
             <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-                <div class="bg-gradient-to-br from-blue-600 via-blue-500 to-cyan-400 px-6 py-8 text-center relative">
+                <div class="bg-blue-500 px-6 py-8 text-center relative">
                     <div class="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMSIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwwLjA1KSIvPjwvc3ZnPg==')] opacity-50"></div>
                     <div class="relative">
                         @if(auth()->user()->avatar)
@@ -586,7 +586,7 @@ new class extends Component
             <div>
                 {{-- Page Header --}}
                 <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden mb-5">
-                    <div class="bg-gradient-to-r from-blue-600 to-cyan-400 px-6 py-5">
+                    <div class="bg-blue-500 px-6 py-5">
                         <div class="flex items-center justify-between">
                             <div class="flex items-center gap-3">
                                 <div class="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
@@ -721,7 +721,7 @@ new class extends Component
                             <div class="px-5 pt-4 pb-3 flex items-start justify-between gap-4">
                                 <div class="flex items-start gap-3.5 min-w-0">
                                     {{-- Order Icon --}}
-                                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center flex-shrink-0 shadow-sm shadow-blue-500/20 group-hover:shadow-md group-hover:shadow-blue-500/30 transition-shadow">
+                                    <div class="w-10 h-10 rounded-xl bg-blue-500 flex items-center justify-center flex-shrink-0 shadow-sm shadow-blue-500/20 group-hover:shadow-md group-hover:shadow-blue-500/30 transition-shadow">
                                         <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
                                         </svg>
@@ -783,7 +783,7 @@ new class extends Component
                                 <div class="flex items-center gap-2">
                                     <span class="text-xs font-semibold {{ $pctComplete === 100 ? 'text-emerald-600' : 'text-gray-500' }}">{{ $completedTests }}/{{ $totalTests }}</span>
                                     <div class="w-20 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                                        <div class="h-full rounded-full transition-all duration-500 {{ $pctComplete === 100 ? 'bg-emerald-400' : 'bg-gradient-to-r from-blue-500 to-cyan-400' }}" 
+                                        <div class="h-full rounded-full transition-all duration-500 {{ $pctComplete === 100 ? 'bg-emerald-400' : 'bg-blue-500' }}" 
                                              style="width: {{ $pctComplete }}%"></div>
                                     </div>
                                 </div>
@@ -821,7 +821,7 @@ new class extends Component
                 @else
                     {{-- Empty State --}}
                     <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-16 text-center">
-                        <div class="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-50 to-cyan-50 flex items-center justify-center mx-auto mb-5">
+                        <div class="w-20 h-20 rounded-2xl bg-blue-50 flex items-center justify-center mx-auto mb-5">
                             <svg class="w-10 h-10 text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
                             </svg>
@@ -989,7 +989,7 @@ new class extends Component
                                            class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white transition-all">
                                 </div>
                                 <button wire:click="verifyCertificate"
-                                        class="px-6 py-3 bg-gradient-to-r from-blue-600 to-cyan-400 hover:from-blue-700 hover:to-cyan-500 text-white font-medium text-sm rounded-xl shadow-sm shadow-blue-500/25 transition-all flex items-center gap-2">
+                                        class="px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white font-medium text-sm rounded-xl shadow-sm shadow-blue-500/25 transition-all flex items-center gap-2">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                                     Verify
                                 </button>
@@ -1227,7 +1227,7 @@ new class extends Component
                                     Cancel
                                 </button>
                                 <button type="submit"
-                                        class="px-5 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-cyan-400 hover:from-blue-700 hover:to-cyan-500 rounded-xl shadow-sm shadow-blue-500/25 transition-all">
+                                        class="px-5 py-2.5 text-sm font-medium text-white bg-blue-500 hover:bg-blue-600 rounded-xl shadow-sm shadow-blue-500/25 transition-all">
                                     Save Changes
                                 </button>
                             </div>
@@ -1299,7 +1299,7 @@ new class extends Component
     <div class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4" wire:click.self="closeOrder">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col" id="printable-result">
             {{-- Header --}}
-            <div class="bg-gradient-to-r from-blue-600 to-cyan-400 px-6 py-5 text-white">
+            <div class="bg-blue-500 px-6 py-5 text-white">
                 <div class="flex items-center justify-between">
                     <div>
                         <h3 class="text-lg font-bold">Lab Test Order #{{ $selectedOrder->lab_test_order_id }}</h3>
@@ -1498,7 +1498,7 @@ new class extends Component
                 </button>
                 <div class="flex items-center gap-2">
                     <button wire:click="downloadOrderPdf"
-                            class="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-cyan-400 hover:from-blue-700 hover:to-cyan-500 rounded-xl shadow-sm shadow-blue-500/25 transition-all">
+                            class="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-blue-500 hover:bg-blue-600 rounded-xl shadow-sm shadow-blue-500/25 transition-all">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
                         </svg>
@@ -1515,7 +1515,7 @@ new class extends Component
     <div class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4" wire:click.self="closeCertificate">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden">
             {{-- Header --}}
-            <div class="px-6 py-4 bg-gradient-to-r from-blue-600 to-cyan-400 flex items-center justify-between">
+            <div class="px-6 py-4 bg-blue-500 flex items-center justify-between">
                 <div class="flex items-center gap-3">
                     <div class="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
                         <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1647,7 +1647,7 @@ new class extends Component
                     @if($selectedCertificate['pdf_path'] || $selectedCertificate['source'] === 'certificate')
                     <a href="{{ route('patient.certificate.download', ['source' => $selectedCertificate['source'], 'id' => $selectedCertificate['id']]) }}"
                        target="_blank"
-                       class="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-cyan-400 hover:from-blue-700 hover:to-cyan-500 rounded-xl shadow-sm shadow-blue-500/25 transition-all">
+                       class="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-blue-500 hover:bg-blue-600 rounded-xl shadow-sm shadow-blue-500/25 transition-all">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                         Download PDF
                     </a>

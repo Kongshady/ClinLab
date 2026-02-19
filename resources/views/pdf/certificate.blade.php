@@ -66,7 +66,7 @@
         }
         .divider {
             height: 2px;
-            background: linear-gradient(to right, transparent, #1e40af, transparent);
+            background: #d2334c;
             margin: 20px 0;
         }
         .cert-type {

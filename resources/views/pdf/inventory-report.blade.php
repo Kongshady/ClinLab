@@ -8,8 +8,8 @@
         body { font-family: DejaVu Sans, sans-serif; font-size: 11px; color: #1a1a1a; line-height: 1.5; }
         .page { padding: 30px 40px; }
 
-        .header { text-align: center; border-bottom: 3px solid #d1324a; padding-bottom: 15px; margin-bottom: 20px; }
-        .header h1 { font-size: 18px; color: #d1324a; letter-spacing: 1px; margin-bottom: 2px; }
+        .header { text-align: center; border-bottom: 3px solid #d2334c; padding-bottom: 15px; margin-bottom: 20px; }
+        .header h1 { font-size: 18px; color: #d2334c; letter-spacing: 1px; margin-bottom: 2px; }
         .header h2 { font-size: 13px; color: #444; font-weight: normal; }
         .header .subtitle { font-size: 10px; color: #777; margin-top: 4px; }
 
@@ -19,10 +19,10 @@
         .meta .label { color: #888; text-transform: uppercase; font-weight: bold; font-size: 9px; }
         .meta .value { color: #222; font-weight: bold; }
 
-        .section-title { font-size: 13px; font-weight: bold; color: #d1324a; margin-bottom: 8px; border-bottom: 1px solid #eee; padding-bottom: 4px; }
+        .section-title { font-size: 13px; font-weight: bold; color: #d2334c; margin-bottom: 8px; border-bottom: 1px solid #eee; padding-bottom: 4px; }
 
         table.data { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-        table.data thead th { background: #d1324a; color: #fff; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 8px; text-align: left; }
+        table.data thead th { background: #d2334c; color: #fff; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 8px; text-align: left; }
         table.data tbody td { padding: 6px 8px; border-bottom: 1px solid #eee; font-size: 10px; }
         table.data tbody tr:nth-child(even) { background: #fafafa; }
 
@@ -37,7 +37,7 @@
 
         .summary-box { background: #f8f8f8; border: 1px solid #e0e0e0; border-radius: 4px; padding: 10px 14px; margin-bottom: 18px; }
         .summary-box .stat { display: inline-block; margin-right: 25px; }
-        .summary-box .stat-val { font-size: 16px; font-weight: bold; color: #d1324a; }
+        .summary-box .stat-val { font-size: 16px; font-weight: bold; color: #d2334c; }
         .summary-box .stat-label { font-size: 9px; color: #888; text-transform: uppercase; }
     </style>
 </head>

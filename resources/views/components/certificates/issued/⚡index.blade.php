@@ -261,7 +261,7 @@ new class extends Component
     <div class="max-w-7xl mx-auto">
         <!-- Header -->
         <div class="mb-6">
-            <h1 class="text-3xl font-bold bg-gradient-to-r from-blue-600 to-cyan-400 bg-clip-text text-transparent">
+            <h1 class="text-3xl font-bold bg-blue-500 bg-clip-text text-transparent">
                 Issued Certificates
             </h1>
             <p class="text-slate-600 mt-1">View, download, and manage all issued certificates</p>
@@ -405,7 +405,7 @@ new class extends Component
         <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
             <div class="overflow-x-auto">
                 <table class="w-full">
-                    <thead class="bg-gradient-to-r from-slate-50 to-slate-100">
+                    <thead class="bg-slate-50">
                         <tr>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wide">Certificate No</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wide">Type</th>

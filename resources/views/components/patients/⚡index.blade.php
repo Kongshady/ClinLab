@@ -633,7 +633,7 @@ new class extends Component
             
             <div class="space-y-4">
                 <div class="flex items-center mb-6">
-                    <div class="w-16 h-16 bg-gradient-to-br from-pink-500 to-purple-500 rounded-full flex items-center justify-center text-white text-2xl font-bold mr-4">
+                    <div class="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center text-white text-2xl font-bold mr-4">
                         {{ strtoupper(substr($viewingPatient->firstname, 0, 1) . substr($viewingPatient->lastname, 0, 1)) }}
                     </div>
                     <div>
