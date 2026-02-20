@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -323,7 +323,7 @@ new class extends Component
 };
 ?>
 
-<div class="p-6 space-y-6" x-data="{ 
+<div class="p-6" x-data="{ 
     showToast: false,
     toastTimeout: null,
     showToastMessage() {
@@ -356,7 +356,7 @@ new class extends Component
     </div>
 
     <!-- Add New Item Form -->
-    <div class="bg-white rounded-lg shadow-sm p-6">
+    <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
         <h2 class="text-lg font-semibold text-gray-900 mb-6">Add New Item</h2>
         <form wire:submit.prevent="save">
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -477,7 +477,7 @@ new class extends Component
     </div>
 
     <!-- Items List -->
-    <div class="bg-white rounded-lg shadow-sm">
+    <div class="bg-white rounded-lg shadow-sm mb-6">
         <div class="px-6 py-4 border-b border-gray-200">
             <div class="flex items-center justify-between">
                 <h2 class="text-lg font-semibold text-gray-900">Items Directory</h2>
@@ -552,178 +552,131 @@ new class extends Component
 
     <!-- Edit Item Modal -->
     @if($showEditModal)
-    <div class="fixed inset-0 z-50 overflow-y-auto" style="background-color: rgba(0, 0, 0, 0.5);">
-        <div class="flex items-center justify-center min-h-screen p-4">
-            <div class="bg-white rounded-lg shadow-xl max-w-lg w-full">
-                <!-- Modal Header -->
-                <div class="px-6 py-4 border-b border-gray-200">
-                    <div class="flex items-center justify-between">
-                        <h3 class="text-xl font-semibold text-gray-900">
-                            Edit Item
-                        </h3>
-                        <button type="button" wire:click="closeEditModal" class="text-gray-400 hover:text-gray-600">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                            </svg>
-                        </button>
+    <div class="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4" style="background-color: rgba(15,23,42,0.75); backdrop-filter: blur(4px);">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col" wire:click.stop>
+            {{-- Header --}}
+            <div class="flex items-center justify-between px-7 py-5 rounded-t-2xl" style="background: #d2334c;">
+                <div class="flex items-center gap-3">
+                    <div class="bg-white/20 rounded-xl p-2.5">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold text-white">Edit Item</h3>
+                        <p class="text-red-200 text-xs mt-0.5">Update item information</p>
+                    </div>
+                </div>
+                <button wire:click="closeEditModal" class="text-white/70 hover:text-white transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            <div class="p-7 overflow-y-auto flex-1 space-y-5">
+                {{-- Item Name --}}
+                <div>
+                    <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Item Name *</label>
+                    <input type="text" wire:model="editLabel"
+                        class="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent bg-gray-50 focus:bg-white transition"
+                        placeholder="Enter item name">
+                    @error('editLabel') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                </div>
+
+                {{-- Item Type Combobox --}}
+                <div>
+                    <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Item Type</label>
+                    <div class="relative">
+                        @if($editItemType)
+                            <div class="flex items-center gap-2 px-3.5 py-2.5 border border-gray-200 rounded-lg bg-gray-50 text-sm">
+                                <span class="flex-1 text-gray-900">{{ $editItemType }}</span>
+                                <button type="button" wire:click="$set('editItemType', '')" class="text-gray-400 hover:text-gray-600 shrink-0">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                </button>
+                            </div>
+                        @else
+                            <input type="text"
+                                wire:model.live.debounce.300ms="editItemTypeQuery"
+                                wire:focus="$set('showEditItemTypeDropdown', true)"
+                                class="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent bg-gray-50 focus:bg-white transition"
+                                placeholder="Search or create item type...">
+                            @if($showEditItemTypeDropdown)
+                            <div class="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
+                                <ul class="max-h-48 overflow-y-auto py-1">
+                                    @foreach($filteredEditItemTypes as $type)
+                                        <li wire:click="selectEditItemType('{{ $type->label }}')"
+                                            class="px-4 py-2 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 cursor-pointer">
+                                            {{ $type->label }}
+                                        </li>
+                                    @endforeach
+                                    @if($editItemTypeQuery)
+                                        <li wire:click="selectEditItemType('{{ $editItemTypeQuery }}')"
+                                            class="px-4 py-2 text-sm font-medium cursor-pointer flex items-center gap-2"
+                                            style="color:#d2334c">
+                                            <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                                            Create "{{ $editItemTypeQuery }}"
+                                        </li>
+                                    @endif
+                                    @if($filteredEditItemTypes->isEmpty() && !$editItemTypeQuery)
+                                        <li class="px-4 py-2 text-sm text-gray-400 text-center">No item types found</li>
+                                    @endif
+                                </ul>
+                            </div>
+                            @endif
+                        @endif
                     </div>
                 </div>
 
-                <!-- Modal Body -->
-                <form wire:submit.prevent="updateItem">
-                    <div class="p-6 space-y-5">
-                        <!-- Section -->
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">
-                                Section <span class="text-red-500">*</span>
-                            </label>
-                            <select wire:model="editSectionId" 
-                                    class="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
-                                <option value="">Select Section</option>
-                                @foreach($sections as $section)
-                                    <option value="{{ $section->section_id }}">{{ $section->label }}</option>
-                                @endforeach
-                            </select>
-                            @error('editSectionId') <span class="text-red-500 text-xs mt-1">{{ $message }}</span> @enderror
-                        </div>
+                {{-- Section --}}
+                <div>
+                    <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Section</label>
+                    <select wire:model="editSectionId"
+                        class="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent bg-gray-50 focus:bg-white transition">
+                        <option value="">— No Section —</option>
+                        @foreach($sections as $section)
+                            <option value="{{ $section->section_id }}">{{ $section->label }}</option>
+                        @endforeach
+                    </select>
+                    @error('editSectionId') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                </div>
 
-                        <!-- Item Name -->
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">
-                                Item Name <span class="text-red-500">*</span>
-                            </label>
-                            <input type="text" wire:model="editLabel" 
-                                   class="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                                   placeholder="Enter item name">
-                            @error('editLabel') <span class="text-red-500 text-xs mt-1">{{ $message }}</span> @enderror
-                        </div>
-
-                        <!-- Item Type -->
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">
-                                Item Type <span class="text-red-500">*</span>
-                            </label>
-                            <div class="relative" x-data="{ open: false }">
-                                <input type="text" 
-                                       wire:model.live.debounce.300ms="editItemTypeQuery"
-                                       wire:keydown.enter.prevent
-                                       wire:keydown.arrow-down.prevent="open = true"
-                                       wire:keydown.escape.prevent="open = false"
-                                       @keydown.arrow-down.window="if ($event.target === $el) open = true"
-                                       @keydown.escape.window="open = false"
-                                       @focus="open = true"
-                                       @click.away="open = false"
-                                       placeholder="Type or select item type..."
-                                       class="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                                       autocomplete="off">
-                                
-                                <!-- Dropdown Arrow -->
-                                <div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-                                    <svg class="h-5 w-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
-                                    </svg>
-                                </div>
-
-                                <!-- Dropdown -->
-                                <div x-show="open" 
-                                     x-transition:enter="transition ease-out duration-100"
-                                     x-transition:enter-start="opacity-0"
-                                     x-transition:enter-end="opacity-100"
-                                     x-transition:leave="transition ease-in duration-75"
-                                     x-transition:leave-start="opacity-100"
-                                     x-transition:leave-end="opacity-0"
-                                     class="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm">
-                                    
-                                    <!-- Show "Create new" option if query doesn't match existing -->
-                                    @if($editItemTypeQuery && !collect($itemTypes)->contains('label', $editItemTypeQuery))
-                                        <div wire:click="selectEditItemType('{{ $editItemTypeQuery }}')" 
-                                             class="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-gray-100">
-                                            <div class="flex items-center">
-                                                <span class="font-normal ml-3 block truncate">Create "{{ $editItemTypeQuery }}"</span>
-                                            </div>
-                                        </div>
-                                    @endif
-
-                                    <!-- Existing item types -->
-                                    @foreach($filteredEditItemTypes as $type)
-                                        <div class="group flex items-center justify-between px-3 py-2 hover:bg-gray-100 cursor-pointer"
-                                             wire:click="selectEditItemType('{{ $type->label }}')">
-                                            <span class="block truncate">{{ $type->label }}</span>
-                                            <button type="button" 
-                                                    wire:click.stop="deleteItemType({{ $type->item_type_id }})"
-                                                    wire:confirm="Are you sure you want to delete this item type?"
-                                                    class="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 p-1 rounded transition-opacity">
-                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                                                </svg>
-                                            </button>
-                                        </div>
-                                    @endforeach
-                                </div>
-                            </div>
-                            @error('editItemType') <span class="text-red-500 text-xs mt-1">{{ $message }}</span> @enderror
-                        </div>
-                    </div>
-
-                    <!-- Modal Footer -->
-                    <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end space-x-3 rounded-b-lg">
-                        <button type="button" wire:click="closeEditModal" 
-                                class="px-5 py-2.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none">
-                            Cancel
-                        </button>
-                        <button type="submit" 
-                                style="background-color: #DC143C;"
-                                class="px-5 py-2.5 text-white text-sm rounded-md font-medium hover:opacity-90 transition-opacity focus:outline-none">
-                            Update Item
-                        </button>
-                    </div>
-                </form>
+                {{-- Footer --}}
+                <div class="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                    <button type="button" wire:click="closeEditModal"
+                        class="px-5 py-2.5 border border-gray-200 hover:bg-gray-50 text-gray-600 text-sm font-semibold rounded-xl transition-colors">
+                        Cancel
+                    </button>
+                    <button type="button" wire:click="updateItem"
+                        class="px-5 py-2.5 text-white text-sm font-semibold rounded-xl transition-colors"
+                        style="background-color:#be123c"
+                        onmouseover="this.style.backgroundColor='#881337'"
+                        onmouseout="this.style.backgroundColor='#be123c'">
+                        Save Changes
+                    </button>
+                </div>
             </div>
         </div>
     </div>
     @endif
 
-    {{-- Delete Confirmation Modal --}}
+    <!-- Delete Confirmation Modal -->
     @if($showDeleteModal)
-    <div class="fixed inset-0 z-50 overflow-y-auto" style="background-color: rgba(0, 0, 0, 0.5);">
-        <div class="flex items-center justify-center min-h-screen p-4">
-            <div class="bg-white rounded-lg shadow-xl max-w-md w-full">
-                <!-- Modal Header -->
-                <div class="px-6 py-4 border-b border-gray-200">
-                    <div class="flex items-center justify-between">
-                        <h3 class="text-xl font-semibold text-gray-900">
-                            Confirm Deletion
-                        </h3>
-                        <button type="button" wire:click="closeDeleteModal" class="text-gray-400 hover:text-gray-600">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                            </svg>
-                        </button>
-                    </div>
+    <div class="fixed inset-0 z-[60] overflow-y-auto flex items-center justify-center p-4" style="background-color: rgba(15,23,42,0.75); backdrop-filter: blur(4px);">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md" wire:click.stop>
+            <div class="p-8 text-center">
+                <div class="mx-auto mb-4 w-14 h-14 rounded-full bg-red-100 flex items-center justify-center">
+                    <svg class="w-7 h-7 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+                    </svg>
                 </div>
-
-                <!-- Modal Body -->
-                <div class="p-6">
-                    <div class="flex items-start space-x-3">
-                        <div class="flex-shrink-0">
-                            <svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"/>
-                            </svg>
-                        </div>
-                        <div class="flex-1">
-                            <p class="text-sm text-gray-700">{{ $deleteMessage }}</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Modal Footer -->
-                <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end space-x-3 rounded-b-lg">
-                    <button type="button" wire:click="closeDeleteModal" 
-                            class="px-5 py-2.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                <h3 class="text-lg font-bold text-gray-900 mb-2">Confirm Deletion</h3>
+                <p class="text-sm text-gray-600 mb-6">{{ $deleteMessage }}</p>
+                <div class="flex justify-center gap-3">
+                    <button wire:click="closeDeleteModal"
+                        class="px-5 py-2.5 border border-gray-200 hover:bg-gray-50 text-gray-600 text-sm font-semibold rounded-xl transition-colors">
                         Cancel
                     </button>
-                    <button type="button" wire:click="{{ $deleteAction }}" 
-                            class="px-5 py-2.5 bg-red-600 text-white text-sm rounded-md font-medium hover:bg-red-700">
+                    <button wire:click="{{ $deleteAction }}"
+                        class="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-xl transition-colors">
                         Delete
                     </button>
                 </div>
@@ -731,4 +684,5 @@ new class extends Component
         </div>
     </div>
     @endif
+
 </div>

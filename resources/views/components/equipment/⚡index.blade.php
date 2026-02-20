@@ -29,7 +29,7 @@ new class extends Component
     public $section_id = '';
 
     #[Validate('nullable|string|max:50')]
-    public $status = 'Operational';
+    public $status = 'operational';
 
     #[Validate('nullable|date')]
     public $purchase_date = '';
@@ -137,7 +137,7 @@ new class extends Component
     public function openEquipmentModal()
     {
         $this->reset(['name', 'model', 'serial_no', 'section_id', 'purchase_date', 'supplier', 'remarks']);
-        $this->status = 'Operational';
+        $this->status = 'operational';
         $this->resetValidation();
         $this->showEquipmentModal = true;
     }
@@ -178,7 +178,7 @@ new class extends Component
 
         $this->logActivity("Created equipment: {$savedName}");
         $this->reset(['name', 'model', 'serial_no', 'section_id', 'purchase_date', 'supplier', 'remarks']);
-        $this->status = 'Operational';
+        $this->status = 'operational';
         $this->flashMessage = 'Equipment added successfully!';
         $this->showEquipmentModal = false;
         $this->resetPage();
@@ -192,7 +192,7 @@ new class extends Component
         $this->model = $equipment->model ?? '';
         $this->serial_no = $equipment->serial_no ?? '';
         $this->section_id = $equipment->section_id;
-        $this->status = $equipment->status ?? 'Operational';
+        $this->status = $equipment->status ?? 'operational';
         $this->purchase_date = $equipment->purchase_date ? $equipment->purchase_date->format('Y-m-d') : '';
         $this->supplier = $equipment->supplier ?? '';
         $this->remarks = $equipment->remarks ?? '';
@@ -232,7 +232,7 @@ new class extends Component
     public function cancelEdit()
     {
         $this->reset(['name', 'model', 'serial_no', 'section_id', 'purchase_date', 'supplier', 'remarks', 'editMode', 'editingEquipmentId']);
-        $this->status = 'Operational';
+        $this->status = 'operational';
     }
 
     public function confirmDelete($id)
@@ -355,10 +355,10 @@ new class extends Component
             'datetime_added' => now(),
         ]);
 
-        // If equipment is reported not functional, update its status to Under Maintenance
+        // If equipment is reported not functional, update its status to under_maintenance
         if ($this->usage_status === 'not_functional') {
             Equipment::where('equipment_id', $equipmentId)
-                ->update(['status' => 'Under Maintenance']);
+                ->update(['status' => 'under_maintenance']);
         }
 
         $this->logActivity("Recorded equipment usage for equipment: {$employee->firstname} {$employee->lastname} used equipment ID {$equipmentId}");
@@ -425,9 +425,9 @@ new class extends Component
             'datetime_added' => now(),
         ]);
 
-        // If maintenance is completed, set equipment back to Operational
-        if ($this->maint_status === 'completed' && $equipment && $equipment->status === 'Under Maintenance') {
-            $equipment->update(['status' => 'Operational']);
+        // If maintenance is completed, set equipment back to operational
+        if ($this->maint_status === 'completed' && $equipment && $equipment->status === 'under_maintenance') {
+            $equipment->update(['status' => 'operational']);
         }
 
         $this->logActivity("Recorded maintenance for equipment: {$equipment->name} (ID: {$this->maint_equipment_id})");
@@ -720,11 +720,10 @@ new class extends Component
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $item->section->label ?? 'N/A' }}</td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm">
                                         <span class="px-2 py-1 text-xs rounded-full 
-                                            {{ $item->status == 'Operational' ? 'bg-green-100 text-green-800' : '' }}
-                                            {{ $item->status == 'Under Maintenance' ? 'bg-yellow-100 text-yellow-800' : '' }}
-                                            {{ $item->status == 'Broken' ? 'bg-red-100 text-red-800' : '' }}
-                                            {{ $item->status == 'Decommissioned' ? 'bg-gray-100 text-gray-800' : '' }}">
-                                            {{ $item->status }}
+                                            {{ $item->status == 'operational' ? 'bg-green-100 text-green-800' : '' }}
+                                            {{ $item->status == 'under_maintenance' ? 'bg-yellow-100 text-yellow-800' : '' }}
+                                            {{ $item->status == 'decommissioned' ? 'bg-gray-100 text-gray-800' : '' }}">
+                                            {{ match($item->status) { 'operational' => 'Operational', 'under_maintenance' => 'Under Maintenance', 'decommissioned' => 'Decommissioned', default => ucfirst($item->status) } }}
                                         </span>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
@@ -1014,10 +1013,9 @@ new class extends Component
                     <div>
                         <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Status</label>
                         <select wire:model="status" class="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent bg-gray-50 focus:bg-white transition">
-                            <option value="Operational">Operational</option>
-                            <option value="Under Maintenance">Under Maintenance</option>
-                            <option value="Broken">Broken</option>
-                            <option value="Decommissioned">Decommissioned</option>
+                            <option value="operational">Operational</option>
+                            <option value="under_maintenance">Under Maintenance</option>
+                            <option value="decommissioned">Decommissioned</option>
                         </select>
                     </div>
                 </div>
@@ -1098,10 +1096,9 @@ new class extends Component
                     <div>
                         <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Status</label>
                         <select wire:model="status" class="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent bg-gray-50 focus:bg-white transition">
-                            <option value="Operational">Operational</option>
-                            <option value="Under Maintenance">Under Maintenance</option>
-                            <option value="Broken">Broken</option>
-                            <option value="Decommissioned">Decommissioned</option>
+                            <option value="operational">Operational</option>
+                            <option value="under_maintenance">Under Maintenance</option>
+                            <option value="decommissioned">Decommissioned</option>
                         </select>
                     </div>
                 </div>
@@ -1168,7 +1165,7 @@ new class extends Component
                         </div>
                         <div>
                             <p class="text-xs font-semibold uppercase tracking-wider" style="color:#d2334c">Status</p>
-                            <p class="text-sm font-bold mt-0.5 {{ $detailsEquipment->status === 'Operational' ? 'text-emerald-700' : ($detailsEquipment->status === 'Under Maintenance' ? 'text-amber-700' : 'text-red-700') }}">{{ $detailsEquipment->status }}</p>
+                            <p class="text-sm font-bold mt-0.5 {{ $detailsEquipment->status === 'operational' ? 'text-emerald-700' : ($detailsEquipment->status === 'under_maintenance' ? 'text-amber-700' : 'text-red-700') }}">{{ match($detailsEquipment->status) { 'operational' => 'Operational', 'under_maintenance' => 'Under Maintenance', 'decommissioned' => 'Decommissioned', default => ucfirst($detailsEquipment->status) } }}</p>
                         </div>
                         <div>
                             <p class="text-xs font-semibold uppercase tracking-wider" style="color:#d2334c">Purchase Date</p>

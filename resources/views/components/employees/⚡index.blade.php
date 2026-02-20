@@ -316,7 +316,7 @@ new class extends Component
 };
 ?>
 
-<div class="p-6 space-y-6">
+<div class="p-6">
     @if($flashMessage)
         <div class="mb-6 bg-white border-l-4 border-green-500 shadow-sm rounded-lg p-4 flex items-center justify-between">
             <div class="flex items-center">
@@ -337,7 +337,7 @@ new class extends Component
     </div>
 
     <!-- Add New Employee Form -->
-    <div class="bg-white rounded-lg shadow-sm p-6">
+    <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
         <h2 class="text-lg font-semibold text-gray-900 mb-6">Add New Employee</h2>
         <form wire:submit.prevent="save">
             <!-- Personal Information -->
@@ -442,7 +442,7 @@ new class extends Component
     </div>
 
     <!-- Rows per page -->
-    <div class="flex items-center space-x-3">
+    <div class="flex items-center space-x-3 mb-6">
         <label class="text-sm font-medium text-gray-700">Rows per page:</label>
         <select wire:model.live="perPage" 
                 class="px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent text-sm">
@@ -455,7 +455,7 @@ new class extends Component
     </div>
 
     <!-- Employee List -->
-    <div class="bg-white rounded-lg shadow-sm">
+    <div class="bg-white rounded-lg shadow-sm mb-6">
         <div class="px-6 py-4 border-b border-gray-200">
             <div class="flex items-center justify-between">
                 <h2 class="text-lg font-semibold text-gray-900">Employees Directory</h2>

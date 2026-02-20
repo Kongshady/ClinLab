@@ -373,7 +373,7 @@
         </aside>
 
         <!-- Main Content Area -->
-        <div class="flex-1 flex flex-col overflow-hidden">
+        <div class="flex-1 flex flex-col min-h-0">
             <!-- Top Header -->
             <header class="bg-white border-b border-gray-200 shadow-sm relative overflow-hidden">
                 <div class="absolute inset-x-0 top-0 h-1 bg-[#d2334c]"></div>

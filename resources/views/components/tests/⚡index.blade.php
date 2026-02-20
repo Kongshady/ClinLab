@@ -318,7 +318,7 @@ new class extends Component
 };
 ?>
 
-<div class="p-6 space-y-6">
+<div class="p-6">
     @if($flashMessage)
         <div class="mb-6 bg-white border-l-4 border-green-500 shadow-sm rounded-lg p-4 flex items-center justify-between">
             <div class="flex items-center">
@@ -344,7 +344,7 @@ new class extends Component
     </div>
 
     <!-- Add New Test Form -->
-    <div class="bg-white rounded-lg shadow-sm p-6">
+    <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
         <h2 class="text-lg font-semibold text-gray-900 mb-6">Add New Test</h2>
         <form wire:submit.prevent="save">
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
@@ -393,7 +393,7 @@ new class extends Component
     </div>
 
     <!-- Rows per page -->
-    <div class="flex items-center space-x-3">
+    <div class="flex items-center space-x-3 mb-6">
         <label class="text-sm font-medium text-gray-700">Rows per page:</label>
         <select wire:model.live="perPage" 
                 class="px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent text-sm">
@@ -405,273 +405,274 @@ new class extends Component
         </select>
     </div>
 
-    <!-- Tests List Card -->
-    <div class="bg-white rounded-lg shadow-sm">
-        <div class="px-6 py-4 border-b border-gray-200">
-            <div class="flex items-center justify-between">
-                <h2 class="text-lg font-semibold text-gray-900">Tests Directory</h2>
-                <!-- Delete Selected Button -->
-                <div x-show="$wire.selectedTests.length > 0" x-cloak x-transition>
-                    <button type="button" 
-                            @click="if(confirm('Are you sure you want to delete ' + $wire.selectedTests.length + ' selected test(s)?')) { $wire.deleteSelected() }"
+    <!-- Tests List -->
+    <div class="bg-white rounded-lg shadow-sm mb-6">
+        <div class="p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-semibold text-gray-900">Tests List</h2>
+                <div class="flex items-center gap-3">
+                    {{-- UPDATED: Delete button --}}
+                    @if(count($selectedTests) > 0)
+                    <button wire:click="deleteSelected" 
                             class="inline-flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                         </svg>
-                        Delete Selected (<span x-text="$wire.selectedTests.length"></span>)
+                        Delete Selected ({{ count($selectedTests) }})
                     </button>
+                    @endif
+                    {{-- Search bar --}}
+                    <div class="relative">
+                        <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                        </svg>
+                        <input type="text" wire:model.live="search" placeholder="Search tests..." 
+                               class="pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-pink-500 focus:border-transparent w-64">
+                    </div>
                 </div>
             </div>
-        </div>
-        <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th class="px-6 py-3 text-left w-10">
-                            <input type="checkbox" wire:model.live="selectAll"
-                                   class="h-4 w-4 rounded border-gray-300 text-pink-600 focus:ring-pink-500">
-                        </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Test Name</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Section</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Current Price</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                    </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
-                    @forelse($tests as $test)
-                        <tr wire:key="test-{{ $test->test_id }}" 
-                            class="hover:bg-gray-50 cursor-pointer transition-colors {{ in_array((string) $test->test_id, $selectedTests) ? 'bg-pink-50' : '' }}">
-                            <td class="px-6 py-4" wire:click.stop>
-                                <input type="checkbox" wire:model.live="selectedTests" value="{{ $test->test_id }}"
-                                       class="h-4 w-4 rounded border-gray-300 text-pink-600 focus:ring-pink-500">
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <div class="flex items-center">
-                                    <div class="w-8 h-8 bg-pink-500 rounded-full flex items-center justify-center text-white text-xs font-bold mr-3">
-                                        {{ strtoupper(substr($test->label, 0, 2)) }}
-                                    </div>
-                                    <div>
-                                        <div class="font-medium text-gray-900">{{ $test->label }}</div>
-                                        <div class="text-xs text-gray-500">ID: {{ $test->test_id }}</div>
-                                    </div>
-                                </div>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {{ $test->section->label ?? 'N/A' }}
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                ₱{{ number_format($test->current_price, 2) }}
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                <div class="flex items-center space-x-2">
-                                    <button wire:click.stop="editTest({{ $test->test_id }})"
-                                            class="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pink-500">
-                                        Edit
-                                    </button>
-                                    <button wire:click.stop="openSetPriceModal({{ $test->test_id }})"
-                                            class="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pink-500">
-                                        Set Price
-                                    </button>
-                                    <button wire:click.stop="viewHistory({{ $test->test_id }})"
-                                            class="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pink-500">
-                                        History
-                                    </button>
-                                    <button wire:click.stop="delete({{ $test->test_id }})"
-                                            class="inline-flex items-center px-3 py-1.5 border border-red-300 rounded-md text-sm font-medium text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
-                                        Delete
-                                    </button>
-                                </div>
-                            </td>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead>
+                        <tr class="bg-gray-50">
+                            <th class="px-4 py-3 text-left w-10">
+                                <input type="checkbox" wire:model.live="selectAll"
+                                       class="rounded border-gray-300 text-green-600 focus:ring-green-500 h-4 w-4">
+                            </th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Test Name</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Section</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Previous Price</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Current Price</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
                         </tr>
-                    @empty
-                        <tr>
-                            <td colspan="5" class="px-6 py-12 text-center text-gray-500">
-                                No tests found
-                            </td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
-        
-        @if($perPage !== 'all' && $tests instanceof \Illuminate\Pagination\LengthAwarePaginator && $tests->hasPages())
-            <div class="px-6 py-4 border-t border-gray-200">
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        @forelse($tests as $test)
+                            <tr class="hover:bg-gray-50 {{ in_array((string) $test->test_id, $selectedTests) ? 'bg-green-50' : '' }}">
+                                <td class="px-4 py-3">
+                                    <input type="checkbox" wire:model.live="selectedTests" value="{{ $test->test_id }}"
+                                           class="rounded border-gray-300 text-green-600 focus:ring-green-500 h-4 w-4">
+                                </td>
+                                <td class="px-4 py-3 text-sm text-gray-900 font-medium">{{ $test->label }}</td>
+                                <td class="px-4 py-3 text-sm text-gray-700">{{ $test->section->label ?? 'N/A' }}</td>
+                                <td class="px-4 py-3 text-sm text-gray-700">₱{{ number_format($test->previous_price ?? 0, 2) }}</td>
+                                <td class="px-4 py-3 text-sm text-gray-900 font-semibold">₱{{ number_format($test->current_price, 2) }}</td>
+                                <td class="px-4 py-3">
+                                    <div class="flex items-center space-x-2">
+                                        <button wire:click="editTest({{ $test->test_id }})"
+                                                type="button"
+                                                class="px-4 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg transition-colors">
+                                            Edit
+                                        </button>
+                                        <button wire:click="openSetPriceModal({{ $test->test_id }})"
+                                                type="button"
+                                                class="px-4 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors">
+                                            Set Price
+                                        </button>
+                                        <button wire:click="viewHistory({{ $test->test_id }})"
+                                                type="button"
+                                                class="px-4 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors">
+                                            View History
+                                        </button>
+                                        <button wire:click="delete({{ $test->test_id }})" 
+                                                class="px-4 py-1.5 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors">
+                                            Delete
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="5" class="px-4 py-8 text-center text-gray-500">No tests found.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+
+            @if($perPage !== 'all')
+            <div class="mt-6">
                 {{ $tests->links() }}
             </div>
-        @endif
+            @endif
+        </div>
     </div>
 
-    <!-- Edit Test Modal -->
+    {{-- Edit Test Modal --}}
     @if($editingTestId)
-    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl">
-            <div class="flex items-center justify-between p-6 border-b">
-                <h3 class="text-lg font-semibold text-gray-900">Edit Test</h3>
-                <button wire:click="closeEditModal" class="text-gray-400 hover:text-gray-600">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                    </svg>
+    <div class="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4" style="background-color: rgba(15,23,42,0.75); backdrop-filter: blur(4px);">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col" wire:click.stop>
+            <div class="flex items-center justify-between px-7 py-5 rounded-t-2xl" style="background: #d2334c;">
+                <div class="flex items-center gap-3">
+                    <div class="bg-white/20 rounded-xl p-2.5">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold text-white">Edit Test</h3>
+                        <p class="text-red-200 text-xs mt-0.5">Update test information</p>
+                    </div>
+                </div>
+                <button wire:click="closeEditModal" class="text-white/70 hover:text-white transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                 </button>
             </div>
-            <form wire:submit.prevent="updateTest">
-                <div class="p-6 space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">
-                            Section <span class="text-red-500">*</span>
-                        </label>
-                        <select wire:model="edit_section_id" 
-                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent">
-                            <option value="">Select Section</option>
-                            @foreach($sections as $section)
-                                <option value="{{ $section->section_id }}">{{ $section->label }}</option>
-                            @endforeach
-                        </select>
-                        @error('edit_section_id') <span class="text-red-600 text-xs mt-1">{{ $message }}</span> @enderror
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">
-                            Test Name <span class="text-red-500">*</span>
-                        </label>
-                        <input type="text" 
-                               wire:model="edit_label" 
-                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent">
-                        @error('edit_label') <span class="text-red-600 text-xs mt-1">{{ $message }}</span> @enderror
-                    </div>
-                </div>
-                <div class="flex items-center justify-end space-x-3 p-6 border-t bg-gray-50">
-                    <button type="button" 
-                            wire:click="closeEditModal"
-                            class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium rounded-lg transition-colors">
-                        Cancel
-                    </button>
-                    <button type="submit"
-                            class="px-4 py-2 bg-[#DC143C] hover:bg-[#C41E3A] text-white font-medium rounded-lg transition-colors">
-                        Update Test
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-    @endif
 
-    <!-- Set Price Modal -->
-    @if($setPriceTestId)
-    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
-            <div class="flex items-center justify-between p-6 border-b">
-                <h3 class="text-lg font-semibold text-gray-900">Set Price</h3>
-                <button wire:click="closeSetPriceModal" class="text-gray-400 hover:text-gray-600">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                    </svg>
-                </button>
-            </div>
-            <form wire:submit.prevent="updatePrice">
-                <div class="p-6 space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Test Name</label>
-                        <input type="text" 
-                               value="{{ $setPriceTestName }}" 
-                               disabled
-                               class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Current Price</label>
-                        <input type="text" 
-                               value="₱{{ number_format($setPriceCurrentPrice, 2) }}" 
-                               disabled
-                               class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">
-                            New Price (₱) <span class="text-red-500">*</span>
-                        </label>
-                        <input type="number" 
-                               step="0.01"
-                               wire:model="new_price" 
-                               placeholder="0.00"
-                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                        @error('new_price') <span class="text-red-600 text-xs mt-1">{{ $message }}</span> @enderror
-                    </div>
-                </div>
-                <div class="flex items-center justify-end space-x-3 p-6 border-t bg-gray-50">
-                    <button type="button" 
-                            wire:click="closeSetPriceModal"
-                            class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium rounded-lg transition-colors">
-                        Cancel
-                    </button>
-                    <button type="submit"
-                            class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-lg transition-colors">
-                        Update Price
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-    @endif
-
-    <!-- View History Modal -->
-    @if($viewHistoryTestId)
-    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
-            <div class="flex items-center justify-between p-6 border-b">
+            <form wire:submit.prevent="updateTest" class="p-7 overflow-y-auto flex-1 space-y-5">
                 <div>
-                    <h3 class="text-lg font-semibold text-gray-900">Price History</h3>
-                    <p class="text-sm text-gray-600 mt-1">{{ $viewHistoryTestName }}</p>
+                    <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Section *</label>
+                    <select wire:model="edit_section_id" class="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent bg-gray-50 focus:bg-white transition" required>
+                        <option value="">Select Section</option>
+                        @foreach($sections as $section)
+                            <option value="{{ $section->section_id }}">{{ $section->label }}</option>
+                        @endforeach
+                    </select>
+                    @error('edit_section_id') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                 </div>
-                <button wire:click="closeHistoryModal" class="text-gray-400 hover:text-gray-600">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                    </svg>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Test Name *</label>
+                    <input type="text" wire:model="edit_label" placeholder="e.g., Complete Blood Count" class="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent bg-gray-50 focus:bg-white transition" required>
+                    @error('edit_label') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                </div>
+                <div class="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                    <button type="button" wire:click="closeEditModal" class="px-5 py-2.5 border border-gray-200 hover:bg-gray-50 text-gray-600 text-sm font-semibold rounded-xl transition-colors">Cancel</button>
+                    <button type="submit" class="px-5 py-2.5 text-white text-sm font-semibold rounded-xl transition-colors" style="background-color:#d2334c" onmouseover="this.style.backgroundColor='#9f1239'" onmouseout="this.style.backgroundColor='#d2334c'">Update Test</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    @endif
+
+    {{-- Set Price Modal --}}
+    @if($setPriceTestId)
+    <div class="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4" style="background-color: rgba(15,23,42,0.75); backdrop-filter: blur(4px);">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col" wire:click.stop>
+            <div class="flex items-center justify-between px-7 py-5 rounded-t-2xl" style="background: #2563eb;">
+                <div class="flex items-center gap-3">
+                    <div class="bg-white/20 rounded-xl p-2.5">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold text-white">Set Price</h3>
+                        <p class="text-blue-200 text-xs mt-0.5">{{ $setPriceTestName }}</p>
+                    </div>
+                </div>
+                <button wire:click="closeSetPriceModal" class="text-white/70 hover:text-white transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                 </button>
             </div>
-            <div class="p-6 overflow-y-auto flex-1">
-                @if(count($priceHistory) > 0)
-                <div class="overflow-x-auto">
-                    <table class="w-full">
-                        <thead>
-                            <tr class="bg-gray-50">
-                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Date Updated</th>
-                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Previous Price</th>
-                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">New Price</th>
-                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Updated By</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-200">
-                            @foreach($priceHistory as $history)
-                            <tr class="hover:bg-gray-50">
-                                <td class="px-4 py-3 text-sm text-gray-900">
-                                    {{ \Carbon\Carbon::parse($history->updated_at)->format('M d, Y h:i A') }}
-                                </td>
-                                <td class="px-4 py-3 text-sm text-gray-900 font-medium">
-                                    ₱{{ number_format($history->previous_price, 2) }}
-                                </td>
-                                <td class="px-4 py-3 text-sm text-gray-900 font-semibold">
-                                    ₱{{ number_format($history->new_price, 2) }}
-                                </td>
-                                <td class="px-4 py-3 text-sm text-gray-700">
-                                    {{ $history->updatedByEmployee ? $history->updatedByEmployee->firstname . ' ' . $history->updatedByEmployee->lastname : 'System' }}
-                                </td>
-                            </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
+
+            <form wire:submit.prevent="updatePrice" class="p-7 overflow-y-auto flex-1 space-y-5">
+                <div class="rounded-xl p-5" style="background-color:#eff6ff; border: 1px solid #bfdbfe;">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-wider text-blue-600">Current Price</p>
+                            <p class="text-2xl font-bold text-gray-900 mt-1">₱{{ number_format($setPriceCurrentPrice, 2) }}</p>
+                        </div>
+                        <div class="bg-blue-100 rounded-full p-3">
+                            <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
+                            </svg>
+                        </div>
+                    </div>
                 </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">New Price (₱) *</label>
+                    <input type="number" step="0.01" wire:model="new_price" placeholder="0.00" class="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50 focus:bg-white transition" required>
+                    @error('new_price') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                </div>
+                <div class="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                    <button type="button" wire:click="closeSetPriceModal" class="px-5 py-2.5 border border-gray-200 hover:bg-gray-50 text-gray-600 text-sm font-semibold rounded-xl transition-colors">Cancel</button>
+                    <button type="submit" class="px-5 py-2.5 text-white text-sm font-semibold rounded-xl transition-colors" style="background-color:#2563eb" onmouseover="this.style.backgroundColor='#1d4ed8'" onmouseout="this.style.backgroundColor='#2563eb'">Update Price</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    @endif
+
+    {{-- View Price History Modal --}}
+    @if($viewHistoryTestId)
+    <div class="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4" style="background-color: rgba(15,23,42,0.75); backdrop-filter: blur(4px);">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col" wire:click.stop>
+            <div class="flex items-center justify-between px-7 py-5 rounded-t-2xl" style="background: #2563eb;">
+                <div class="flex items-center gap-3">
+                    <div class="bg-white/20 rounded-xl p-2.5">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold text-white">Price History</h3>
+                        <p class="text-blue-200 text-xs mt-0.5">{{ $viewHistoryTestName }}</p>
+                    </div>
+                </div>
+                <button wire:click="closeHistoryModal" class="text-white/70 hover:text-white transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            <div class="p-7 overflow-y-auto flex-1">
+                @if($priceHistory && count($priceHistory) > 0)
+                    <div class="overflow-x-auto rounded-xl border border-gray-200">
+                        <table class="w-full text-sm">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">#</th>
+                                    <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Previous Price</th>
+                                    <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">New Price</th>
+                                    <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Change</th>
+                                    <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Updated By</th>
+                                    <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Date</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100">
+                                @foreach($priceHistory as $index => $history)
+                                    @php
+                                        $diff = $history->new_price - $history->previous_price;
+                                        $isIncrease = $diff > 0;
+                                    @endphp
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-4 py-3 text-gray-500">{{ $index + 1 }}</td>
+                                        <td class="px-4 py-3 text-gray-700">₱{{ number_format($history->previous_price, 2) }}</td>
+                                        <td class="px-4 py-3 font-semibold text-gray-900">₱{{ number_format($history->new_price, 2) }}</td>
+                                        <td class="px-4 py-3">
+                                            <span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full {{ $isIncrease ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700' }}">
+                                                @if($isIncrease)
+                                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg>
+                                                @else
+                                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                                @endif
+                                                {{ $isIncrease ? '+' : '' }}₱{{ number_format($diff, 2) }}
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 text-gray-700">
+                                            {{ $history->updatedByEmployee ? $history->updatedByEmployee->firstname . ' ' . $history->updatedByEmployee->lastname : 'N/A' }}
+                                        </td>
+                                        <td class="px-4 py-3 text-gray-500">{{ $history->updated_at ? \Carbon\Carbon::parse($history->updated_at)->format('M d, Y h:i A') : 'N/A' }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
                 @else
-                <div class="text-center py-8 text-gray-500">
-                    <svg class="w-12 h-12 mx-auto mb-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                    </svg>
-                    <p>No price history available for this test.</p>
-                </div>
+                    <div class="text-center py-12">
+                        <div class="mx-auto mb-4 w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center">
+                            <svg class="w-7 h-7 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                        </div>
+                        <p class="text-sm text-gray-500 font-medium">No price history available for this test.</p>
+                        <p class="text-xs text-gray-400 mt-1">Price changes will appear here once updated.</p>
+                    </div>
                 @endif
-            </div>
-            <div class="flex items-center justify-end p-6 border-t bg-gray-50">
-                <button type="button" 
-                        wire:click="closeHistoryModal"
-                        class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium rounded-lg transition-colors">
-                    Close
-                </button>
+
+                <div class="flex justify-end pt-5 mt-5 border-t border-gray-100">
+                    <button wire:click="closeHistoryModal" class="px-5 py-2.5 border border-gray-200 hover:bg-gray-50 text-gray-600 text-sm font-semibold rounded-xl transition-colors">Close</button>
+                </div>
             </div>
         </div>
     </div>
@@ -679,83 +680,19 @@ new class extends Component
 
     {{-- Delete Confirmation Modal --}}
     @if($showDeleteModal)
-    <div class="fixed inset-0 z-50 overflow-y-auto" style="background-color: rgba(0, 0, 0, 0.5);">
-        <div class="flex items-center justify-center min-h-screen p-4">
-            <div class="bg-white rounded-lg shadow-xl max-w-md w-full">
-                <!-- Modal Header -->
-                <div class="px-6 py-4 border-b border-gray-200">
-                    <div class="flex items-center justify-between">
-                        <h3 class="text-xl font-semibold text-gray-900">
-                            Confirm Deletion
-                        </h3>
-                        <button type="button" wire:click="closeDeleteModal" class="text-gray-400 hover:text-gray-600">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                            </svg>
-                        </button>
-                    </div>
+    <div class="fixed inset-0 z-[60] overflow-y-auto flex items-center justify-center p-4" style="background-color: rgba(15,23,42,0.75); backdrop-filter: blur(4px);">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md" wire:click.stop>
+            <div class="p-8 text-center">
+                <div class="mx-auto mb-4 w-14 h-14 rounded-full bg-red-100 flex items-center justify-center">
+                    <svg class="w-7 h-7 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+                    </svg>
                 </div>
-
-                <!-- Modal Body -->
-                <div class="p-6">
-                    <div class="flex items-start space-x-3">
-                        <div class="flex-shrink-0">
-                            <svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"/>
-                            </svg>
-                        </div>
-                        <div class="flex-1">
-                            <p class="text-sm text-gray-700">{{ $deleteMessage }}</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Modal Footer -->
-                <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end space-x-3 rounded-b-lg">
-                    <button type="button" wire:click="closeDeleteModal" 
-                            class="px-5 py-2.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
-                        Cancel
-                    </button>
-                    <button type="button" wire:click="{{ $deleteAction }}" 
-                            class="px-5 py-2.5 bg-red-600 text-white text-sm rounded-md font-medium hover:bg-red-700">
-                        Delete
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-    @endif
-
-    {{-- UPDATED: Web Search Modal --}}
-    @if($showSearchModal)
-    <div class="fixed inset-0 z-50 overflow-y-auto" style="background-color: rgba(0, 0, 0, 0.5);">
-        <div class="flex items-center justify-center min-h-screen p-4">
-            <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full">
-                <div class="px-6 py-4 border-b border-gray-200">
-                    <div class="flex items-center justify-between">
-                        <h3 class="text-xl font-semibold text-gray-900">Web Search</h3>
-                        <button type="button" wire:click="closeSearchModal" class="text-gray-400 hover:text-gray-600">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                            </svg>
-                        </button>
-                    </div>
-                </div>
-                <div class="p-6">
-                    <input type="text" wire:model.live.debounce.500ms="searchQuery" 
-                           placeholder="Enter search query..." 
-                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 mb-4">
-                    
-                    @if($searchResults)
-                    <div class="space-y-3 max-h-96 overflow-y-auto">
-                        @foreach($searchResults as $result)
-                        <div class="p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
-                            <h4 class="font-semibold text-gray-900">{{ $result->title }}</h4>
-                            <p class="text-sm text-gray-600">{{ $result->snippet }}</p>
-                        </div>
-                        @endforeach
-                    </div>
-                    @endif
+                <h3 class="text-lg font-bold text-gray-900 mb-2">Delete Test</h3>
+                <p class="text-sm text-gray-600 mb-6">{{ $deleteMessage }}</p>
+                <div class="flex justify-center gap-3">
+                    <button wire:click="closeDeleteModal" class="px-5 py-2.5 border border-gray-200 hover:bg-gray-50 text-gray-600 text-sm font-semibold rounded-xl transition-colors">Cancel</button>
+                    <button wire:click="{{ $deleteAction }}" class="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-xl transition-colors">Confirm Delete</button>
                 </div>
             </div>
         </div>

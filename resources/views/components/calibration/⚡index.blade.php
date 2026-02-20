@@ -330,7 +330,7 @@ new class extends Component
 };
 ?>
 
-<div class="p-6 space-y-6">
+<div class="p-6">
     <div class="flex items-center justify-between">
         <h1 class="text-2xl font-bold text-gray-900 flex items-center">
             <svg class="w-7 h-7 mr-2" style="color:#d2334c" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -358,7 +358,7 @@ new class extends Component
     @endif
 
     <!-- Calibration Alerts Table -->
-    <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
         <div class="px-6 py-4 border-b border-gray-200 flex items-center gap-3">
             <div class="p-1.5 rounded-lg" style="background-color:#fef2f2">
                 <svg class="w-5 h-5" style="color:#d2334c" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -444,7 +444,7 @@ new class extends Component
     </div>
 
     <!-- Calibration Procedures Table -->
-    <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
         <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
             <div class="flex items-center gap-3">
                 <div class="p-1.5 rounded-lg bg-emerald-50">
@@ -517,7 +517,7 @@ new class extends Component
     </div>
 
     <!-- Recent Calibration Records Table -->
-    <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
         <div class="px-6 py-4 border-b border-gray-200 flex items-center gap-3">
             <div class="p-1.5 rounded-lg bg-indigo-50">
                 <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
