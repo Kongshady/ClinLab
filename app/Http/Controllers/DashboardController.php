@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Middleware\RedirectByRole;
 use Illuminate\Http\Request;
 
 class DashboardController extends Controller
@@ -12,30 +13,13 @@ class DashboardController extends Controller
     public function index()
     {
         $user = auth()->user();
+        $destination = RedirectByRole::destinationFor($user);
 
-        // Patient role -> patient dashboard
-        if ($user->hasRole('Patient')) {
-            return redirect()->route('patient.dashboard');
-        }
-
-        // Redirect based on role priority (in case user has multiple roles)
-        if ($user->hasRole('Laboratory Manager')) {
-            return redirect()->route('dashboard.manager');
-        }
-        
-        if ($user->hasRole('MIT Staff')) {
-            return redirect()->route('dashboard.mit');
-        }
-        
-        if ($user->hasRole('Staff-in-Charge')) {
-            return redirect()->route('dashboard.staff');
-        }
-        
-        if ($user->hasRole('Secretary')) {
-            return redirect()->route('dashboard.secretary');
+        if ($destination) {
+            return redirect($destination);
         }
 
-        // Default fallback - show a generic dashboard or error
+        // No recognised role — fallback
         return redirect()->route('dashboard.staff');
     }
 

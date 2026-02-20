@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Http\Middleware\RedirectByRole;
 use App\Models\Patient;
 use App\Models\UicDirectoryPerson;
 use App\Models\User;
@@ -91,7 +92,9 @@ class GoogleController extends Controller
 
         Auth::login($user, remember: true);
 
-        return redirect()->route('patient.dashboard');
+        // Use centralized role-based redirect
+        $destination = RedirectByRole::destinationFor($user) ?? route('login');
+        return redirect($destination);
     }
 
     /**

@@ -400,7 +400,7 @@ new class extends Component
             ->values();
 
         // Use Livewire pagination for movements
-        $currentPage = request()->get('movement_page', 1);
+        $currentPage = $this->getPage('movement_page');
         $paginatedMovements = new \Illuminate\Pagination\LengthAwarePaginator(
             $movements->forPage($currentPage, $this->movementPerPage),
             $movements->count(),
@@ -408,7 +408,6 @@ new class extends Component
             $currentPage,
             [
                 'path' => request()->url(),
-                'query' => request()->query(),
                 'pageName' => 'movement_page'
             ]
         );
@@ -995,7 +994,6 @@ new class extends Component
                         <tr class="bg-gray-50 border-y border-gray-200">
                             <th class="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wide">Item Name</th>
                             <th class="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wide">Section</th>
-                            <th class="px-3 py-3 text-center text-xs font-bold text-gray-700 uppercase tracking-wide">Unit</th>
                             <th class="px-3 py-3 text-center text-xs font-bold text-gray-700 uppercase tracking-wide">Total In</th>
                             <th class="px-3 py-3 text-center text-xs font-bold text-gray-700 uppercase tracking-wide">Total Out</th>
                             <th class="px-3 py-3 text-center text-xs font-bold text-gray-700 uppercase tracking-wide">Current Stock</th>
@@ -1016,9 +1014,6 @@ new class extends Component
                                 </td>
                                 <td class="px-4 py-3">
                                     <span class="text-sm text-gray-700">{{ $item->section->label ?? 'N/A' }}</span>
-                                </td>
-                                <td class="px-3 py-3 text-center">
-                                    <span class="text-sm text-gray-700">{{ $item->unit ?? 'pcs' }}</span>
                                 </td>
                                 <td class="px-3 py-3 text-center">
                                     <span class="text-sm text-gray-700">{{ number_format($item->total_in) }}</span>
@@ -1189,7 +1184,7 @@ new class extends Component
 
             <!-- Pagination -->
             <div class="px-8 py-4 border-t border-gray-200 bg-gray-50">
-                {{ $movements->appends(request()->query())->links() }}
+                {{ $movements->links() }}
             </div>
 
             <!-- Detail Sidebar -->

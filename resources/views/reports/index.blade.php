@@ -31,11 +31,25 @@
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         >
                             <option value="">Select Report Type</option>
-                            <option value="equipment_maintenance" {{ request('report_type') == 'equipment_maintenance' ? 'selected' : '' }}>Equipment Maintenance</option>
-                            <option value="calibration_records" {{ request('report_type') == 'calibration_records' ? 'selected' : '' }}>Calibration Records</option>
-                            <option value="inventory_movement" {{ request('report_type') == 'inventory_movement' ? 'selected' : '' }}>Inventory Movement</option>
-                            <option value="low_stock_alert" {{ request('report_type') == 'low_stock_alert' ? 'selected' : '' }}>Low Stock Alert</option>
-                            <option value="laboratory_results" {{ request('report_type') == 'laboratory_results' ? 'selected' : '' }}>Laboratory Results</option>
+                            <optgroup label="Equipment & Lab">
+                                <option value="equipment_maintenance" {{ request('report_type') == 'equipment_maintenance' ? 'selected' : '' }}>Equipment Maintenance</option>
+                                <option value="calibration_records" {{ request('report_type') == 'calibration_records' ? 'selected' : '' }}>Calibration Records</option>
+                                <option value="laboratory_results" {{ request('report_type') == 'laboratory_results' ? 'selected' : '' }}>Laboratory Results</option>
+                            </optgroup>
+                            <optgroup label="Inventory">
+                                <option value="inventory_movement" {{ request('report_type') == 'inventory_movement' ? 'selected' : '' }}>Inventory Movement</option>
+                                <option value="low_stock_alert" {{ request('report_type') == 'low_stock_alert' ? 'selected' : '' }}>Low Stock Alert</option>
+                                <option value="expiring_inventory" {{ request('report_type') == 'expiring_inventory' ? 'selected' : '' }}>Expiring Inventory</option>
+                            </optgroup>
+                            <optgroup label="Financial">
+                                <option value="daily_collection" {{ request('report_type') == 'daily_collection' ? 'selected' : '' }}>Daily Collection</option>
+                                <option value="revenue_by_test" {{ request('report_type') == 'revenue_by_test' ? 'selected' : '' }}>Revenue by Test</option>
+                            </optgroup>
+                            <optgroup label="Analytics">
+                                <option value="test_volume" {{ request('report_type') == 'test_volume' ? 'selected' : '' }}>Test Volume</option>
+                                <option value="issued_certificates" {{ request('report_type') == 'issued_certificates' ? 'selected' : '' }}>Issued Certificates</option>
+                                <option value="activity_log" {{ request('report_type') == 'activity_log' ? 'selected' : '' }}>Activity Log</option>
+                            </optgroup>
                         </select>
                     </div>
                     <div>
@@ -75,6 +89,23 @@
                             @foreach($sections ?? [] as $section)
                                 <option value="{{ $section->section_id }}" {{ request('section_id') == $section->section_id ? 'selected' : '' }}>
                                     {{ $section->label }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div id="employee-filter" style="{{ request('report_type') == 'activity_log' ? '' : 'display:none;' }}">
+                        <label for="employee_id" class="block text-sm font-medium text-gray-700 mb-2">
+                            Employee (Optional)
+                        </label>
+                        <select 
+                            name="employee_id" 
+                            id="employee_id"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        >
+                            <option value="">All Employees</option>
+                            @foreach($employees ?? [] as $emp)
+                                <option value="{{ $emp->employee_id }}" {{ request('employee_id') == $emp->employee_id ? 'selected' : '' }}>
+                                    {{ $emp->full_name }}
                                 </option>
                             @endforeach
                         </select>
@@ -125,6 +156,24 @@
                             @break
                         @case('laboratory_results')
                             Laboratory Results Report
+                            @break
+                        @case('daily_collection')
+                            Daily Collection Report
+                            @break
+                        @case('revenue_by_test')
+                            Revenue by Test Report
+                            @break
+                        @case('test_volume')
+                            Test Volume Report
+                            @break
+                        @case('issued_certificates')
+                            Issued Certificates Report
+                            @break
+                        @case('activity_log')
+                            Activity Log Report
+                            @break
+                        @case('expiring_inventory')
+                            Expiring Inventory Report
                             @break
                     @endswitch
                 </h2>
@@ -320,6 +369,229 @@
                         </table>
                         @break
                         
+                    @case('daily_collection')
+                        @if(isset($summaryTotals) && !empty($summaryTotals))
+                        <div class="px-6 py-3 bg-blue-50 border-b border-blue-200 flex gap-8">
+                            <div>
+                                <span class="text-xs text-blue-600 uppercase font-bold">Total Transactions</span>
+                                <p class="text-lg font-bold text-blue-900">{{ number_format($summaryTotals['total_transactions'] ?? 0) }}</p>
+                            </div>
+                            <div>
+                                <span class="text-xs text-blue-600 uppercase font-bold">Total Amount</span>
+                                <p class="text-lg font-bold text-blue-900">₱{{ number_format($summaryTotals['total_amount'] ?? 0, 2) }}</p>
+                            </div>
+                        </div>
+                        @endif
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Date & Time</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">OR Number</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Patient</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Designation</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                @forelse($reportData as $txn)
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $txn->datetime_added ? \Carbon\Carbon::parse($txn->datetime_added)->format('M d, Y h:i A') : 'N/A' }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $txn->or_number ?? 'N/A' }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $txn->patient->full_name ?? 'N/A' }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $txn->client_designation ?? 'N/A' }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap"><span class="px-3 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">{{ ucfirst($txn->status_code ?? 'completed') }}</span></td>
+                                    </tr>
+                                @empty
+                                    <tr><td colspan="5" class="text-center py-8 text-gray-500">No transactions found</td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                        @break
+
+                    @case('revenue_by_test')
+                        @if(isset($summaryTotals) && !empty($summaryTotals))
+                        <div class="px-6 py-3 bg-green-50 border-b border-green-200 flex gap-8">
+                            <div>
+                                <span class="text-xs text-green-600 uppercase font-bold">Total Orders</span>
+                                <p class="text-lg font-bold text-green-900">{{ number_format($summaryTotals['total_orders'] ?? 0) }}</p>
+                            </div>
+                            <div>
+                                <span class="text-xs text-green-600 uppercase font-bold">Grand Revenue</span>
+                                <p class="text-lg font-bold text-green-900">₱{{ number_format($summaryTotals['grand_revenue'] ?? 0, 2) }}</p>
+                            </div>
+                        </div>
+                        @endif
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Test Name</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Section</th>
+                                    <th class="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Unit Price</th>
+                                    <th class="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Total Orders</th>
+                                    <th class="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Total Revenue</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                @forelse($reportData as $row)
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $row->test_name }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $row->section_name ?? 'N/A' }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 text-right">₱{{ number_format($row->current_price, 2) }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 text-right">{{ number_format($row->total_orders) }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-green-700 text-right">₱{{ number_format($row->total_revenue, 2) }}</td>
+                                    </tr>
+                                @empty
+                                    <tr><td colspan="5" class="text-center py-8 text-gray-500">No revenue data found</td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                        @break
+
+                    @case('test_volume')
+                        @if(isset($summaryTotals) && !empty($summaryTotals))
+                        <div class="px-6 py-3 bg-purple-50 border-b border-purple-200 flex gap-8">
+                            <div>
+                                <span class="text-xs text-purple-600 uppercase font-bold">Total Tests</span>
+                                <p class="text-lg font-bold text-purple-900">{{ number_format($summaryTotals['total'] ?? 0) }}</p>
+                            </div>
+                            <div>
+                                <span class="text-xs text-purple-600 uppercase font-bold">Finalized</span>
+                                <p class="text-lg font-bold text-green-700">{{ number_format($summaryTotals['final_total'] ?? 0) }}</p>
+                            </div>
+                            <div>
+                                <span class="text-xs text-purple-600 uppercase font-bold">Draft</span>
+                                <p class="text-lg font-bold text-yellow-700">{{ number_format($summaryTotals['draft_total'] ?? 0) }}</p>
+                            </div>
+                        </div>
+                        @endif
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Test Name</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Section</th>
+                                    <th class="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Total</th>
+                                    <th class="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Final</th>
+                                    <th class="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Draft</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                @forelse($reportData as $vol)
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $vol->test->label ?? 'N/A' }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $vol->test->section->label ?? 'N/A' }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 text-right">{{ number_format($vol->total_count) }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-green-700 text-right">{{ number_format($vol->final_count) }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-yellow-700 text-right">{{ number_format($vol->draft_count) }}</td>
+                                    </tr>
+                                @empty
+                                    <tr><td colspan="5" class="text-center py-8 text-gray-500">No test volume data found</td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                        @break
+
+                    @case('issued_certificates')
+                        @if(isset($summaryTotals) && !empty($summaryTotals))
+                        <div class="px-6 py-3 bg-indigo-50 border-b border-indigo-200 flex gap-8">
+                            <div>
+                                <span class="text-xs text-indigo-600 uppercase font-bold">Total</span>
+                                <p class="text-lg font-bold text-indigo-900">{{ number_format($summaryTotals['total'] ?? 0) }}</p>
+                            </div>
+                            <div>
+                                <span class="text-xs text-indigo-600 uppercase font-bold">Issued</span>
+                                <p class="text-lg font-bold text-green-700">{{ number_format($summaryTotals['issued'] ?? 0) }}</p>
+                            </div>
+                            <div>
+                                <span class="text-xs text-indigo-600 uppercase font-bold">Draft</span>
+                                <p class="text-lg font-bold text-yellow-700">{{ number_format($summaryTotals['draft'] ?? 0) }}</p>
+                            </div>
+                            <div>
+                                <span class="text-xs text-indigo-600 uppercase font-bold">Revoked</span>
+                                <p class="text-lg font-bold text-red-700">{{ number_format($summaryTotals['revoked'] ?? 0) }}</p>
+                            </div>
+                        </div>
+                        @endif
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Certificate No.</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Type</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Patient</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Issued By</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Issue Date</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                @forelse($reportData as $cert)
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $cert->certificate_number ?? 'N/A' }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ ucfirst($cert->certificate_type ?? 'N/A') }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $cert->patient->full_name ?? 'N/A' }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $cert->issuedBy->full_name ?? 'N/A' }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $cert->issue_date ? \Carbon\Carbon::parse($cert->issue_date)->format('M d, Y') : 'N/A' }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap"><span class="px-3 py-1 text-xs font-medium rounded-full @if($cert->status === 'issued') bg-green-100 text-green-800 @elseif($cert->status === 'draft') bg-yellow-100 text-yellow-800 @else bg-red-100 text-red-800 @endif">{{ ucfirst($cert->status ?? 'draft') }}</span></td>
+                                    </tr>
+                                @empty
+                                    <tr><td colspan="6" class="text-center py-8 text-gray-500">No certificates found</td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                        @break
+
+                    @case('activity_log')
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Date & Time</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Employee</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Description</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                @forelse($reportData as $log)
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $log->datetime_added ? \Carbon\Carbon::parse($log->datetime_added)->format('M d, Y h:i A') : 'N/A' }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $log->employee->full_name ?? 'N/A' }}</td>
+                                        <td class="px-6 py-4 text-sm text-gray-600">{{ $log->description ?? 'N/A' }}</td>
+                                    </tr>
+                                @empty
+                                    <tr><td colspan="3" class="text-center py-8 text-gray-500">No activity logs found</td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                        @break
+
+                    @case('expiring_inventory')
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Item Name</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Section</th>
+                                    <th class="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Quantity</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Expiry Date</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Days Left</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Urgency</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                @forelse($reportData as $stock)
+                                    @php $daysLeft = \Carbon\Carbon::now()->diffInDays(\Carbon\Carbon::parse($stock->expiry_date), false); @endphp
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $stock->item->label ?? 'N/A' }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $stock->item->section->label ?? 'N/A' }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 text-right">{{ $stock->quantity ?? 0 }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $stock->expiry_date ? \Carbon\Carbon::parse($stock->expiry_date)->format('M d, Y') : 'N/A' }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold {{ $daysLeft <= 30 ? 'text-red-600' : ($daysLeft <= 60 ? 'text-yellow-600' : 'text-gray-600') }}">{{ $daysLeft }} days</td>
+                                        <td class="px-6 py-4 whitespace-nowrap"><span class="px-3 py-1 text-xs font-medium rounded-full @if($daysLeft <= 30) bg-red-100 text-red-800 @elseif($daysLeft <= 60) bg-yellow-100 text-yellow-800 @else bg-green-100 text-green-800 @endif">@if($daysLeft <= 30) Critical @elseif($daysLeft <= 60) Warning @else OK @endif</span></td>
+                                    </tr>
+                                @empty
+                                    <tr><td colspan="6" class="text-center py-8 text-gray-500">No expiring inventory found</td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                        @break
+
                     @default
                         <div class="p-12 text-center">
                             <p class="text-gray-500">Report type not implemented yet.</p>
@@ -381,5 +653,15 @@ function exportReport() {
     form.submit();
     document.body.removeChild(form);
 }
+
+// Show/hide employee filter based on report type
+document.getElementById('report_type').addEventListener('change', function() {
+    const employeeFilter = document.getElementById('employee-filter');
+    if (this.value === 'activity_log') {
+        employeeFilter.style.display = '';
+    } else {
+        employeeFilter.style.display = 'none';
+    }
+});
 </script>
 @endsection

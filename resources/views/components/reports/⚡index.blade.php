@@ -10,8 +10,13 @@ use App\Models\StockOut;
 use App\Models\Item;
 use App\Models\Section;
 use App\Models\Test;
+use App\Models\Transaction;
+use App\Models\Certificate;
+use App\Models\ActivityLog;
+use App\Models\Employee;
 use App\Exports\ReportExport;
 use Maatwebsite\Excel\Facades\Excel;
+use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
 new class extends Component
@@ -22,6 +27,7 @@ new class extends Component
     public $startDate = '';
     public $endDate = '';
     public $sectionId = '';
+    public $employeeId = '';
 
     public function mount()
     {
@@ -53,6 +59,12 @@ new class extends Component
             'inventory_movement' => 'Inventory_Movement',
             'low_stock_alert' => 'Low_Stock_Alert',
             'laboratory_results' => 'Laboratory_Results',
+            'daily_collection' => 'Daily_Collection',
+            'revenue_by_test' => 'Revenue_By_Test',
+            'test_volume' => 'Test_Volume',
+            'issued_certificates' => 'Issued_Certificates',
+            'activity_log' => 'Activity_Log',
+            'expiring_inventory' => 'Expiring_Inventory',
             default => 'Report',
         };
 
@@ -61,6 +73,42 @@ new class extends Component
         return Excel::download(
             new ReportExport($this->reportType, $this->startDate, $this->endDate, $this->sectionId ?: null),
             $filename
+        );
+    }
+
+    public function exportCsv()
+    {
+        if (!$this->reportType) {
+            session()->flash('error', 'Please select a report type first.');
+            return;
+        }
+
+        if (!$this->startDate || !$this->endDate) {
+            session()->flash('error', 'Please select a date range first.');
+            return;
+        }
+
+        $typeName = match ($this->reportType) {
+            'equipment_maintenance' => 'Equipment_Maintenance',
+            'calibration_records' => 'Calibration_Records',
+            'inventory_movement' => 'Inventory_Movement',
+            'low_stock_alert' => 'Low_Stock_Alert',
+            'laboratory_results' => 'Laboratory_Results',
+            'daily_collection' => 'Daily_Collection',
+            'revenue_by_test' => 'Revenue_By_Test',
+            'test_volume' => 'Test_Volume',
+            'issued_certificates' => 'Issued_Certificates',
+            'activity_log' => 'Activity_Log',
+            'expiring_inventory' => 'Expiring_Inventory',
+            default => 'Report',
+        };
+
+        $filename = $typeName . '_' . $this->startDate . '_to_' . $this->endDate . '.csv';
+
+        return Excel::download(
+            new ReportExport($this->reportType, $this->startDate, $this->endDate, $this->sectionId ?: null),
+            $filename,
+            \Maatwebsite\Excel\Excel::CSV
         );
     }
 
@@ -81,6 +129,7 @@ new class extends Component
             'start_date'  => $this->startDate,
             'end_date'    => $this->endDate,
             'section_id'  => $this->sectionId ?: '',
+            'employee_id' => $this->employeeId ?: '',
         ]);
 
         return $this->js("window.open('" . $url . "', '_blank')");
@@ -102,6 +151,11 @@ new class extends Component
     }
 
     public function updatedSectionId()
+    {
+        $this->resetPage();
+    }
+
+    public function updatedEmployeeId()
     {
         $this->resetPage();
     }
@@ -206,12 +260,128 @@ new class extends Component
                         ->orderBy('result_date', 'desc')
                         ->paginate(20);
                     break;
+
+                case 'daily_collection':
+                    $reportData = Transaction::with(['patient'])
+                        ->whereBetween('datetime_added', [$this->startDate, $this->endDate . ' 23:59:59'])
+                        ->orderBy('datetime_added', 'desc')
+                        ->paginate(20);
+                    break;
+
+                case 'revenue_by_test':
+                    $reportData = DB::table('transaction_detail')
+                        ->join('transaction', 'transaction_detail.transaction_id', '=', 'transaction.transaction_id')
+                        ->join('test', 'transaction_detail.test_id', '=', 'test.test_id')
+                        ->leftJoin('section', 'test.section_id', '=', 'section.section_id')
+                        ->whereBetween('transaction.datetime_added', [$this->startDate, $this->endDate . ' 23:59:59'])
+                        ->when($this->sectionId, fn($q) => $q->where('test.section_id', $this->sectionId))
+                        ->select(
+                            'test.test_id',
+                            'test.label as test_name',
+                            'section.label as section_name',
+                            'test.current_price',
+                            DB::raw('COUNT(*) as total_orders'),
+                            DB::raw('SUM(test.current_price) as total_revenue')
+                        )
+                        ->groupBy('test.test_id', 'test.label', 'section.label', 'test.current_price')
+                        ->orderByDesc('total_revenue')
+                        ->paginate(20);
+                    break;
+
+                case 'test_volume':
+                    $reportData = LabResult::with(['test', 'test.section'])
+                        ->whereBetween('result_date', [$this->startDate, $this->endDate])
+                        ->when($this->sectionId, fn($q) => $q->whereHas('test', fn($sq) => $sq->where('section_id', $this->sectionId)))
+                        ->select(
+                            'test_id',
+                            DB::raw('COUNT(*) as total_count'),
+                            DB::raw("SUM(CASE WHEN status = 'final' THEN 1 ELSE 0 END) as final_count"),
+                            DB::raw("SUM(CASE WHEN status = 'draft' THEN 1 ELSE 0 END) as draft_count")
+                        )
+                        ->groupBy('test_id')
+                        ->orderByDesc('total_count')
+                        ->paginate(20);
+                    break;
+
+                case 'issued_certificates':
+                    $reportData = Certificate::with(['patient', 'issuedBy'])
+                        ->whereBetween('issue_date', [$this->startDate, $this->endDate])
+                        ->orderBy('issue_date', 'desc')
+                        ->paginate(20);
+                    break;
+
+                case 'activity_log':
+                    $reportData = ActivityLog::with(['employee'])
+                        ->whereBetween('datetime_added', [$this->startDate, $this->endDate . ' 23:59:59'])
+                        ->when($this->employeeId, fn($q) => $q->where('employee_id', $this->employeeId))
+                        ->orderBy('datetime_added', 'desc')
+                        ->paginate(20);
+                    break;
+
+                case 'expiring_inventory':
+                    $reportData = StockIn::with(['item', 'item.section'])
+                        ->whereNotNull('expiry_date')
+                        ->where('expiry_date', '<=', Carbon::now()->addDays(90)->toDateString())
+                        ->where('expiry_date', '>=', Carbon::now()->toDateString())
+                        ->when($this->sectionId, fn($q) => $q->whereHas('item', fn($sq) => $sq->where('section_id', $this->sectionId)))
+                        ->orderBy('expiry_date', 'asc')
+                        ->paginate(20);
+                    break;
             }
+        }
+
+        // Compute summary totals for applicable report types
+        $summaryTotals = [];
+        if ($this->reportType === 'daily_collection' && $reportData) {
+            $allTransactions = Transaction::whereBetween('datetime_added', [$this->startDate, $this->endDate . ' 23:59:59'])->get();
+            $totalAmount = DB::table('transaction_detail')
+                ->join('transaction', 'transaction_detail.transaction_id', '=', 'transaction.transaction_id')
+                ->join('test', 'transaction_detail.test_id', '=', 'test.test_id')
+                ->whereBetween('transaction.datetime_added', [$this->startDate, $this->endDate . ' 23:59:59'])
+                ->sum('test.current_price');
+            $summaryTotals = [
+                'total_transactions' => $allTransactions->count(),
+                'total_amount' => $totalAmount,
+            ];
+        } elseif ($this->reportType === 'revenue_by_test' && $reportData) {
+            $revSummary = DB::table('transaction_detail')
+                ->join('transaction', 'transaction_detail.transaction_id', '=', 'transaction.transaction_id')
+                ->join('test', 'transaction_detail.test_id', '=', 'test.test_id')
+                ->whereBetween('transaction.datetime_added', [$this->startDate, $this->endDate . ' 23:59:59'])
+                ->when($this->sectionId, fn($q) => $q->where('test.section_id', $this->sectionId))
+                ->selectRaw('COUNT(*) as total_orders, SUM(test.current_price) as grand_revenue')
+                ->first();
+            $summaryTotals = [
+                'total_orders' => $revSummary->total_orders ?? 0,
+                'grand_revenue' => $revSummary->grand_revenue ?? 0,
+            ];
+        } elseif ($this->reportType === 'test_volume' && $reportData) {
+            $volSummary = LabResult::whereBetween('result_date', [$this->startDate, $this->endDate])
+                ->when($this->sectionId, fn($q) => $q->whereHas('test', fn($sq) => $sq->where('section_id', $this->sectionId)))
+                ->selectRaw("COUNT(*) as total, SUM(CASE WHEN status = 'final' THEN 1 ELSE 0 END) as final_total, SUM(CASE WHEN status = 'draft' THEN 1 ELSE 0 END) as draft_total")
+                ->first();
+            $summaryTotals = [
+                'total' => $volSummary->total ?? 0,
+                'final_total' => $volSummary->final_total ?? 0,
+                'draft_total' => $volSummary->draft_total ?? 0,
+            ];
+        } elseif ($this->reportType === 'issued_certificates' && $reportData) {
+            $certSummary = Certificate::whereBetween('issue_date', [$this->startDate, $this->endDate])
+                ->selectRaw("COUNT(*) as total, SUM(CASE WHEN status = 'issued' THEN 1 ELSE 0 END) as issued, SUM(CASE WHEN status = 'draft' THEN 1 ELSE 0 END) as draft, SUM(CASE WHEN status = 'revoked' THEN 1 ELSE 0 END) as revoked")
+                ->first();
+            $summaryTotals = [
+                'total' => $certSummary->total ?? 0,
+                'issued' => $certSummary->issued ?? 0,
+                'draft' => $certSummary->draft ?? 0,
+                'revoked' => $certSummary->revoked ?? 0,
+            ];
         }
 
         return [
             'reportData' => $reportData,
             'sections' => Section::active()->orderBy('label')->get(),
+            'employees' => Employee::active()->orderBy('firstname')->get(),
+            'summaryTotals' => $summaryTotals,
         ];
     }
 };
@@ -248,11 +418,25 @@ new class extends Component
                     <select wire:model.live="reportType" 
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                         <option value="">Select Report Type</option>
-                        <option value="equipment_maintenance">Equipment Maintenance</option>
-                        <option value="calibration_records">Calibration Records</option>
-                        <option value="inventory_movement">Inventory Movement</option>
-                        <option value="low_stock_alert">Low Stock Alert</option>
-                        <option value="laboratory_results">Laboratory Results</option>
+                        <optgroup label="Equipment & Lab">
+                            <option value="equipment_maintenance">Equipment Maintenance</option>
+                            <option value="calibration_records">Calibration Records</option>
+                            <option value="laboratory_results">Laboratory Results</option>
+                        </optgroup>
+                        <optgroup label="Inventory">
+                            <option value="inventory_movement">Inventory Movement</option>
+                            <option value="low_stock_alert">Low Stock Alert</option>
+                            <option value="expiring_inventory">Expiring Inventory</option>
+                        </optgroup>
+                        <optgroup label="Financial">
+                            <option value="daily_collection">Daily Collection</option>
+                            <option value="revenue_by_test">Revenue by Test</option>
+                        </optgroup>
+                        <optgroup label="Analytics">
+                            <option value="test_volume">Test Volume</option>
+                            <option value="issued_certificates">Issued Certificates</option>
+                            <option value="activity_log">Activity Log</option>
+                        </optgroup>
                     </select>
                 </div>
                 <div>
@@ -281,6 +465,20 @@ new class extends Component
                         @endforeach
                     </select>
                 </div>
+                @if($reportType === 'activity_log')
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        Employee (Optional)
+                    </label>
+                    <select wire:model.live="employeeId" 
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <option value="">All Employees</option>
+                        @foreach($employees as $emp)
+                            <option value="{{ $emp->employee_id }}">{{ $emp->full_name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                @endif
             </div>
             <div class="flex gap-3 mt-6">
                 <button wire:click="generateReport" 
@@ -307,6 +505,14 @@ new class extends Component
                     </svg>
                     Download PDF
                 </button>
+                <button wire:click="exportCsv" 
+                        class="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors flex items-center"
+                        {{ !$reportType ? 'disabled' : '' }}>
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    Export CSV
+                </button>
             </div>
         </div>
     </div>
@@ -331,6 +537,24 @@ new class extends Component
                             @break
                         @case('laboratory_results')
                             Laboratory Results Report
+                            @break
+                        @case('daily_collection')
+                            Daily Collection Report
+                            @break
+                        @case('revenue_by_test')
+                            Revenue by Test Report
+                            @break
+                        @case('test_volume')
+                            Test Volume Report
+                            @break
+                        @case('issued_certificates')
+                            Issued Certificates Report
+                            @break
+                        @case('activity_log')
+                            Activity Log Report
+                            @break
+                        @case('expiring_inventory')
+                            Expiring Inventory Report
                             @break
                     @endswitch
                 </h2>
@@ -524,6 +748,264 @@ new class extends Component
                                     </tr>
                                 @empty
                                     <tr><td colspan="6" class="text-center py-8 text-gray-500">No lab results found</td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                        @break
+
+                    @case('daily_collection')
+                        @if(!empty($summaryTotals))
+                        <div class="px-6 py-3 bg-blue-50 border-b border-blue-200 flex gap-8">
+                            <div>
+                                <span class="text-xs text-blue-600 uppercase font-bold">Total Transactions</span>
+                                <p class="text-lg font-bold text-blue-900">{{ number_format($summaryTotals['total_transactions'] ?? 0) }}</p>
+                            </div>
+                            <div>
+                                <span class="text-xs text-blue-600 uppercase font-bold">Total Amount</span>
+                                <p class="text-lg font-bold text-blue-900">₱{{ number_format($summaryTotals['total_amount'] ?? 0, 2) }}</p>
+                            </div>
+                        </div>
+                        @endif
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Date & Time</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">OR Number</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Patient</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Designation</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                @forelse($reportData as $txn)
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                                            {{ $txn->datetime_added ? \Carbon\Carbon::parse($txn->datetime_added)->format('M d, Y h:i A') : 'N/A' }}
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $txn->or_number ?? 'N/A' }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $txn->patient->full_name ?? 'N/A' }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $txn->client_designation ?? 'N/A' }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <span class="px-3 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
+                                                {{ ucfirst($txn->status_code ?? 'completed') }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr><td colspan="5" class="text-center py-8 text-gray-500">No transactions found</td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                        @break
+
+                    @case('revenue_by_test')
+                        @if(!empty($summaryTotals))
+                        <div class="px-6 py-3 bg-green-50 border-b border-green-200 flex gap-8">
+                            <div>
+                                <span class="text-xs text-green-600 uppercase font-bold">Total Orders</span>
+                                <p class="text-lg font-bold text-green-900">{{ number_format($summaryTotals['total_orders'] ?? 0) }}</p>
+                            </div>
+                            <div>
+                                <span class="text-xs text-green-600 uppercase font-bold">Grand Revenue</span>
+                                <p class="text-lg font-bold text-green-900">₱{{ number_format($summaryTotals['grand_revenue'] ?? 0, 2) }}</p>
+                            </div>
+                        </div>
+                        @endif
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Test Name</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Section</th>
+                                    <th class="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Unit Price</th>
+                                    <th class="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Total Orders</th>
+                                    <th class="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Total Revenue</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                @forelse($reportData as $row)
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $row->test_name }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $row->section_name ?? 'N/A' }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 text-right">₱{{ number_format($row->current_price, 2) }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 text-right">{{ number_format($row->total_orders) }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-green-700 text-right">₱{{ number_format($row->total_revenue, 2) }}</td>
+                                    </tr>
+                                @empty
+                                    <tr><td colspan="5" class="text-center py-8 text-gray-500">No revenue data found</td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                        @break
+
+                    @case('test_volume')
+                        @if(!empty($summaryTotals))
+                        <div class="px-6 py-3 bg-purple-50 border-b border-purple-200 flex gap-8">
+                            <div>
+                                <span class="text-xs text-purple-600 uppercase font-bold">Total Tests</span>
+                                <p class="text-lg font-bold text-purple-900">{{ number_format($summaryTotals['total'] ?? 0) }}</p>
+                            </div>
+                            <div>
+                                <span class="text-xs text-purple-600 uppercase font-bold">Finalized</span>
+                                <p class="text-lg font-bold text-green-700">{{ number_format($summaryTotals['final_total'] ?? 0) }}</p>
+                            </div>
+                            <div>
+                                <span class="text-xs text-purple-600 uppercase font-bold">Draft</span>
+                                <p class="text-lg font-bold text-yellow-700">{{ number_format($summaryTotals['draft_total'] ?? 0) }}</p>
+                            </div>
+                        </div>
+                        @endif
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Test Name</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Section</th>
+                                    <th class="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Total</th>
+                                    <th class="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Final</th>
+                                    <th class="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Draft</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                @forelse($reportData as $vol)
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $vol->test->label ?? 'N/A' }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $vol->test->section->label ?? 'N/A' }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 text-right">{{ number_format($vol->total_count) }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-green-700 text-right">{{ number_format($vol->final_count) }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-yellow-700 text-right">{{ number_format($vol->draft_count) }}</td>
+                                    </tr>
+                                @empty
+                                    <tr><td colspan="5" class="text-center py-8 text-gray-500">No test volume data found</td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                        @break
+
+                    @case('issued_certificates')
+                        @if(!empty($summaryTotals))
+                        <div class="px-6 py-3 bg-indigo-50 border-b border-indigo-200 flex gap-8">
+                            <div>
+                                <span class="text-xs text-indigo-600 uppercase font-bold">Total</span>
+                                <p class="text-lg font-bold text-indigo-900">{{ number_format($summaryTotals['total'] ?? 0) }}</p>
+                            </div>
+                            <div>
+                                <span class="text-xs text-indigo-600 uppercase font-bold">Issued</span>
+                                <p class="text-lg font-bold text-green-700">{{ number_format($summaryTotals['issued'] ?? 0) }}</p>
+                            </div>
+                            <div>
+                                <span class="text-xs text-indigo-600 uppercase font-bold">Draft</span>
+                                <p class="text-lg font-bold text-yellow-700">{{ number_format($summaryTotals['draft'] ?? 0) }}</p>
+                            </div>
+                            <div>
+                                <span class="text-xs text-indigo-600 uppercase font-bold">Revoked</span>
+                                <p class="text-lg font-bold text-red-700">{{ number_format($summaryTotals['revoked'] ?? 0) }}</p>
+                            </div>
+                        </div>
+                        @endif
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Certificate No.</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Type</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Patient</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Issued By</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Issue Date</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                @forelse($reportData as $cert)
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $cert->certificate_number ?? 'N/A' }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ ucfirst($cert->certificate_type ?? 'N/A') }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $cert->patient->full_name ?? 'N/A' }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $cert->issuedBy->full_name ?? 'N/A' }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                                            {{ $cert->issue_date ? \Carbon\Carbon::parse($cert->issue_date)->format('M d, Y') : 'N/A' }}
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <span class="px-3 py-1 text-xs font-medium rounded-full 
+                                                @if($cert->status === 'issued') bg-green-100 text-green-800
+                                                @elseif($cert->status === 'draft') bg-yellow-100 text-yellow-800
+                                                @else bg-red-100 text-red-800
+                                                @endif">
+                                                {{ ucfirst($cert->status ?? 'draft') }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr><td colspan="6" class="text-center py-8 text-gray-500">No certificates found</td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                        @break
+
+                    @case('activity_log')
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Date & Time</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Employee</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Description</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                @forelse($reportData as $log)
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                                            {{ $log->datetime_added ? \Carbon\Carbon::parse($log->datetime_added)->format('M d, Y h:i A') : 'N/A' }}
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $log->employee->full_name ?? 'N/A' }}</td>
+                                        <td class="px-6 py-4 text-sm text-gray-600">{{ $log->description ?? 'N/A' }}</td>
+                                    </tr>
+                                @empty
+                                    <tr><td colspan="3" class="text-center py-8 text-gray-500">No activity logs found</td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                        @break
+
+                    @case('expiring_inventory')
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Item Name</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Section</th>
+                                    <th class="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Quantity</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Expiry Date</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Days Left</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Urgency</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                @forelse($reportData as $stock)
+                                    @php
+                                        $daysLeft = \Carbon\Carbon::now()->diffInDays(\Carbon\Carbon::parse($stock->expiry_date), false);
+                                    @endphp
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $stock->item->label ?? 'N/A' }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $stock->item->section->label ?? 'N/A' }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 text-right">{{ $stock->quantity ?? 0 }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                                            {{ $stock->expiry_date ? \Carbon\Carbon::parse($stock->expiry_date)->format('M d, Y') : 'N/A' }}
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold {{ $daysLeft <= 30 ? 'text-red-600' : ($daysLeft <= 60 ? 'text-yellow-600' : 'text-gray-600') }}">
+                                            {{ $daysLeft }} days
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <span class="px-3 py-1 text-xs font-medium rounded-full 
+                                                @if($daysLeft <= 30) bg-red-100 text-red-800
+                                                @elseif($daysLeft <= 60) bg-yellow-100 text-yellow-800
+                                                @else bg-green-100 text-green-800
+                                                @endif">
+                                                @if($daysLeft <= 30) Critical
+                                                @elseif($daysLeft <= 60) Warning
+                                                @else OK
+                                                @endif
+                                            </span>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr><td colspan="6" class="text-center py-8 text-gray-500">No expiring inventory found</td></tr>
                                 @endforelse
                             </tbody>
                         </table>

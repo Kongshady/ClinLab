@@ -30,6 +30,13 @@ Route::get('/dashboard', [DashboardController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('dashboard');
 
+// Explicit redirect-after-login route (usable as a redirect target)
+Route::get('/redirect-after-login', function () {
+    return app(\App\Http\Middleware\RedirectByRole::class)->handle(
+        request(), fn ($r) => redirect('/dashboard')
+    );
+})->middleware('auth')->name('redirect.after.login');
+
 // Role-specific dashboards
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard/manager', [DashboardController::class, 'manager'])

@@ -21,6 +21,9 @@ use App\Models\StockIn;
 use App\Models\StockOut;
 use App\Models\Item;
 use App\Models\LabResult;
+use App\Models\Transaction;
+use App\Models\Certificate;
+use App\Models\ActivityLog;
 
 class ReportExport implements FromCollection, WithHeadings, WithStyles, WithTitle, ShouldAutoSize
 {
@@ -45,6 +48,12 @@ class ReportExport implements FromCollection, WithHeadings, WithStyles, WithTitl
             'inventory_movement' => 'Inventory Movement',
             'low_stock_alert' => 'Low Stock Alert',
             'laboratory_results' => 'Laboratory Results',
+            'daily_collection' => 'Daily Collection',
+            'revenue_by_test' => 'Revenue By Test',
+            'test_volume' => 'Test Volume',
+            'issued_certificates' => 'Issued Certificates',
+            'activity_log' => 'Activity Log',
+            'expiring_inventory' => 'Expiring Inventory',
             default => 'Report',
         };
     }
@@ -57,6 +66,12 @@ class ReportExport implements FromCollection, WithHeadings, WithStyles, WithTitl
             'inventory_movement' => ['Date', 'Item', 'Type', 'Quantity', 'Supplier / Reference', 'Remarks'],
             'low_stock_alert' => ['Item Name', 'Current Stock', 'Reorder Level', 'Unit', 'Section', 'Status'],
             'laboratory_results' => ['Date', 'Patient', 'Test', 'Result Value', 'Normal Range', 'Status'],
+            'daily_collection' => ['Date & Time', 'OR Number', 'Patient', 'Designation', 'Status'],
+            'revenue_by_test' => ['Test Name', 'Section', 'Unit Price', 'Total Orders', 'Total Revenue'],
+            'test_volume' => ['Test Name', 'Section', 'Total', 'Final', 'Draft'],
+            'issued_certificates' => ['Certificate No.', 'Type', 'Patient', 'Issued By', 'Issue Date', 'Status'],
+            'activity_log' => ['Date & Time', 'Employee', 'Description'],
+            'expiring_inventory' => ['Item Name', 'Section', 'Quantity', 'Expiry Date', 'Days Left', 'Urgency'],
             default => [],
         };
     }
@@ -69,6 +84,12 @@ class ReportExport implements FromCollection, WithHeadings, WithStyles, WithTitl
             'inventory_movement' => $this->inventoryData(),
             'low_stock_alert' => $this->lowStockData(),
             'laboratory_results' => $this->labResultsData(),
+            'daily_collection' => $this->dailyCollectionData(),
+            'revenue_by_test' => $this->revenueByTestData(),
+            'test_volume' => $this->testVolumeData(),
+            'issued_certificates' => $this->issuedCertificatesData(),
+            'activity_log' => $this->activityLogData(),
+            'expiring_inventory' => $this->expiringInventoryData(),
             default => collect(),
         };
     }
@@ -176,6 +197,118 @@ class ReportExport implements FromCollection, WithHeadings, WithStyles, WithTitl
                 $r->result_value ?? 'N/A',
                 $r->normal_range ?? 'N/A',
                 ucfirst($r->status ?? 'draft'),
+            ]);
+    }
+
+    protected function dailyCollectionData(): Collection
+    {
+        return Transaction::with(['patient'])
+            ->whereBetween('datetime_added', [$this->startDate, $this->endDate . ' 23:59:59'])
+            ->orderBy('datetime_added', 'desc')
+            ->get()
+            ->map(fn($t) => [
+                $t->datetime_added ? Carbon::parse($t->datetime_added)->format('M d, Y h:i A') : 'N/A',
+                $t->or_number ?? 'N/A',
+                $t->patient->full_name ?? 'N/A',
+                $t->client_designation ?? 'N/A',
+                ucfirst($t->status_code ?? 'completed'),
+            ]);
+    }
+
+    protected function revenueByTestData(): Collection
+    {
+        return collect(DB::table('transaction_detail')
+            ->join('transaction', 'transaction_detail.transaction_id', '=', 'transaction.transaction_id')
+            ->join('test', 'transaction_detail.test_id', '=', 'test.test_id')
+            ->leftJoin('section', 'test.section_id', '=', 'section.section_id')
+            ->whereBetween('transaction.datetime_added', [$this->startDate, $this->endDate . ' 23:59:59'])
+            ->when($this->sectionId, fn($q) => $q->where('test.section_id', $this->sectionId))
+            ->select(
+                'test.label as test_name', 'section.label as section_name',
+                'test.current_price',
+                DB::raw('COUNT(*) as total_orders'),
+                DB::raw('SUM(test.current_price) as total_revenue')
+            )
+            ->groupBy('test.test_id', 'test.label', 'section.label', 'test.current_price')
+            ->orderByDesc('total_revenue')
+            ->get())
+            ->map(fn($r) => [
+                $r->test_name,
+                $r->section_name ?? 'N/A',
+                number_format($r->current_price, 2),
+                $r->total_orders,
+                number_format($r->total_revenue, 2),
+            ]);
+    }
+
+    protected function testVolumeData(): Collection
+    {
+        return LabResult::with(['test', 'test.section'])
+            ->whereBetween('result_date', [$this->startDate, $this->endDate])
+            ->when($this->sectionId, fn($q) => $q->whereHas('test', fn($sq) => $sq->where('section_id', $this->sectionId)))
+            ->select(
+                'test_id',
+                DB::raw('COUNT(*) as total_count'),
+                DB::raw("SUM(CASE WHEN status = 'final' THEN 1 ELSE 0 END) as final_count"),
+                DB::raw("SUM(CASE WHEN status = 'draft' THEN 1 ELSE 0 END) as draft_count")
+            )
+            ->groupBy('test_id')
+            ->orderByDesc('total_count')
+            ->get()
+            ->map(fn($v) => [
+                $v->test->label ?? 'N/A',
+                $v->test->section->label ?? 'N/A',
+                $v->total_count,
+                $v->final_count,
+                $v->draft_count,
+            ]);
+    }
+
+    protected function issuedCertificatesData(): Collection
+    {
+        return Certificate::with(['patient', 'issuedBy'])
+            ->whereBetween('issue_date', [$this->startDate, $this->endDate])
+            ->orderBy('issue_date', 'desc')
+            ->get()
+            ->map(fn($c) => [
+                $c->certificate_number ?? 'N/A',
+                ucfirst($c->certificate_type ?? 'N/A'),
+                $c->patient->full_name ?? 'N/A',
+                $c->issuedBy->full_name ?? 'N/A',
+                $c->issue_date ? Carbon::parse($c->issue_date)->format('M d, Y') : 'N/A',
+                ucfirst($c->status ?? 'draft'),
+            ]);
+    }
+
+    protected function activityLogData(): Collection
+    {
+        return ActivityLog::with(['employee'])
+            ->whereBetween('datetime_added', [$this->startDate, $this->endDate . ' 23:59:59'])
+            ->orderBy('datetime_added', 'desc')
+            ->get()
+            ->map(fn($l) => [
+                $l->datetime_added ? Carbon::parse($l->datetime_added)->format('M d, Y h:i A') : 'N/A',
+                $l->employee->full_name ?? 'N/A',
+                $l->description ?? 'N/A',
+            ]);
+    }
+
+    protected function expiringInventoryData(): Collection
+    {
+        return StockIn::with(['item', 'item.section'])
+            ->whereNotNull('expiry_date')
+            ->where('expiry_date', '<=', Carbon::now()->addDays(90)->toDateString())
+            ->where('expiry_date', '>=', Carbon::now()->toDateString())
+            ->when($this->sectionId, fn($q) => $q->whereHas('item', fn($sq) => $sq->where('section_id', $this->sectionId)))
+            ->orderBy('expiry_date', 'asc')
+            ->get()
+            ->map(fn($s) => [
+                $s->item->label ?? 'N/A',
+                $s->item->section->label ?? 'N/A',
+                $s->quantity ?? 0,
+                $s->expiry_date ? Carbon::parse($s->expiry_date)->format('M d, Y') : 'N/A',
+                Carbon::now()->diffInDays(Carbon::parse($s->expiry_date), false) . ' days',
+                Carbon::now()->diffInDays(Carbon::parse($s->expiry_date), false) <= 30 ? 'Critical' : (Carbon::now()->diffInDays(Carbon::parse($s->expiry_date), false) <= 60 ? 'Warning' : 'OK'),
             ]);
     }
 
