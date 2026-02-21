@@ -552,8 +552,8 @@ new class extends Component
 
     <!-- Edit Item Modal -->
     @if($showEditModal)
-    <div class="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4" style="background-color: rgba(15,23,42,0.75); backdrop-filter: blur(4px);">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col" wire:click.stop>
+    <div class="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" wire:click.self="closeEditModal">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
             {{-- Header --}}
             <div class="flex items-center justify-between px-7 py-5 rounded-t-2xl" style="background: #d2334c;">
                 <div class="flex items-center gap-3">
@@ -660,8 +660,8 @@ new class extends Component
 
     <!-- Delete Confirmation Modal -->
     @if($showDeleteModal)
-    <div class="fixed inset-0 z-[60] overflow-y-auto flex items-center justify-center p-4" style="background-color: rgba(15,23,42,0.75); backdrop-filter: blur(4px);">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md" wire:click.stop>
+    <div class="fixed inset-0 bg-black/40 flex items-center justify-center z-[60] p-4" wire:click.self="closeDeleteModal">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
             <div class="p-8 text-center">
                 <div class="mx-auto mb-4 w-14 h-14 rounded-full bg-red-100 flex items-center justify-center">
                     <svg class="w-7 h-7 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">

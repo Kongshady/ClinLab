@@ -621,8 +621,8 @@ new class extends Component
 
     <!-- Record Calibration Modal -->
     @if($showModal)
-        <div class="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4" style="background-color: rgba(15,23,42,0.75); backdrop-filter: blur(4px);">
-            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col" wire:click.stop>
+        <div class="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4 bg-black/40" wire:click.self="closeModal">
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
 
                 {{-- Modal Header — Crimson --}}
                 <div class="flex items-center justify-between px-7 py-5 rounded-t-2xl" style="background: #d2334c;">
@@ -776,8 +776,8 @@ new class extends Component
 
     <!-- Add New Procedure Modal -->
     @if($showProcedureModal)
-        <div class="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4" style="background-color: rgba(0,0,0,0.5);">
-            <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col" wire:click.stop>
+        <div class="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4 bg-black/40" wire:click.self="closeProcedureModal">
+            <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
 
                 {{-- Modal Header --}}
                 <div class="px-6 py-4 border-b border-gray-200">
@@ -871,8 +871,8 @@ new class extends Component
 
     <!-- View Details Modal -->
     @if($showDetailsModal && $selectedProcedureDetails)
-        <div class="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4" style="background-color: rgba(15,23,42,0.75); backdrop-filter: blur(4px);">
-            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col" wire:click.stop>
+        <div class="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4 bg-black/40" wire:click.self="closeDetailsModal">
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
 
                 {{-- Modal Header — Indigo --}}
                 <div class="flex items-center justify-between px-7 py-5 rounded-t-2xl" style="background: #4f46e5;">

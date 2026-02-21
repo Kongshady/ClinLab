@@ -340,8 +340,8 @@ new class extends Component
 
     <!-- Edit Section Modal -->
     @if($editingSectionId)
-    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
+    <div class="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" wire:click.self="closeEditModal">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden">
             <div class="flex items-center justify-between p-6 border-b">
                 <h3 class="text-lg font-semibold text-gray-900">Edit Section</h3>
                 <button wire:click="closeEditModal" class="text-gray-400 hover:text-gray-600">
@@ -381,35 +381,26 @@ new class extends Component
 
     {{-- Delete Confirmation Modal --}}
     @if($showDeleteModal)
-    <div class="fixed inset-0 z-50 overflow-y-auto" style="background-color: rgba(0, 0, 0, 0.5);">
-        <div class="flex items-center justify-center min-h-screen p-4">
-            <div class="bg-white rounded-lg shadow-xl max-w-md w-full">
-                <!-- Modal Header -->
-                <div class="px-6 py-4 border-b border-gray-200">
-                    <div class="flex items-center">
-                        <svg class="w-6 h-6 text-red-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"/>
-                        </svg>
-                        <h3 class="text-lg font-semibold text-gray-900">Delete Section</h3>
-                    </div>
+    <div class="fixed inset-0 z-[60] overflow-y-auto flex items-center justify-center p-4 bg-black/40" wire:click.self="closeDeleteModal">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
+            <div class="p-6 text-center">
+                <div class="mx-auto flex items-center justify-center h-14 w-14 rounded-full bg-red-100 mb-4">
+                    <svg class="h-7 w-7 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                    </svg>
                 </div>
-
-                <!-- Modal Body -->
-                <div class="p-6">
-                    <p class="text-sm text-gray-700">{{ $deleteMessage }}</p>
-                </div>
-
-                <!-- Modal Footer -->
-                <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end space-x-3 rounded-b-lg">
-                    <button wire:click="closeDeleteModal"
-                            class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium rounded-lg transition-colors">
-                        Cancel
-                    </button>
-                    <button wire:click="{{ $deleteAction }}"
-                            class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white font-medium rounded-lg transition-colors">
-                        Delete
-                    </button>
-                </div>
+                <h3 class="text-lg font-bold text-gray-900 mb-2">Delete Section</h3>
+                <p class="text-sm text-gray-500">{{ $deleteMessage }}</p>
+            </div>
+            <div class="px-6 py-4 bg-gray-50 flex justify-center gap-3">
+                <button wire:click="closeDeleteModal"
+                        class="px-5 py-2.5 border border-gray-200 hover:bg-gray-100 text-gray-600 text-sm font-semibold rounded-xl transition-colors">
+                    Cancel
+                </button>
+                <button wire:click="{{ $deleteAction }}"
+                        class="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-xl transition-colors">
+                    Delete
+                </button>
             </div>
         </div>
     </div>

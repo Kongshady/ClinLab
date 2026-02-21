@@ -1153,47 +1153,19 @@ new class extends Component
 
     {{-- Delete Confirmation Modal --}}
     @if($showDeleteModal)
-    <div class="fixed inset-0 z-50 overflow-y-auto" style="background-color: rgba(0, 0, 0, 0.5);">
-        <div class="flex items-center justify-center min-h-screen p-4">
-            <div class="bg-white rounded-lg shadow-xl max-w-md w-full">
-                <!-- Modal Header -->
-                <div class="px-6 py-4 border-b border-gray-200">
-                    <div class="flex items-center justify-between">
-                        <h3 class="text-xl font-semibold text-gray-900">
-                            Confirm Deletion
-                        </h3>
-                        <button type="button" wire:click="closeDeleteModal" class="text-gray-400 hover:text-gray-600">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                            </svg>
-                        </button>
-                    </div>
+    <div class="fixed inset-0 bg-black/40 flex items-center justify-center z-[60] p-4" wire:click.self="closeDeleteModal">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div class="p-8 text-center">
+                <div class="mx-auto mb-4 w-14 h-14 rounded-full bg-red-100 flex items-center justify-center">
+                    <svg class="w-7 h-7 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+                    </svg>
                 </div>
-
-                <!-- Modal Body -->
-                <div class="p-6">
-                    <div class="flex items-start space-x-3">
-                        <div class="flex-shrink-0">
-                            <svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"/>
-                            </svg>
-                        </div>
-                        <div class="flex-1">
-                            <p class="text-sm text-gray-700">{{ $deleteMessage }}</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Modal Footer -->
-                <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end space-x-3 rounded-b-lg">
-                    <button type="button" wire:click="closeDeleteModal" 
-                            class="px-5 py-2.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
-                        Cancel
-                    </button>
-                    <button type="button" wire:click="{{ $deleteAction }}" 
-                            class="px-5 py-2.5 bg-red-600 text-white text-sm rounded-md font-medium hover:bg-red-700">
-                        Delete
-                    </button>
+                <h3 class="text-lg font-bold text-gray-900 mb-2">Delete Certificate</h3>
+                <p class="text-sm text-gray-600 mb-6">{{ $deleteMessage }}</p>
+                <div class="flex justify-center gap-3">
+                    <button type="button" wire:click="closeDeleteModal" class="px-5 py-2.5 border border-gray-200 hover:bg-gray-50 text-gray-600 text-sm font-semibold rounded-xl transition-colors">Cancel</button>
+                    <button type="button" wire:click="{{ $deleteAction }}" class="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-xl transition-colors">Confirm Delete</button>
                 </div>
             </div>
         </div>

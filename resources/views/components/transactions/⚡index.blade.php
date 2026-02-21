@@ -411,7 +411,7 @@ public function updatedSelectAll($value)
         <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
             <h2 class="text-lg font-semibold text-gray-900">Add New Transaction</h2>
             <button type="button" wire:click="toggleForm" 
-                    class="px-4 py-2 rounded-md text-sm font-medium transition-colors {{ $showForm ? 'bg-gray-200 text-gray-700 hover:bg-gray-300' : 'bg-purple-600 text-white hover:bg-purple-700' }}">
+                    class="px-4 py-2 rounded-md text-sm font-medium transition-colors {{ $showForm ? 'bg-gray-200 text-gray-700 hover:bg-gray-300' : 'bg-pink-600 text-white hover:bg-pink-700' }}">
                 {{ $showForm ? 'Close Form' : 'Add New Transaction' }}
             </button>
         </div>

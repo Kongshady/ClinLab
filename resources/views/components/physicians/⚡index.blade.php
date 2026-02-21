@@ -258,7 +258,7 @@ new class extends Component
 };
 ?>
 
-<div class="p-6 space-y-6" x-data="{ 
+<div class="p-6" x-data="{ 
     selectedIds: [],
     selectAll: false,
     showToast: false,
@@ -303,7 +303,7 @@ new class extends Component
     </div>
 
     <!-- Add New Physician Form -->
-    <div class="bg-white rounded-lg shadow-sm">
+    <div class="bg-white rounded-lg shadow-sm mb-6">
         <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
             <h2 class="text-lg font-semibold text-gray-900">Add New Physician</h2>
             <button wire:click="toggleForm" type="button" class="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-colors {{ $showForm ? 'bg-gray-100 text-gray-700 hover:bg-gray-200' : 'bg-pink-600 text-white hover:bg-pink-700' }}">
@@ -431,7 +431,7 @@ new class extends Component
     </div>
 
     <!-- Physicians List -->
-    <div class="bg-white rounded-lg shadow-sm">
+    <div class="bg-white rounded-lg shadow-sm mb-6">
         <div class="px-6 py-4 border-b border-gray-200">
             <div class="flex items-center justify-between">
                 <h2 class="text-lg font-semibold text-gray-900">Physicians Directory</h2>
