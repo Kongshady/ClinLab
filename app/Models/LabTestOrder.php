@@ -16,11 +16,17 @@ class LabTestOrder extends Model
         'test_id',
         'order_date',
         'status',
+        'payment_status',
+        'total_amount',
+        'paid_at',
+        'paid_by_transaction_id',
         'remarks',
     ];
 
     protected $casts = [
         'order_date' => 'datetime',
+        'paid_at' => 'datetime',
+        'total_amount' => 'decimal:2',
     ];
 
     public function getRouteKeyName()
@@ -46,6 +52,55 @@ class LabTestOrder extends Model
     public function labResults()
     {
         return $this->hasMany(LabResult::class, 'lab_test_order_id', 'lab_test_order_id');
+    }
+
+    /**
+     * The transaction that paid for this order.
+     */
+    public function transaction()
+    {
+        return $this->hasOne(Transaction::class, 'lab_test_order_id', 'lab_test_order_id');
+    }
+
+    /**
+     * Check if this order has been paid.
+     */
+    public function isPaid(): bool
+    {
+        return ($this->payment_status ?? 'PENDING_PAYMENT') === 'PAID';
+    }
+
+    /**
+     * Mark this order as paid by a transaction.
+     */
+    public function markAsPaid(int $transactionId): void
+    {
+        $this->update([
+            'payment_status' => 'PAID',
+            'paid_at' => now(),
+            'paid_by_transaction_id' => $transactionId,
+        ]);
+    }
+
+    /**
+     * Calculate total amount from ordered tests' current prices.
+     */
+    public function calculateTotalAmount(): float
+    {
+        return (float) $this->orderTests()
+            ->join('test', 'order_tests.test_id', '=', 'test.test_id')
+            ->sum('test.current_price');
+    }
+
+    /**
+     * Get the payment status badge for display.
+     */
+    public function getPaymentBadgeAttribute(): array
+    {
+        return match($this->payment_status ?? 'PENDING_PAYMENT') {
+            'PAID' => ['class' => 'bg-green-100 text-green-800', 'label' => 'Paid'],
+            default => ['class' => 'bg-orange-100 text-orange-800', 'label' => 'Awaiting Payment'],
+        };
     }
 
     /**

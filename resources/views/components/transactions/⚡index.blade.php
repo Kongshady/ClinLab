@@ -5,6 +5,8 @@ use Livewire\WithPagination;
 use Livewire\Attributes\Validate;
 use App\Models\Transaction;
 use App\Models\Patient;
+use App\Models\LabTestOrder;
+use App\Models\Employee;
 use App\Traits\LogsActivity;
 
 new class extends Component
@@ -16,6 +18,12 @@ new class extends Component
 
     #[Validate('required|string|max:50')]
     public $or_number = '';
+
+    // PAY-FIRST: New payment fields
+    public $selected_order_id = '';
+    public $payment_method = 'cash';
+    public $amount = '';
+    public $unpaidOrders = [];
 
     public $search = '';
     public $perPage = 'all';
@@ -43,10 +51,52 @@ new class extends Component
     public $viewingTransaction = null;
     public $editMode = false;
 
+    // Edit modal payment fields
+    public $editClientId = '';
+    public $editOrNumber = '';
+    public $editPaymentMethod = 'cash';
+    public $editAmount = '';
+    public $editSelectedOrderId = '';
+
     public function mount()
     {
         if (session()->has('success')) {
             $this->flashMessage = session('success');
+        }
+    }
+
+    /**
+     * PAY-FIRST: When patient changes, load their unpaid orders.
+     */
+    public function updatedClientId($value)
+    {
+        $this->selected_order_id = '';
+        $this->amount = '';
+        $this->unpaidOrders = [];
+
+        if ($value) {
+            $this->unpaidOrders = LabTestOrder::with('orderTests.test')
+                ->where('patient_id', $value)
+                ->where('payment_status', 'PENDING_PAYMENT')
+                ->where('status', '!=', 'cancelled')
+                ->orderBy('order_date', 'desc')
+                ->get()
+                ->toArray();
+        }
+    }
+
+    /**
+     * PAY-FIRST: When order is selected, auto-fill the amount.
+     */
+    public function updatedSelectedOrderId($value)
+    {
+        if ($value) {
+            $order = LabTestOrder::find($value);
+            if ($order) {
+                $this->amount = $order->total_amount ?? $order->calculateTotalAmount();
+            }
+        } else {
+            $this->amount = '';
         }
     }
 
@@ -166,38 +216,73 @@ public function updatedSelectAll($value)
     {
         $this->showForm = !$this->showForm;
         if (!$this->showForm) {
-            $this->reset(['client_id', 'or_number']);
+            $this->reset(['client_id', 'or_number', 'selected_order_id', 'payment_method', 'amount', 'unpaidOrders']);
             $this->resetErrorBag();
         }
     }
 
     public function save()
     {
-        $this->validate();
+        $rules = [
+            'client_id' => 'required|exists:patient,patient_id',
+            'or_number' => 'required|string|max:50',
+            'payment_method' => 'required|in:cash,gcash,bank_transfer,check,other',
+        ];
+
+        // If an order is selected, amount is required
+        if ($this->selected_order_id) {
+            $rules['amount'] = 'required|numeric|min:0';
+            $rules['selected_order_id'] = 'exists:lab_test_order,lab_test_order_id';
+        } else {
+            $rules['amount'] = 'nullable|numeric|min:0';
+        }
+
+        $this->validate($rules);
 
         if (Transaction::where('or_number', $this->or_number)->exists()) {
             $this->addError('or_number', 'A transaction with this OR number already exists.');
             return;
         }
 
-        Transaction::create([
+        // Get the current employee (processed_by)
+        $processedBy = auth()->user()?->employee?->employee_id;
+
+        $transaction = Transaction::create([
             'client_id' => $this->client_id,
             'or_number' => $this->or_number,
             'datetime_added' => now(),
             'status_code' => 1,
+            'lab_test_order_id' => $this->selected_order_id ?: null,
+            'amount' => $this->amount ?: null,
+            'payment_method' => $this->payment_method,
+            'processed_by' => $processedBy,
+            'paid_at' => now(),
         ]);
-        $this->logActivity("Created transaction OR#{$this->or_number}");
-        $this->flashMessage = 'Transaction added successfully!';
+
+        // PAY-FIRST: If a test order was selected, mark it as PAID
+        if ($this->selected_order_id) {
+            $order = LabTestOrder::find($this->selected_order_id);
+            if ($order) {
+                $order->markAsPaid($transaction->transaction_id);
+                $this->logActivity("Recorded payment for Lab Test Order #{$this->selected_order_id} — OR#{$this->or_number}, Amount: ₱" . number_format($this->amount, 2) . ", Method: {$this->payment_method}");
+            }
+        } else {
+            $this->logActivity("Created transaction OR#{$this->or_number}");
+        }
+
+        $this->flashMessage = $this->selected_order_id 
+            ? 'Payment recorded successfully! Lab results can now be encoded for this order.'
+            : 'Transaction added successfully!';
         $this->dispatch('transaction-saved');
 
-        $this->reset(['client_id', 'or_number']);
+        $this->reset(['client_id', 'or_number', 'selected_order_id', 'payment_method', 'amount', 'unpaidOrders']);
         $this->showForm = false;
         $this->resetPage();
     }
 
     public function showDetails($id)
     {
-        $this->viewingTransaction = Transaction::with('patient')->findOrFail($id);
+        $this->viewingTransaction = Transaction::with(['patient', 'labTestOrder.orderTests.test', 'processedByEmployee'])->findOrFail($id);
         $this->showViewModal = true;
         $this->editMode = false;
         $this->resetErrorBag();
@@ -271,7 +356,7 @@ public function updatedSelectAll($value)
 
     public function with(): array
     {
-        $query = Transaction::with('patient')
+        $query = Transaction::with(['patient', 'labTestOrder', 'processedByEmployee'])
             ->when($this->search, function ($query) {
                 $query->where('or_number', 'like', '%' . $this->search . '%')
                       ->orWhereHas('patient', function($q) {
@@ -283,7 +368,7 @@ public function updatedSelectAll($value)
 
         return [
             'transactions' => $this->perPage === 'all' ? $query->get() : $query->paginate((int)$this->perPage),
-            'patients' => Patient::active()->orderBy('lastname')->get()
+            'patients' => Patient::active()->orderBy('lastname')->get(),
         ];
     }
 };
@@ -394,10 +479,70 @@ public function updatedSelectAll($value)
                     @error('or_number') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
                 </div>
             </div>
+
+            {{-- PAY-FIRST: Unpaid Orders Selection --}}
+            @if(count($unpaidOrders) > 0)
+            <div class="mt-4 p-4 bg-orange-50 border border-orange-200 rounded-lg">
+                <label class="block text-sm font-semibold text-orange-800 mb-2">
+                    <svg class="w-4 h-4 inline mr-1 -mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    Link to Unpaid Test Order (Pay-First)
+                </label>
+                <select wire:model.live="selected_order_id"
+                        class="w-full px-3 py-2 border border-orange-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm bg-white">
+                    <option value="">-- No order (general transaction) --</option>
+                    @foreach($unpaidOrders as $uo)
+                        <option value="{{ $uo['lab_test_order_id'] }}">
+                            Order #{{ $uo['lab_test_order_id'] }} — {{ \Carbon\Carbon::parse($uo['order_date'])->format('M d, Y') }} — {{ count($uo['order_tests'] ?? []) }} test(s) — ₱{{ number_format($uo['total_amount'] ?? 0, 2) }}
+                        </option>
+                    @endforeach
+                </select>
+                @error('selected_order_id') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
+            </div>
+            @elseif($client_id)
+            <div class="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                <p class="text-sm text-green-700 flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    This patient has no unpaid test orders. You can still create a general transaction.
+                </p>
+            </div>
+            @endif
+
+            {{-- Payment Details --}}
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Payment Method *</label>
+                    <select wire:model="payment_method"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                        <option value="cash">Cash</option>
+                        <option value="gcash">GCash</option>
+                        <option value="bank_transfer">Bank Transfer</option>
+                        <option value="check">Check</option>
+                        <option value="other">Other</option>
+                    </select>
+                    @error('payment_method') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Amount{{ $selected_order_id ? ' *' : '' }}</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500 text-sm">₱</span>
+                        <input type="number" step="0.01" wire:model="amount" placeholder="0.00"
+                               class="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                    </div>
+                    @error('amount') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
+                </div>
+            </div>
+
             <div class="flex justify-end mt-4">
                 <button type="submit" 
-                        class="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors">
-                    Add Transaction
+                        class="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    {{ $selected_order_id ? 'Record Payment' : 'Add Transaction' }}
                 </button>
             </div>
         </form>
@@ -452,7 +597,10 @@ public function updatedSelectAll($value)
                         </th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">OR Number</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date Added</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order #</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Method</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
@@ -468,13 +616,36 @@ public function updatedSelectAll($value)
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                                 {{ $transaction->patient->full_name ?? 'N/A' }}
                             </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                @if($transaction->lab_test_order_id)
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                                        #{{ $transaction->lab_test_order_id }}
+                                    </span>
+                                @else
+                                    <span class="text-gray-400">—</span>
+                                @endif
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                @if($transaction->amount)
+                                    ₱{{ number_format($transaction->amount, 2) }}
+                                @else
+                                    <span class="text-gray-400">—</span>
+                                @endif
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                                @if($transaction->payment_method)
+                                    <span class="capitalize">{{ str_replace('_', ' ', $transaction->payment_method) }}</span>
+                                @else
+                                    <span class="text-gray-400">—</span>
+                                @endif
+                            </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                                 {{ $transaction->datetime_added ? \Carbon\Carbon::parse($transaction->datetime_added)->format('M d, Y') : 'N/A' }}
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="4" class="px-6 py-4 text-center text-gray-500">No transactions found.</td>
+                            <td colspan="7" class="px-6 py-4 text-center text-gray-500">No transactions found.</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -603,11 +774,57 @@ public function updatedSelectAll($value)
                             <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Patient</p>
                             <p class="text-sm font-medium text-gray-900">{{ $viewingTransaction->patient->full_name ?? 'N/A' }}</p>
                         </div>
-                        <div class="bg-gray-50 p-4 rounded-lg">
-                            <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Date Added</p>
-                            <p class="text-sm font-medium text-gray-900">
-                                {{ $viewingTransaction->datetime_added ? \Carbon\Carbon::parse($viewingTransaction->datetime_added)->format('M d, Y h:i A') : 'N/A' }}
+                        @if($viewingTransaction->lab_test_order_id)
+                        <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                            <p class="text-xs font-semibold text-blue-600 uppercase mb-1">Linked Test Order</p>
+                            <p class="text-sm font-medium text-blue-900">
+                                Order #{{ $viewingTransaction->lab_test_order_id }}
+                                @if($viewingTransaction->labTestOrder)
+                                    — {{ $viewingTransaction->labTestOrder->orderTests->count() }} test(s)
+                                @endif
                             </p>
+                            @if($viewingTransaction->labTestOrder)
+                                <div class="mt-2 space-y-1">
+                                    @foreach($viewingTransaction->labTestOrder->orderTests as $ot)
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 mr-1">
+                                            {{ $ot->test->label ?? 'Unknown' }}
+                                        </span>
+                                    @endforeach
+                                </div>
+                            @endif
+                        </div>
+                        @endif
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Amount</p>
+                                <p class="text-sm font-medium text-gray-900">
+                                    @if($viewingTransaction->amount)
+                                        ₱{{ number_format($viewingTransaction->amount, 2) }}
+                                    @else
+                                        —
+                                    @endif
+                                </p>
+                            </div>
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Payment Method</p>
+                                <p class="text-sm font-medium text-gray-900 capitalize">
+                                    {{ $viewingTransaction->payment_method ? str_replace('_', ' ', $viewingTransaction->payment_method) : '—' }}
+                                </p>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Date Added</p>
+                                <p class="text-sm font-medium text-gray-900">
+                                    {{ $viewingTransaction->datetime_added ? \Carbon\Carbon::parse($viewingTransaction->datetime_added)->format('M d, Y h:i A') : 'N/A' }}
+                                </p>
+                            </div>
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Processed By</p>
+                                <p class="text-sm font-medium text-gray-900">
+                                    {{ $viewingTransaction->processedByEmployee ? $viewingTransaction->processedByEmployee->full_name : '—' }}
+                                </p>
+                            </div>
                         </div>
                     </div>
                 </div>

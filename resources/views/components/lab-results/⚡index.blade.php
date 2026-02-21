@@ -12,6 +12,7 @@ use App\Models\Physician;
 use App\Models\Employee;
 use App\Models\TestRequest;
 use App\Models\TestRequestItem;
+use App\Models\Transaction;
 use Carbon\Carbon;
 use App\Traits\LogsActivity;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -130,11 +131,18 @@ new class extends Component
             'selectedTests.min' => 'Please select at least one test.',
         ]);
 
+        // Calculate total amount from selected test prices
+        $totalAmount = Test::active()
+            ->whereIn('test_id', $this->selectedTests)
+            ->sum('current_price');
+
         $order = LabTestOrder::create([
             'patient_id' => $this->orderPatientId,
             'physician_id' => $this->orderPhysicianId ?: null,
             'order_date' => now(),
             'status' => 'pending',
+            'payment_status' => 'PENDING_PAYMENT',
+            'total_amount' => $totalAmount,
             'remarks' => $this->orderRemarks,
         ]);
 
@@ -147,8 +155,8 @@ new class extends Component
             ]);
         }
 
-        $this->logActivity("Created lab test order for patient ID {$this->orderPatientId}");
-        $this->flashMessage = 'Test order created successfully!';
+        $this->logActivity("Created lab test order for patient ID {$this->orderPatientId} (Total: ₱" . number_format($totalAmount, 2) . ", Payment: PENDING)");
+        $this->flashMessage = 'Test order created successfully! Payment is required before results can be encoded.';
         $this->closeCreateModal();
         $this->resetPage();
     }
@@ -246,6 +254,12 @@ new class extends Component
 
         $orderTest = OrderTest::with('order')->findOrFail($this->resultOrderTestId);
 
+        // PAY-FIRST: Block result entry if order is not paid
+        if ($orderTest->order && !$orderTest->order->isPaid()) {
+            $this->addError('resultValue', 'Cannot add results — this order has not been paid yet.');
+            return;
+        }
+
         LabResult::create([
             'order_test_id' => $orderTest->order_test_id,
             'lab_test_order_id' => $orderTest->order_id,
@@ -314,6 +328,16 @@ new class extends Component
         ]);
 
         $result = LabResult::findOrFail($this->editResultId);
+
+        // PAY-FIRST: Block result edit if order is not paid
+        if ($result->lab_test_order_id) {
+            $order = LabTestOrder::find($result->lab_test_order_id);
+            if ($order && !$order->isPaid()) {
+                $this->addError('editResultValue', 'Cannot edit results — this order has not been paid yet.');
+                return;
+            }
+        }
+
         $result->update([
             'result_value' => $this->editResultValue,
             'normal_range' => $this->editResultNormalRange,
@@ -393,11 +417,16 @@ new class extends Component
             return;
         }
 
+        // Calculate total amount from requested test prices
+        $totalAmount = $request->items->sum(fn($item) => (float) ($item->test->current_price ?? 0));
+
         $order = LabTestOrder::create([
             'patient_id' => $request->patient_id,
             'physician_id' => null,
             'order_date' => now(),
             'status' => 'pending',
+            'payment_status' => 'PENDING_PAYMENT',
+            'total_amount' => $totalAmount,
             'remarks' => 'Created from patient test request #' . $request->id,
         ]);
 
@@ -418,9 +447,9 @@ new class extends Component
         ]);
 
         $patientName = $request->patient ? $request->patient->full_name : 'Unknown';
-        $this->logActivity("Approved test request #{$request->id} for patient {$patientName} — Lab Test Order #{$order->lab_test_order_id} created");
+        $this->logActivity("Approved test request #{$request->id} for patient {$patientName} — Lab Test Order #{$order->lab_test_order_id} created (Total: ₱" . number_format($totalAmount, 2) . ", Payment: PENDING)");
 
-        $this->flashMessage = "Request #{$request->id} approved! Lab Test Order #{$order->lab_test_order_id} created.";
+        $this->flashMessage = "Request #{$request->id} approved! Lab Test Order #{$order->lab_test_order_id} created. Payment required before results can be encoded.";
 
         if ($this->showRequestDetail && $this->viewingRequest && $this->viewingRequest->id == $requestId) {
             $this->viewRequestDetail($requestId);
@@ -757,6 +786,8 @@ new class extends Component
                         <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Patient</th>
                         <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Physician</th>
                         <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Order Date</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Amount</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Payment</th>
                         <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Tests</th>
                         <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
                     </tr>
@@ -766,6 +797,7 @@ new class extends Component
                         @php
                             $totalTests = $order->orderTests->count();
                             $completedTests = $order->orderTests->where('status', 'completed')->count();
+                            $payBadge = $order->payment_badge;
                         @endphp
                         <tr wire:key="order-{{ $order->lab_test_order_id }}" wire:click="viewOrder({{ $order->lab_test_order_id }})" class="hover:bg-blue-50/50 transition-colors cursor-pointer">
                             <td class="px-6 py-4 whitespace-nowrap">
@@ -781,6 +813,20 @@ new class extends Component
                                 <div class="text-sm text-gray-600">
                                     {{ $order->order_date ? $order->order_date->format('M d, Y h:i A') : 'N/A' }}
                                 </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm font-medium text-gray-900">
+                                    @if($order->total_amount)
+                                        ₱{{ number_format($order->total_amount, 2) }}
+                                    @else
+                                        —
+                                    @endif
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full {{ $payBadge['class'] }}">
+                                    {{ $payBadge['label'] }}
+                                </span>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="flex items-center gap-1.5">
@@ -803,7 +849,7 @@ new class extends Component
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="px-6 py-12 text-center">
+                            <td colspan="8" class="px-6 py-12 text-center">
                                 <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                                 </svg>
@@ -1380,6 +1426,22 @@ new class extends Component
 
                 {{-- Body --}}
                 <div class="overflow-y-auto flex-1 p-6">
+                    {{-- PAY-FIRST: Payment Warning Banner --}}
+                    @if($viewingOrder->payment_status !== 'PAID')
+                    <div class="mb-6 bg-orange-50 border border-orange-200 rounded-lg p-4 flex items-start gap-3">
+                        <svg class="w-5 h-5 text-orange-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+                        </svg>
+                        <div>
+                            <p class="text-sm font-semibold text-orange-800">Payment Required</p>
+                            <p class="text-sm text-orange-700 mt-0.5">This order has not been paid yet. Results cannot be encoded or edited until payment is recorded in the Transactions module.</p>
+                            @if($viewingOrder->total_amount)
+                                <p class="text-sm font-bold text-orange-900 mt-1">Total Amount Due: ₱{{ number_format($viewingOrder->total_amount, 2) }}</p>
+                            @endif
+                        </div>
+                    </div>
+                    @endif
+
                     {{-- Order Info --}}
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                         <div class="bg-gray-50 rounded-lg p-4">
@@ -1393,6 +1455,33 @@ new class extends Component
                         <div class="bg-gray-50 rounded-lg p-4">
                             <p class="text-xs font-medium text-gray-500 uppercase mb-1">Remarks</p>
                             <p class="text-sm text-gray-700">{{ $viewingOrder->remarks ?: '—' }}</p>
+                        </div>
+                    </div>
+
+                    {{-- Payment Info --}}
+                    @php $payBadgeDetail = $viewingOrder->payment_badge; @endphp
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <p class="text-xs font-medium text-gray-500 uppercase mb-1">Payment Status</p>
+                            <span class="px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full {{ $payBadgeDetail['class'] }}">
+                                {{ $payBadgeDetail['label'] }}
+                            </span>
+                        </div>
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <p class="text-xs font-medium text-gray-500 uppercase mb-1">Total Amount</p>
+                            <p class="text-sm font-semibold text-gray-900">
+                                @if($viewingOrder->total_amount)
+                                    ₱{{ number_format($viewingOrder->total_amount, 2) }}
+                                @else
+                                    —
+                                @endif
+                            </p>
+                        </div>
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <p class="text-xs font-medium text-gray-500 uppercase mb-1">Paid At</p>
+                            <p class="text-sm font-semibold text-gray-900">
+                                {{ $viewingOrder->paid_at ? $viewingOrder->paid_at->format('M d, Y h:i A') : '—' }}
+                            </p>
                         </div>
                     </div>
 
@@ -1444,10 +1533,16 @@ new class extends Component
                                             {{ str_replace('_', ' ', ucfirst($orderTest->status)) }}
                                         </span>
                                         @if($orderTest->status !== 'completed' && $orderTest->status !== 'cancelled' && !$orderTest->labResult)
+                                            @if($viewingOrder->isPaid())
                                             <button wire:click="openResultModal({{ $orderTest->order_test_id }})" 
                                                     class="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium rounded-lg transition-colors">
                                                 Add Result
                                             </button>
+                                            @else
+                                            <span class="px-3 py-1 bg-gray-200 text-gray-500 text-xs font-medium rounded-lg cursor-not-allowed" title="Payment required before adding results">
+                                                Add Result
+                                            </span>
+                                            @endif
                                         @endif
                                     </div>
                                 </div>
@@ -1496,10 +1591,16 @@ new class extends Component
                                                     <span>Verified by: <span class="font-medium text-gray-700">{{ $orderTest->labResult->verifiedBy->full_name }}</span></span>
                                                 @endif
                                             </div>
+                                            @if($viewingOrder->isPaid())
                                             <button wire:click="openEditResultModal({{ $orderTest->labResult->lab_result_id }})" 
                                                     class="px-3 py-1 bg-orange-500 hover:bg-orange-600 text-white text-xs font-medium rounded-lg transition-colors">
                                                 Edit Result
                                             </button>
+                                            @else
+                                            <span class="px-3 py-1 bg-gray-200 text-gray-500 text-xs font-medium rounded-lg cursor-not-allowed" title="Payment required before editing results">
+                                                Edit Result
+                                            </span>
+                                            @endif
                                         </div>
                                     </div>
                                 @endif

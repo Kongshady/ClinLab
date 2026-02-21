@@ -894,6 +894,15 @@ new class extends Component
                                                 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $statusProps['icon'] }}"/></svg>
                                                 {{ $statusProps['label'] }}
                                             </span>
+                                            @php $payBadge = $order->payment_badge; @endphp
+                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-semibold rounded-full {{ $payBadge['class'] }}">
+                                                @if($order->payment_status === 'PAID')
+                                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                                @else
+                                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+                                                @endif
+                                                {{ $payBadge['label'] }}
+                                            </span>
                                         </div>
                                         @if($order->physician)
                                             <p class="text-xs text-gray-500 mt-0.5">
@@ -1790,6 +1799,10 @@ new class extends Component
                             {{ $selectedOrder->status === 'completed' ? 'bg-green-400/20 text-green-100' : ($selectedOrder->status === 'cancelled' ? 'bg-red-400/20 text-red-100' : 'bg-yellow-400/20 text-yellow-100') }}">
                             {{ ucfirst($selectedOrder->status) }}
                         </span>
+                        @php $payBadgeModal = $selectedOrder->payment_badge; @endphp
+                        <span class="px-3 py-1.5 text-xs font-bold rounded-full {{ $selectedOrder->isPaid() ? 'bg-green-400/20 text-green-100' : 'bg-orange-400/30 text-orange-100' }}">
+                            {{ $payBadgeModal['label'] }}
+                        </span>
                         <button wire:click="closeOrder" class="p-1.5 hover:bg-white/20 rounded-lg transition-colors print:hidden">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                         </button>
@@ -1799,6 +1812,23 @@ new class extends Component
 
             {{-- Body --}}
             <div class="p-6 overflow-y-auto space-y-5 flex-1">
+                {{-- PAY-FIRST: Payment Warning Banner --}}
+                @if(!$selectedOrder->isPaid())
+                <div class="bg-orange-50 border border-orange-200 rounded-xl p-4 flex items-start gap-3">
+                    <svg class="w-5 h-5 text-orange-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <div>
+                        <p class="text-sm font-semibold text-orange-800">Payment Pending</p>
+                        <p class="text-sm text-orange-700 mt-0.5">
+                            This order requires payment before results can be viewed. Please proceed to the clinic cashier to complete payment. 
+                            @if($selectedOrder->total_amount)
+                                <span class="font-bold">Amount Due: ₱{{ number_format($selectedOrder->total_amount, 2) }}</span>
+                            @endif
+                        </p>
+                    </div>
+                </div>
+                @endif
                 {{-- Order Info --}}
                 <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     <div class="bg-gray-50 p-3.5 rounded-xl">
@@ -1882,17 +1912,25 @@ new class extends Component
                                             @endif
                                         </td>
                                         <td class="px-4 py-3">
-                                            @if($result && $result->result_value)
+                                            @if(!$selectedOrder->isPaid())
+                                                <span class="text-xs text-orange-600 italic font-medium">Payment required</span>
+                                            @elseif($result && $result->result_value)
                                                 <span class="text-sm font-semibold text-gray-900">{{ $result->result_value }}</span>
                                             @else
                                                 <span class="text-sm text-gray-400 italic">Pending</span>
                                             @endif
                                         </td>
                                         <td class="px-4 py-3">
-                                            <span class="text-sm text-gray-600">{{ $result->normal_range ?? '—' }}</span>
+                                            @if(!$selectedOrder->isPaid())
+                                                <span class="text-xs text-gray-400">—</span>
+                                            @else
+                                                <span class="text-sm text-gray-600">{{ $result->normal_range ?? '—' }}</span>
+                                            @endif
                                         </td>
                                         <td class="px-4 py-3">
-                                            @if($flag)
+                                            @if(!$selectedOrder->isPaid())
+                                                <span class="text-xs text-gray-400">—</span>
+                                            @elseif($flag)
                                                 <span class="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold rounded-full {{ $flagClass }}">
                                                     @if($flag === 'High')
                                                         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg>
@@ -1908,7 +1946,11 @@ new class extends Component
                                             @endif
                                         </td>
                                         <td class="px-4 py-3">
-                                            <span class="text-xs text-gray-600">{{ $result->remarks ?? ($result->findings ?? '—') }}</span>
+                                            @if(!$selectedOrder->isPaid())
+                                                <span class="text-xs text-gray-400">—</span>
+                                            @else
+                                                <span class="text-xs text-gray-600">{{ $result->remarks ?? ($result->findings ?? '—') }}</span>
+                                            @endif
                                         </td>
                                         <td class="px-4 py-3">
                                             @if($result)
@@ -1975,6 +2017,7 @@ new class extends Component
                     Close
                 </button>
                 <div class="flex items-center gap-2">
+                    @if($selectedOrder->isPaid())
                     <button wire:click="downloadOrderPdf"
                             class="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-blue-500 hover:bg-blue-600 rounded-xl shadow-sm shadow-blue-500/25 transition-all">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1982,6 +2025,14 @@ new class extends Component
                         </svg>
                         Download PDF
                     </button>
+                    @else
+                    <span class="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-gray-400 bg-gray-100 rounded-xl cursor-not-allowed" title="Payment required to download results">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                        </svg>
+                        Pay to Download
+                    </span>
+                    @endif
                 </div>
             </div>
         </div>
