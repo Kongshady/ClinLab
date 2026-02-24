@@ -1066,8 +1066,8 @@ new class extends Component
         </div>
 
         <!-- Stock Movement History -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mt-8" x-data="{ 
-            showSidebar: false, 
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mt-8" x-data="{
+            showSidebar: false,
             selected: null,
             openDetails(movement) {
                 this.selected = movement;
@@ -1078,28 +1078,36 @@ new class extends Component
                 setTimeout(() => this.selected = null, 300);
             }
         }">
-            <div class="px-8 py-6 border-b border-gray-200">
-                <h2 class="text-xl font-bold text-gray-900">Stock Movement History</h2>
-                <p class="mt-1 text-sm text-gray-500">Recent stock transactions and activities — click a row for details</p>
+            <!-- Card Header -->
+            <div class="px-6 py-5 flex items-center gap-4">
+                <div class="w-10 h-10 rounded-2xl bg-red-50 flex items-center justify-center flex-shrink-0">
+                    <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                    </svg>
+                </div>
+                <div>
+                    <h2 class="text-base font-bold text-gray-900">Stock Movement History</h2>
+                    <p class="text-xs text-gray-400 mt-0.5">Recent stock transactions — click a row for details</p>
+                </div>
             </div>
 
             <!-- Movement Table -->
             <div class="overflow-x-auto">
                 <table class="w-full">
                     <thead>
-                        <tr class="bg-gray-50 border-y border-gray-200">
-                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wide">Date & Time</th>
-                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wide">Type</th>
-                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wide">Item</th>
-                            <th class="px-3 py-3 text-center text-xs font-bold text-gray-700 uppercase tracking-wide">Quantity</th>
-                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wide">Reference</th>
-                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wide">Performed By</th>
-                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wide">Remarks</th>
+                        <tr class="border-t border-b border-gray-100">
+                            <th class="px-4 py-3 text-left text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Date & Time</th>
+                            <th class="px-4 py-3 text-left text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Type</th>
+                            <th class="px-4 py-3 text-left text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Item</th>
+                            <th class="px-3 py-3 text-center text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Quantity</th>
+                            <th class="px-4 py-3 text-left text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Reference</th>
+                            <th class="px-4 py-3 text-left text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Performed By</th>
+                            <th class="px-4 py-3 text-left text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Remarks</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-100 bg-white">
+                    <tbody class="divide-y divide-gray-50">
                         @forelse($movements as $movement)
-                            <tr class="hover:bg-gray-50 cursor-pointer transition-colors"
+                            <tr class="hover:bg-gray-50/70 cursor-pointer transition-colors"
                                 @click="openDetails({
                                     date: '{{ $movement->datetime_added->format('M d, Y') }}',
                                     time: '{{ $movement->datetime_added->format('h:i A') }}',
@@ -1112,49 +1120,43 @@ new class extends Component
                                     performedBy: '{{ $movement->type === 'USAGE' && $movement->employee ? addslashes($movement->employee->firstname . ' ' . $movement->employee->lastname) : ($movement->performedByEmployee ? addslashes($movement->performedByEmployee->firstname . ' ' . $movement->performedByEmployee->lastname) : 'System') }}',
                                     remarks: '{{ addslashes($movement->remarks ?? '—') }}'
                                 })">
-                                <td class="px-4 py-3 whitespace-nowrap">
-                                    <div class="text-sm font-medium text-gray-900">{{ $movement->datetime_added->format('M d, Y') }}</div>
-                                    <div class="text-xs text-gray-500">{{ $movement->datetime_added->format('h:i A') }}</div>
+                                <td class="px-4 py-3.5 whitespace-nowrap">
+                                    <p class="text-sm font-semibold text-gray-900">{{ $movement->datetime_added->format('M d, Y') }}</p>
+                                    <p class="text-xs text-gray-400 mt-0.5">{{ $movement->datetime_added->format('h:i A') }}</p>
                                 </td>
-                                <td class="px-4 py-3 whitespace-nowrap">
+                                <td class="px-4 py-3.5 whitespace-nowrap">
                                     @if($movement->type === 'IN')
-                                        <span class="inline-flex items-center px-2.5 py-1 rounded-md bg-emerald-100 text-emerald-700 text-xs font-semibold">
-                                            <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 11l5-5m0 0l5 5m-5-5v12"/>
-                                            </svg>
+                                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-semibold border border-emerald-100">
+                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 11l5-5m0 0l5 5m-5-5v12"/></svg>
                                             STOCK IN
                                         </span>
                                     @elseif($movement->type === 'OUT')
-                                        <span class="inline-flex items-center px-2.5 py-1 rounded-md bg-rose-100 text-rose-700 text-xs font-semibold">
-                                            <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 13l-5 5m0 0l-5-5m5 5V6"/>
-                                            </svg>
+                                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-50 text-rose-700 text-xs font-semibold border border-rose-100">
+                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 13l-5 5m0 0l-5-5m5 5V6"/></svg>
                                             STOCK OUT
                                         </span>
                                     @else
-                                        <span class="inline-flex items-center px-2.5 py-1 rounded-md bg-blue-100 text-blue-700 text-xs font-semibold">
-                                            <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-                                            </svg>
+                                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 text-xs font-semibold border border-blue-100">
+                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
                                             USAGE
                                         </span>
                                     @endif
                                 </td>
-                                <td class="px-4 py-3">
-                                    <div class="font-medium text-sm text-gray-900">{{ $movement->item->label ?? 'N/A' }}</div>
-                                    <div class="text-xs text-gray-500">{{ $movement->item->section->label ?? '' }}</div>
+                                <td class="px-4 py-3.5">
+                                    <p class="text-sm font-semibold text-gray-900">{{ $movement->item->label ?? 'N/A' }}</p>
+                                    <p class="text-xs text-gray-400 mt-0.5">{{ $movement->item->section->label ?? '' }}</p>
                                 </td>
-                                <td class="px-3 py-3 text-center">
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold
-                                        {{ $movement->type === 'IN' ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-700' }}">
+                                <td class="px-3 py-3.5 text-center">
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-bold
+                                        {{ $movement->type === 'IN' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-gray-100 text-gray-600 border border-gray-200' }}">
                                         {{ $movement->type === 'IN' ? '+' : '-' }}{{ number_format($movement->quantity) }}
                                     </span>
                                 </td>
-                                <td class="px-4 py-3">
-                                    <span class="text-sm text-gray-700">{{ $movement->reference ?? '—' }}</span>
+                                <td class="px-4 py-3.5">
+                                    <span class="text-sm text-gray-600">{{ $movement->reference ?? '—' }}</span>
                                 </td>
-                                <td class="px-4 py-3">
-                                    <span class="text-sm text-gray-700">
+                                <td class="px-4 py-3.5">
+                                    <span class="text-sm text-gray-600">
                                         @if($movement->type === 'USAGE' && $movement->employee)
                                             {{ $movement->employee->firstname }} {{ $movement->employee->lastname }}
                                         @elseif($movement->performedByEmployee)
@@ -1164,17 +1166,18 @@ new class extends Component
                                         @endif
                                     </span>
                                 </td>
-                                <td class="px-4 py-3">
-                                    <span class="text-sm text-gray-600">{{ Str::limit($movement->remarks ?? '—', 40) }}</span>
+                                <td class="px-4 py-3.5">
+                                    <span class="text-sm text-gray-500">{{ Str::limit($movement->remarks ?? '—', 40) }}</span>
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="px-4 py-8 text-center">
-                                    <svg class="mx-auto h-10 w-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                <td colspan="7" class="px-4 py-16 text-center">
+                                    <svg class="mx-auto w-12 h-12 text-gray-200 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
                                     </svg>
-                                    <p class="mt-2 text-sm text-gray-500">No stock movements recorded yet</p>
+                                    <p class="text-sm font-semibold text-gray-400">No stock movements recorded yet</p>
+                                    <p class="text-xs text-gray-300 mt-1">Movements will appear here as stock is added, removed, or used.</p>
                                 </td>
                             </tr>
                         @endforelse
@@ -1183,22 +1186,53 @@ new class extends Component
             </div>
 
             <!-- Pagination -->
-            <div class="px-8 py-4 border-t border-gray-200 bg-gray-50">
-                {{ $movements->links() }}
+            @if(method_exists($movements, 'hasPages'))
+            <div class="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
+                <p class="text-xs text-gray-400">
+                    Showing {{ $movements->firstItem() }}–{{ $movements->lastItem() }} of {{ $movements->total() }} movements
+                </p>
+                <div class="flex items-center gap-1">
+                    @if($movements->onFirstPage())
+                        <span class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-300 cursor-not-allowed">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                        </span>
+                    @else
+                        <button wire:click="previousPage('movement_page')" class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 transition-colors">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                        </button>
+                    @endif
+                    @foreach($movements->getUrlRange(1, $movements->lastPage()) as $page => $url)
+                        @if($page == $movements->currentPage())
+                            <span class="w-8 h-8 flex items-center justify-center rounded-lg bg-red-500 text-white text-xs font-bold">{{ $page }}</span>
+                        @else
+                            <button wire:click="gotoPage({{ $page }}, 'movement_page')" class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 text-xs font-medium transition-colors">{{ $page }}</button>
+                        @endif
+                    @endforeach
+                    @if($movements->hasMorePages())
+                        <button wire:click="nextPage('movement_page')" class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 transition-colors">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                        </button>
+                    @else
+                        <span class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-300 cursor-not-allowed">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                        </span>
+                    @endif
+                </div>
             </div>
+            @endif
 
             <!-- Detail Sidebar -->
             <div x-show="showSidebar" x-cloak class="fixed inset-0 z-50 overflow-hidden">
                 <!-- Backdrop -->
-                <div x-show="showSidebar" 
+                <div x-show="showSidebar"
                      x-transition:enter="transition-opacity ease-out duration-300"
                      x-transition:enter-start="opacity-0"
                      x-transition:enter-end="opacity-100"
                      x-transition:leave="transition-opacity ease-in duration-200"
                      x-transition:leave-start="opacity-100"
                      x-transition:leave-end="opacity-0"
-                     @click="closeSidebar()" 
-                     class="fixed inset-0 bg-black/40"></div>
+                     @click="closeSidebar()"
+                     class="fixed inset-0 bg-black/40 backdrop-blur-sm"></div>
 
                 <!-- Sidebar Panel -->
                 <div class="fixed inset-y-0 right-0 flex max-w-full">
@@ -1209,107 +1243,108 @@ new class extends Component
                          x-transition:leave="transform transition ease-in duration-200"
                          x-transition:leave-start="translate-x-0"
                          x-transition:leave-end="translate-x-full"
-                         class="w-screen max-w-md">
+                         class="w-screen max-w-sm">
                         <div class="flex h-full flex-col bg-white shadow-2xl">
+
                             <!-- Sidebar Header -->
-                            <div class="px-6 py-5 border-b border-gray-200">
-                                <div class="flex items-center justify-between">
-                                    <h3 class="text-lg font-semibold text-gray-900">Movement Details</h3>
-                                    <button @click="closeSidebar()" class="rounded-lg p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
-                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            <div class="px-6 pt-6 pb-5 flex items-center justify-between flex-shrink-0">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-2xl bg-red-50 flex items-center justify-center">
+                                        <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
                                         </svg>
-                                    </button>
+                                    </div>
+                                    <div>
+                                        <h3 class="text-base font-bold text-gray-900 leading-tight">Movement Details</h3>
+                                        <p class="text-xs text-gray-400 mt-0.5">Stock transaction record</p>
+                                    </div>
                                 </div>
+                                <button @click="closeSidebar()"
+                                        class="w-8 h-8 flex items-center justify-center rounded-full border border-gray-200 text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                    </svg>
+                                </button>
                             </div>
 
                             <!-- Sidebar Body -->
-                            <div class="flex-1 overflow-y-auto px-6 py-6" x-show="selected">
+                            <div class="flex-1 overflow-y-auto px-6 pb-6 space-y-4" x-show="selected">
+
                                 <!-- Type Badge -->
-                                <div class="mb-6 flex items-center space-x-3">
+                                <div>
                                     <template x-if="selected?.type === 'IN'">
-                                        <span class="inline-flex items-center px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-700 text-sm font-semibold">
-                                            <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 11l5-5m0 0l5 5m-5-5v12"/>
-                                            </svg>
+                                        <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 text-xs font-semibold border border-emerald-100">
+                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 11l5-5m0 0l5 5m-5-5v12"/></svg>
                                             STOCK IN
                                         </span>
                                     </template>
                                     <template x-if="selected?.type === 'OUT'">
-                                        <span class="inline-flex items-center px-3 py-1.5 rounded-lg bg-rose-100 text-rose-700 text-sm font-semibold">
-                                            <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 13l-5 5m0 0l-5-5m5 5V6"/>
-                                            </svg>
+                                        <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-50 text-rose-700 text-xs font-semibold border border-rose-100">
+                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 13l-5 5m0 0l-5-5m5 5V6"/></svg>
                                             STOCK OUT
                                         </span>
                                     </template>
                                     <template x-if="selected?.type === 'USAGE'">
-                                        <span class="inline-flex items-center px-3 py-1.5 rounded-lg bg-blue-100 text-blue-700 text-sm font-semibold">
-                                            <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-                                            </svg>
+                                        <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 text-blue-700 text-xs font-semibold border border-blue-100">
+                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
                                             USAGE
                                         </span>
                                     </template>
                                 </div>
 
-                                <!-- Details Grid -->
-                                <div class="space-y-5">
-                                    <!-- Item -->
-                                    <div class="bg-gray-50 rounded-lg p-4">
-                                        <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Item</p>
-                                        <p class="text-sm font-medium text-gray-900" x-text="selected?.item"></p>
-                                        <p class="text-xs text-gray-500 mt-0.5" x-text="selected?.section"></p>
+                                <!-- Item -->
+                                <div class="rounded-xl border border-gray-100 px-4 py-3">
+                                    <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1">Item</p>
+                                    <p class="text-sm font-semibold text-gray-900" x-text="selected?.item"></p>
+                                    <p class="text-xs text-gray-400 mt-0.5" x-text="selected?.section"></p>
+                                </div>
+
+                                <!-- Quantity + Date row -->
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div class="rounded-xl border border-gray-100 px-4 py-3">
+                                        <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1">Quantity</p>
+                                        <p class="text-sm font-bold"
+                                           :class="selected?.type === 'IN' ? 'text-emerald-600' : 'text-gray-800'"
+                                           x-text="(selected?.type === 'IN' ? '+' : '-') + selected?.quantity"></p>
                                     </div>
-
-                                    <div class="grid grid-cols-2 gap-4">
-                                        <!-- Quantity -->
-                                        <div class="bg-gray-50 rounded-lg p-4">
-                                            <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Quantity</p>
-                                            <p class="text-sm font-medium" 
-                                               :class="selected?.type === 'IN' ? 'text-emerald-700' : 'text-gray-900'"
-                                               x-text="(selected?.type === 'IN' ? '+' : '-') + selected?.quantity"></p>
-                                        </div>
-
-                                        <!-- Date & Time -->
-                                        <div class="bg-gray-50 rounded-lg p-4">
-                                            <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Date & Time</p>
-                                            <p class="text-sm font-medium text-gray-900" x-text="selected?.date"></p>
-                                            <p class="text-xs text-gray-500" x-text="selected?.time"></p>
-                                        </div>
+                                    <div class="rounded-xl border border-gray-100 px-4 py-3">
+                                        <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1">Date & Time</p>
+                                        <p class="text-sm font-semibold text-gray-900" x-text="selected?.date"></p>
+                                        <p class="text-xs text-gray-400" x-text="selected?.time"></p>
                                     </div>
+                                </div>
 
-                                    <!-- Supplier (IN only) -->
-                                    <template x-if="selected?.type === 'IN'">
-                                        <div class="bg-gray-50 rounded-lg p-4">
-                                            <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Supplier</p>
-                                            <p class="text-sm font-medium text-gray-900" x-text="selected?.supplier"></p>
-                                        </div>
-                                    </template>
-
-                                    <!-- Reference -->
-                                    <div class="bg-gray-50 rounded-lg p-4">
-                                        <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Reference</p>
-                                        <p class="text-sm font-medium text-gray-900" x-text="selected?.reference"></p>
+                                <!-- Supplier (IN only) -->
+                                <template x-if="selected?.type === 'IN'">
+                                    <div class="rounded-xl border border-gray-100 px-4 py-3">
+                                        <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1">Supplier</p>
+                                        <p class="text-sm font-semibold text-gray-900" x-text="selected?.supplier"></p>
                                     </div>
+                                </template>
 
-                                    <!-- Performed By -->
-                                    <div class="bg-gray-50 rounded-lg p-4">
-                                        <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Performed By</p>
-                                        <p class="text-sm font-medium text-gray-900" x-text="selected?.performedBy"></p>
-                                    </div>
+                                <!-- Reference -->
+                                <div class="rounded-xl border border-gray-100 px-4 py-3">
+                                    <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1">Reference</p>
+                                    <p class="text-sm font-semibold text-gray-900" x-text="selected?.reference"></p>
+                                </div>
 
-                                    <!-- Remarks -->
-                                    <div class="bg-gray-50 rounded-lg p-4">
-                                        <p class="text-xs font-semibold text-gray-500 uppercase mb-1">Remarks</p>
-                                        <p class="text-sm text-gray-700 whitespace-pre-wrap" x-text="selected?.remarks"></p>
-                                    </div>
+                                <!-- Performed By -->
+                                <div class="rounded-xl border border-gray-100 px-4 py-3">
+                                    <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1">Performed By</p>
+                                    <p class="text-sm font-semibold text-gray-900" x-text="selected?.performedBy"></p>
+                                </div>
+
+                                <!-- Remarks -->
+                                <div class="rounded-xl border border-gray-100 px-4 py-3">
+                                    <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1">Remarks</p>
+                                    <p class="text-sm text-gray-600 whitespace-pre-wrap" x-text="selected?.remarks"></p>
                                 </div>
                             </div>
 
                             <!-- Sidebar Footer -->
-                            <div class="px-6 py-4 border-t border-gray-200 bg-gray-50">
-                                <button @click="closeSidebar()" class="w-full px-4 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-medium rounded-lg transition-colors">
+                            <div class="px-6 py-4 border-t border-gray-100 flex-shrink-0">
+                                <button @click="closeSidebar()"
+                                        class="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">
                                     Close
                                 </button>
                             </div>

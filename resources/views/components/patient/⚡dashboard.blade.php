@@ -1783,154 +1783,173 @@ new class extends Component
 
     {{-- ===== ORDER DETAIL MODAL ===== --}}
     @if($selectedOrder)
-    <div class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4" wire:click.self="closeOrder">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col" id="printable-result">
-            {{-- Header --}}
-            <div class="bg-blue-500 px-6 py-5 text-white">
-                <div class="flex items-center justify-between">
+    @php
+        $completed = $selectedOrder->orderTests->where('status', 'completed')->count();
+        $total     = $selectedOrder->orderTests->count();
+        $pct       = $total > 0 ? round(($completed / $total) * 100) : 0;
+        $payBadgeModal = $selectedOrder->payment_badge;
+    @endphp
+    <div class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" wire:click.self="closeOrder">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col" id="printable-result">
+
+            {{-- ── Red gradient header ── --}}
+            <div class="bg-gradient-to-r from-red-600 to-red-500 px-6 py-5 flex-shrink-0">
+                <div class="flex items-start justify-between gap-4">
                     <div>
-                        <h3 class="text-lg font-bold">Lab Test Order #{{ $selectedOrder->lab_test_order_id }}</h3>
-                        <p class="text-blue-100 text-sm mt-0.5">
-                            Requested: {{ $selectedOrder->order_date->format('F d, Y - h:i A') }}
+                        <h3 class="text-xl font-bold text-white leading-tight">
+                            Lab Test Order #{{ $selectedOrder->lab_test_order_id }}
+                        </h3>
+                        <p class="text-red-200 text-xs mt-1">
+                            Requested: {{ $selectedOrder->order_date->format('F d, Y · h:i A') }}
                         </p>
                     </div>
-                    <div class="flex items-center gap-3">
-                        <span class="px-3 py-1.5 text-xs font-bold rounded-full
-                            {{ $selectedOrder->status === 'completed' ? 'bg-green-400/20 text-green-100' : ($selectedOrder->status === 'cancelled' ? 'bg-red-400/20 text-red-100' : 'bg-yellow-400/20 text-yellow-100') }}">
-                            {{ ucfirst($selectedOrder->status) }}
+                    <div class="flex items-center gap-2 flex-shrink-0 mt-0.5 print:hidden">
+                        {{-- Status badge --}}
+                        <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/20 text-white text-xs font-bold">
+                            <span class="w-1.5 h-1.5 rounded-full
+                                {{ $selectedOrder->status === 'completed' ? 'bg-green-300' : ($selectedOrder->status === 'cancelled' ? 'bg-red-300' : 'bg-yellow-300') }}"></span>
+                            {{ strtoupper($selectedOrder->status) }}
                         </span>
-                        @php $payBadgeModal = $selectedOrder->payment_badge; @endphp
-                        <span class="px-3 py-1.5 text-xs font-bold rounded-full {{ $selectedOrder->isPaid() ? 'bg-green-400/20 text-green-100' : 'bg-orange-400/30 text-orange-100' }}">
-                            {{ $payBadgeModal['label'] }}
+                        {{-- Payment badge --}}
+                        <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/20 text-white text-xs font-bold">
+                            <span class="w-1.5 h-1.5 rounded-full {{ $selectedOrder->isPaid() ? 'bg-green-300' : 'bg-orange-300' }}"></span>
+                            {{ strtoupper($payBadgeModal['label']) }}
                         </span>
-                        <button wire:click="closeOrder" class="p-1.5 hover:bg-white/20 rounded-lg transition-colors print:hidden">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        {{-- Close button --}}
+                        <button wire:click="closeOrder"
+                                class="w-8 h-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
                         </button>
+                    </div>
+                </div>
+
+                {{-- Info row inside header --}}
+                <div class="mt-4 grid grid-cols-3 gap-4">
+                    <div>
+                        <p class="text-[10px] font-semibold text-red-300 uppercase tracking-widest mb-0.5">Patient</p>
+                        <p class="text-sm font-bold text-white">{{ $patient->full_name }}</p>
+                    </div>
+                    <div>
+                        <p class="text-[10px] font-semibold text-red-300 uppercase tracking-widest mb-0.5">Physician</p>
+                        <p class="text-sm font-semibold {{ $selectedOrder->physician ? 'text-white' : 'text-red-200 italic' }}">
+                            {{ $selectedOrder->physician->physician_name ?? 'Not specified' }}
+                        </p>
+                    </div>
+                    <div>
+                        <p class="text-[10px] font-semibold text-red-300 uppercase tracking-widest mb-0.5">Progress</p>
+                        <div class="flex items-center gap-2">
+                            <div class="flex-1 bg-white/20 rounded-full h-1.5">
+                                <div class="h-1.5 rounded-full {{ $pct === 100 ? 'bg-green-400' : 'bg-white' }}" style="width: {{ $pct }}%"></div>
+                            </div>
+                            <span class="text-xs font-bold text-white">{{ $completed }} / {{ $total }}</span>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            {{-- Body --}}
-            <div class="p-6 overflow-y-auto space-y-5 flex-1">
-                {{-- PAY-FIRST: Payment Warning Banner --}}
+            {{-- ── Body ── --}}
+            <div class="px-6 py-5 overflow-y-auto flex-1 space-y-5">
+
+                {{-- Payment warning --}}
                 @if(!$selectedOrder->isPaid())
-                <div class="bg-orange-50 border border-orange-200 rounded-xl p-4 flex items-start gap-3">
-                    <svg class="w-5 h-5 text-orange-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
+                    <svg class="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
                     <div>
-                        <p class="text-sm font-semibold text-orange-800">Payment Pending</p>
-                        <p class="text-sm text-orange-700 mt-0.5">
-                            This order requires payment before results can be viewed. Please proceed to the clinic cashier to complete payment. 
+                        <p class="text-sm font-bold text-amber-800">Payment Pending</p>
+                        <p class="text-sm text-amber-700 mt-0.5">
+                            This order requires payment before results can be viewed. Please proceed to the clinic cashier.
                             @if($selectedOrder->total_amount)
-                                <span class="font-bold">Amount Due: ₱{{ number_format($selectedOrder->total_amount, 2) }}</span>
+                                <span class="font-bold"> Amount Due: ₱{{ number_format($selectedOrder->total_amount, 2) }}</span>
                             @endif
                         </p>
                     </div>
                 </div>
                 @endif
-                {{-- Order Info --}}
-                <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    <div class="bg-gray-50 p-3.5 rounded-xl">
-                        <p class="text-xs font-medium text-gray-500 uppercase mb-1">Patient</p>
-                        <p class="text-sm font-semibold text-gray-900">{{ $patient->full_name }}</p>
-                    </div>
-                    <div class="bg-gray-50 p-3.5 rounded-xl">
-                        <p class="text-xs font-medium text-gray-500 uppercase mb-1">Physician</p>
-                        <p class="text-sm font-semibold text-gray-900">{{ $selectedOrder->physician->physician_name ?? 'Not specified' }}</p>
-                    </div>
-                    <div class="bg-gray-50 p-3.5 rounded-xl">
-                        <p class="text-xs font-medium text-gray-500 uppercase mb-1">Progress</p>
-                        <div class="flex items-center gap-2 mt-1">
-                            @php
-                                $completed = $selectedOrder->orderTests->where('status', 'completed')->count();
-                                $total = $selectedOrder->orderTests->count();
-                                $pct = $total > 0 ? round(($completed / $total) * 100) : 0;
-                            @endphp
-                            <div class="flex-1 bg-gray-200 rounded-full h-2">
-                                <div class="h-2 rounded-full {{ $pct === 100 ? 'bg-green-500' : 'bg-blue-500' }}" style="width: {{ $pct }}%"></div>
-                            </div>
-                            <span class="text-xs font-semibold text-gray-600">{{ $completed }}/{{ $total }}</span>
-                        </div>
-                    </div>
-                </div>
 
-                {{-- Test Results Table --}}
+                {{-- Test Results --}}
                 <div>
-                    <h4 class="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
-                        <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-                        Test Results
-                    </h4>
+                    <div class="flex items-center gap-2 mb-3">
+                        <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                        </svg>
+                        <span class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Test Results</span>
+                    </div>
 
-                    <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+                    <div class="rounded-xl border border-gray-100 overflow-hidden">
                         <div class="overflow-x-auto">
-                            <table class="min-w-full divide-y divide-gray-200">
-                                <thead class="bg-gray-50">
-                                    <tr>
-                                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Test Name</th>
-                                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Result</th>
-                                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Reference Range</th>
-                                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Flag</th>
-                                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Remarks</th>
-                                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Status</th>
+                            <table class="min-w-full">
+                                <thead>
+                                    <tr class="border-b border-gray-100">
+                                        <th class="px-4 py-3 text-left text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Test Name</th>
+                                        <th class="px-4 py-3 text-left text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Result</th>
+                                        <th class="px-4 py-3 text-left text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Reference Range</th>
+                                        <th class="px-4 py-3 text-left text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Flag</th>
+                                        <th class="px-4 py-3 text-left text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Remarks</th>
+                                        <th class="px-4 py-3 text-left text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Status</th>
                                     </tr>
                                 </thead>
-                                <tbody class="divide-y divide-gray-100">
+                                <tbody class="divide-y divide-gray-50">
                                     @foreach($selectedOrder->orderTests as $ot)
                                     @php
                                         $result = $ot->labResult;
-                                        // Determine flag from result_value vs normal_range
-                                        $flag = null;
-                                        $flagClass = '';
+                                        $flag = null; $flagClass = '';
                                         if ($result && $result->result_value && $result->normal_range) {
                                             $val = floatval($result->result_value);
-                                            $range = $result->normal_range;
-                                            // Try to parse ranges like "70-110", "3.5 - 5.5", "<100", ">10"
-                                            if (preg_match('/^(\d+\.?\d*)\s*[-–]\s*(\d+\.?\d*)/', $range, $m)) {
-                                                $low = floatval($m[1]);
-                                                $high = floatval($m[2]);
+                                            if (preg_match('/^(\d+\.?\d*)\s*[-–]\s*(\d+\.?\d*)/', $result->normal_range, $m)) {
+                                                $low = floatval($m[1]); $high = floatval($m[2]);
                                                 if (is_numeric($result->result_value)) {
-                                                    if ($val < $low) { $flag = 'Low'; $flagClass = 'bg-blue-100 text-blue-700'; }
-                                                    elseif ($val > $high) { $flag = 'High'; $flagClass = 'bg-red-100 text-red-700'; }
-                                                    else { $flag = 'Normal'; $flagClass = 'bg-emerald-100 text-emerald-700'; }
+                                                    if ($val < $low)      { $flag = 'Low';    $flagClass = 'bg-blue-100 text-blue-700'; }
+                                                    elseif ($val > $high) { $flag = 'High';   $flagClass = 'bg-red-100 text-red-700'; }
+                                                    else                  { $flag = 'Normal'; $flagClass = 'bg-emerald-100 text-emerald-700'; }
                                                 }
                                             }
                                         }
-                                        // Fallback: check remarks/findings for keywords
                                         if (!$flag && $result) {
                                             $text = strtolower(($result->findings ?? '') . ' ' . ($result->remarks ?? ''));
-                                            if (str_contains($text, 'high') || str_contains($text, 'elevated')) { $flag = 'High'; $flagClass = 'bg-red-100 text-red-700'; }
-                                            elseif (str_contains($text, 'low') || str_contains($text, 'decreased')) { $flag = 'Low'; $flagClass = 'bg-blue-100 text-blue-700'; }
+                                            if (str_contains($text, 'high') || str_contains($text, 'elevated'))   { $flag = 'High';   $flagClass = 'bg-red-100 text-red-700'; }
+                                            elseif (str_contains($text, 'low') || str_contains($text, 'decreased')) { $flag = 'Low';  $flagClass = 'bg-blue-100 text-blue-700'; }
                                             elseif (str_contains($text, 'normal') || str_contains($text, 'within')) { $flag = 'Normal'; $flagClass = 'bg-emerald-100 text-emerald-700'; }
                                         }
+                                        $statusDot = match($result->status ?? 'pending') {
+                                            'final'   => 'bg-emerald-400',
+                                            'revised' => 'bg-blue-400',
+                                            default   => 'bg-amber-400',
+                                        };
+                                        $statusPill = match($result->status ?? 'pending') {
+                                            'final'   => 'border-emerald-200 text-emerald-700',
+                                            'revised' => 'border-blue-200 text-blue-700',
+                                            default   => 'border-amber-200 text-amber-700',
+                                        };
                                     @endphp
-                                    <tr class="hover:bg-blue-50/30 transition-colors">
-                                        <td class="px-4 py-3">
-                                            <div class="text-sm font-semibold text-gray-900">{{ $ot->test->label ?? 'Unknown Test' }}</div>
+                                    <tr class="hover:bg-gray-50/70 transition-colors">
+                                        <td class="px-4 py-3.5">
+                                            <p class="text-sm font-semibold text-gray-900">{{ $ot->test->label ?? 'Unknown Test' }}</p>
                                             @if($ot->test && $ot->test->section)
-                                                <div class="text-xs text-gray-400">{{ $ot->test->section->label }}</div>
+                                                <p class="text-xs text-gray-400 mt-0.5">{{ $ot->test->section->label }}</p>
                                             @endif
                                         </td>
-                                        <td class="px-4 py-3">
+                                        <td class="px-4 py-3.5">
                                             @if(!$selectedOrder->isPaid())
-                                                <span class="text-xs text-orange-600 italic font-medium">Payment required</span>
+                                                <span class="text-xs text-gray-400 italic">Pending</span>
                                             @elseif($result && $result->result_value)
                                                 <span class="text-sm font-semibold text-gray-900">{{ $result->result_value }}</span>
                                             @else
                                                 <span class="text-sm text-gray-400 italic">Pending</span>
                                             @endif
                                         </td>
-                                        <td class="px-4 py-3">
-                                            @if(!$selectedOrder->isPaid())
-                                                <span class="text-xs text-gray-400">—</span>
-                                            @else
-                                                <span class="text-sm text-gray-600">{{ $result->normal_range ?? '—' }}</span>
-                                            @endif
+                                        <td class="px-4 py-3.5">
+                                            <span class="text-sm text-gray-500">
+                                                {{ (!$selectedOrder->isPaid() || !$result) ? '—' : ($result->normal_range ?? '—') }}
+                                            </span>
                                         </td>
-                                        <td class="px-4 py-3">
-                                            @if(!$selectedOrder->isPaid())
-                                                <span class="text-xs text-gray-400">—</span>
-                                            @elseif($flag)
+                                        <td class="px-4 py-3.5">
+                                            @if(!$selectedOrder->isPaid() || !$flag)
+                                                <span class="text-sm text-gray-400">—</span>
+                                            @else
                                                 <span class="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold rounded-full {{ $flagClass }}">
                                                     @if($flag === 'High')
                                                         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg>
@@ -1941,29 +1960,24 @@ new class extends Component
                                                     @endif
                                                     {{ $flag }}
                                                 </span>
-                                            @else
-                                                <span class="text-xs text-gray-400">—</span>
                                             @endif
                                         </td>
-                                        <td class="px-4 py-3">
-                                            @if(!$selectedOrder->isPaid())
-                                                <span class="text-xs text-gray-400">—</span>
-                                            @else
-                                                <span class="text-xs text-gray-600">{{ $result->remarks ?? ($result->findings ?? '—') }}</span>
-                                            @endif
+                                        <td class="px-4 py-3.5">
+                                            <span class="text-xs text-gray-500">
+                                                {{ (!$selectedOrder->isPaid() || !$result) ? '—' : ($result->remarks ?? ($result->findings ?? '—')) }}
+                                            </span>
                                         </td>
-                                        <td class="px-4 py-3">
+                                        <td class="px-4 py-3.5">
                                             @if($result)
-                                                @php
-                                                    $rsc = match($result->status ?? 'draft') {
-                                                        'final' => 'bg-emerald-100 text-emerald-700',
-                                                        'revised' => 'bg-blue-100 text-blue-700',
-                                                        default => 'bg-amber-100 text-amber-700',
-                                                    };
-                                                @endphp
-                                                <span class="px-2 py-0.5 text-xs font-medium rounded-full {{ $rsc }}">{{ ucfirst($result->status) }}</span>
+                                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-semibold {{ $statusPill }}">
+                                                    <span class="w-1.5 h-1.5 rounded-full {{ $statusDot }}"></span>
+                                                    {{ ucfirst($result->status ?? 'Pending') }}
+                                                </span>
                                             @else
-                                                <span class="px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-500">Pending</span>
+                                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-amber-200 text-amber-700 text-xs font-semibold">
+                                                    <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                                                    Pending
+                                                </span>
                                             @endif
                                         </td>
                                     </tr>
@@ -1974,15 +1988,15 @@ new class extends Component
                     </div>
                 </div>
 
-                {{-- Additional Info --}}
+                {{-- Order Remarks --}}
                 @if($selectedOrder->remarks)
-                <div class="bg-amber-50 border border-amber-200 rounded-xl p-4">
-                    <p class="text-xs font-semibold text-amber-700 uppercase mb-1">Order Remarks</p>
+                <div class="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3.5">
+                    <p class="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1">Order Remarks</p>
                     <p class="text-sm text-amber-800">{{ $selectedOrder->remarks }}</p>
                 </div>
                 @endif
 
-                {{-- Performed/Verified Info --}}
+                {{-- Performed / Verified --}}
                 @php
                     $performers = $selectedOrder->orderTests
                         ->filter(fn($ot) => $ot->labResult && $ot->labResult->performedBy)
@@ -1996,44 +2010,43 @@ new class extends Component
                 @if($performers->isNotEmpty() || $verifiers->isNotEmpty())
                 <div class="grid grid-cols-2 gap-3">
                     @if($performers->isNotEmpty())
-                    <div class="bg-gray-50 p-3.5 rounded-xl">
-                        <p class="text-xs font-medium text-gray-500 uppercase mb-1">Performed By</p>
-                        <p class="text-sm font-medium text-gray-900">{{ $performers->implode(', ') }}</p>
+                    <div>
+                        <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1">Performed By</p>
+                        <p class="text-sm font-semibold text-gray-800">{{ $performers->implode(', ') }}</p>
                     </div>
                     @endif
                     @if($verifiers->isNotEmpty())
-                    <div class="bg-gray-50 p-3.5 rounded-xl">
-                        <p class="text-xs font-medium text-gray-500 uppercase mb-1">Verified By</p>
-                        <p class="text-sm font-medium text-gray-900">{{ $verifiers->implode(', ') }}</p>
+                    <div>
+                        <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1">Verified By</p>
+                        <p class="text-sm font-semibold text-gray-800">{{ $verifiers->implode(', ') }}</p>
                     </div>
                     @endif
                 </div>
                 @endif
             </div>
 
-            {{-- Footer --}}
-            <div class="px-6 py-4 border-t border-gray-100 flex items-center justify-between print:hidden">
-                <button wire:click="closeOrder" class="px-5 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors">
+            {{-- ── Footer ── --}}
+            <div class="px-6 py-4 border-t border-gray-100 flex items-center justify-between flex-shrink-0 print:hidden">
+                <button wire:click="closeOrder"
+                        class="px-5 py-2.5 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
                     Close
                 </button>
-                <div class="flex items-center gap-2">
-                    @if($selectedOrder->isPaid())
-                    <button wire:click="downloadOrderPdf"
-                            class="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-blue-500 hover:bg-blue-600 rounded-xl shadow-sm shadow-blue-500/25 transition-all">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
-                        </svg>
-                        Download PDF
-                    </button>
-                    @else
-                    <span class="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-gray-400 bg-gray-100 rounded-xl cursor-not-allowed" title="Payment required to download results">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
-                        </svg>
-                        Pay to Download
-                    </span>
-                    @endif
-                </div>
+                @if($selectedOrder->isPaid())
+                <button wire:click="downloadOrderPdf"
+                        class="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-red-500 hover:bg-red-600 rounded-xl transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                    </svg>
+                    Download PDF
+                </button>
+                @else
+                <span class="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-gray-400 bg-gray-100 rounded-xl cursor-not-allowed" title="Payment required">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                    </svg>
+                    Pay to Download
+                </span>
+                @endif
             </div>
         </div>
     </div>

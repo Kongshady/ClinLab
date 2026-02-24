@@ -17,7 +17,7 @@ class SyncUicDirectory extends Command
         $this->info('Starting UIC directory sync...');
         $start = now();
 
-        try {
+        try {   
             $records = $api->fetchUnifiedList();
         } catch (\Throwable $e) {
             $this->error('API fetch failed: ' . $e->getMessage());

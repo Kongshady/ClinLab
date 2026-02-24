@@ -356,20 +356,45 @@ new class extends Component
     </div>
 
     <!-- Add New Item Form -->
-    <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
-        <h2 class="text-lg font-semibold text-gray-900 mb-6">Add New Item</h2>
-        <form wire:submit.prevent="save">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm mb-6">
+
+        {{-- Card Header --}}
+        <div class="px-6 py-5 flex items-center gap-4">
+            <div class="w-10 h-10 rounded-2xl bg-red-50 flex items-center justify-center flex-shrink-0">
+                <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                </svg>
+            </div>
+            <div>
+                <h2 class="text-base font-bold text-gray-900 leading-tight">Add New Item</h2>
+                <p class="text-xs text-gray-400 mt-0.5">Register a new inventory item to the system</p>
+            </div>
+        </div>
+
+        <form wire:submit.prevent="save" class="px-6 pb-6">
+
+            {{-- ITEM DETAILS divider --}}
+            <div class="flex items-center gap-3 mb-4">
+                <div class="flex-1 h-px bg-gray-100"></div>
+                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Item Details</span>
+                <div class="flex-1 h-px bg-gray-100"></div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Item Name <span class="text-red-500">*</span></label>
+                    <label class="block text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">
+                        Item Name <span class="text-red-500">*</span>
+                    </label>
                     <input type="text" wire:model="label" placeholder="e.g., Test Tubes"
-                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent">
-                    @error('label') <span class="text-red-600 text-xs mt-1">{{ $message }}</span> @enderror
+                           class="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent transition-colors">
+                    @error('label') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Item Type <span class="text-red-500">*</span></label>
+                    <label class="block text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">
+                        Item Type <span class="text-red-500">*</span>
+                    </label>
                     <div class="relative" x-data="{ open: false }">
-                        <input type="text" 
+                        <input type="text"
                                wire:model.live.debounce.300ms="itemTypeQuery"
                                wire:keydown.enter.prevent
                                wire:keydown.arrow-down.prevent="open = true"
@@ -379,46 +404,36 @@ new class extends Component
                                @focus="open = true"
                                @click.away="open = false"
                                placeholder="Type or select item type..."
-                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                               class="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent transition-colors"
                                autocomplete="off">
-                        
-                        <!-- Dropdown Arrow -->
                         <div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-                            <svg class="h-5 w-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                            <svg class="h-4 w-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
                                 <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
                             </svg>
                         </div>
-
-                        <!-- Dropdown -->
-                        <div x-show="open" 
+                        <div x-show="open"
                              x-transition:enter="transition ease-out duration-100"
                              x-transition:enter-start="opacity-0"
                              x-transition:enter-end="opacity-100"
                              x-transition:leave="transition ease-in duration-75"
                              x-transition:leave-start="opacity-100"
                              x-transition:leave-end="opacity-0"
-                             class="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm">
-                            
-                            <!-- Show "Create new" option if query doesn't match existing -->
+                             class="absolute z-10 mt-1 w-full bg-white border border-gray-200 shadow-lg max-h-60 rounded-xl py-1 text-sm overflow-auto focus:outline-none">
                             @if($itemTypeQuery && !collect($itemTypes)->contains('label', $itemTypeQuery))
-                                <div wire:click="selectItemType('{{ $itemTypeQuery }}')" 
-                                     class="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-gray-100">
-                                    <div class="flex items-center">
-                                        <span class="font-normal ml-3 block truncate">Create "{{ $itemTypeQuery }}"</span>
-                                    </div>
+                                <div wire:click="selectItemType('{{ $itemTypeQuery }}')"
+                                     class="cursor-pointer select-none py-2 pl-3 pr-9 hover:bg-red-50 text-red-600 font-medium">
+                                    Create "{{ $itemTypeQuery }}"
                                 </div>
                             @endif
-
-                            <!-- Existing item types -->
                             @foreach($filteredItemTypes as $type)
-                                <div class="group flex items-center justify-between px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                                <div class="group flex items-center justify-between px-3 py-2 hover:bg-gray-50 cursor-pointer"
                                      wire:click="selectItemType('{{ $type->label }}')">
                                     <span class="block truncate">{{ $type->label }}</span>
-                                    <button type="button" 
+                                    <button type="button"
                                             wire:click.stop="deleteItemType({{ $type->item_type_id }})"
                                             wire:confirm="Are you sure you want to delete this item type?"
-                                            class="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 p-1 rounded transition-opacity">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            class="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 p-1 rounded transition-opacity">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                                         </svg>
                                     </button>
@@ -426,23 +441,33 @@ new class extends Component
                             @endforeach
                         </div>
                     </div>
-                    @error('item_type') <span class="text-red-600 text-xs mt-1">{{ $message }}</span> @enderror
+                    @error('item_type') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Section <span class="text-red-500">*</span></label>
-                    <select wire:model="section_id" 
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent">
+                    <label class="block text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">
+                        Section <span class="text-red-500">*</span>
+                    </label>
+                    <select wire:model="section_id"
+                            class="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent transition-colors appearance-none">
                         <option value="">Select Section</option>
                         @foreach($sections as $section)
                             <option value="{{ $section->section_id }}">{{ $section->label }}</option>
                         @endforeach
                     </select>
-                    @error('section_id') <span class="text-red-600 text-xs mt-1">{{ $message }}</span> @enderror
+                    @error('section_id') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                 </div>
             </div>
-            <div class="flex justify-end mt-6">
-                <button type="submit" 
-                        class="px-6 py-2 bg-pink-500 hover:bg-pink-600 text-white font-medium rounded-lg transition-colors">
+
+            {{-- Footer --}}
+            <div class="flex items-center justify-between pt-4 border-t border-gray-100">
+                <p class="text-xs text-gray-400">
+                    Fields marked with <span class="text-red-500 font-semibold">*</span> are required
+                </p>
+                <button type="submit"
+                        class="inline-flex items-center gap-2 px-5 py-2.5 bg-red-500 hover:bg-red-600 text-white text-sm font-semibold rounded-xl transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                    </svg>
                     Add Item
                 </button>
             </div>

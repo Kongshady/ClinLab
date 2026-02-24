@@ -337,104 +337,118 @@ new class extends Component
     </div>
 
     <!-- Add New Employee Form -->
-    <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
-        <h2 class="text-lg font-semibold text-gray-900 mb-6">Add New Employee</h2>
-        <form wire:submit.prevent="save">
-            <!-- Personal Information -->
-            <div class="mb-6">
-                <h3 class="text-sm font-medium text-gray-700 mb-4">Personal Information</h3>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">
-                            First Name <span class="text-red-500">*</span>
-                        </label>
-                        <input type="text" 
-                               wire:model="firstname" 
-                               placeholder="Juan"
-                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent">
-                        @error('firstname') <span class="text-red-600 text-xs mt-1">{{ $message }}</span> @enderror
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Middle Name</label>
-                        <input type="text" 
-                               wire:model="middlename" 
-                               placeholder="Santos"
-                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent">
-                        @error('middlename') <span class="text-red-600 text-xs mt-1">{{ $message }}</span> @enderror
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">
-                            Last Name <span class="text-red-500">*</span>
-                        </label>
-                        <input type="text" 
-                               wire:model="lastname" 
-                               placeholder="Dela Cruz"
-                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent">
-                        @error('lastname') <span class="text-red-600 text-xs mt-1">{{ $message }}</span> @enderror
-                    </div>
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm mb-6">
+
+        {{-- Card Header --}}
+        <div class="px-6 py-5 flex items-center gap-4">
+            <div class="w-10 h-10 rounded-2xl bg-red-50 flex items-center justify-center flex-shrink-0">
+                <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                </svg>
+            </div>
+            <div>
+                <h2 class="text-base font-bold text-gray-900 leading-tight">Add New Employee</h2>
+                <p class="text-xs text-gray-400 mt-0.5">Register a new staff member and set up their account</p>
+            </div>
+        </div>
+
+        <form wire:submit.prevent="save" class="px-6 pb-6">
+
+            {{-- PERSONAL INFORMATION divider --}}
+            <div class="flex items-center gap-3 mb-4">
+                <div class="flex-1 h-px bg-gray-100"></div>
+                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Personal Information</span>
+                <div class="flex-1 h-px bg-gray-100"></div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
+                <div>
+                    <label class="block text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">
+                        First Name <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text" wire:model="firstname" placeholder="Juan"
+                           class="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent transition-colors">
+                    @error('firstname') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                </div>
+                <div>
+                    <label class="block text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Middle Name</label>
+                    <input type="text" wire:model="middlename" placeholder="Santos"
+                           class="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent transition-colors">
+                    @error('middlename') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                </div>
+                <div>
+                    <label class="block text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">
+                        Last Name <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text" wire:model="lastname" placeholder="Dela Cruz"
+                           class="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent transition-colors">
+                    @error('lastname') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                 </div>
             </div>
 
-            <!-- Work Information -->
-            <div class="mb-6">
-                <h3 class="text-sm font-medium text-gray-700 mb-4">Work Information</h3>
-                <div class="grid grid-cols-1 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">
-                            Position
-                        </label>
-                        <input type="text" 
-                               wire:model="position" 
-                               placeholder="Medical Technologist"
-                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent">
-                        @error('position') <span class="text-red-600 text-xs mt-1">{{ $message }}</span> @enderror
-                    </div>
+            {{-- WORK INFORMATION divider --}}
+            <div class="flex items-center gap-3 mb-4">
+                <div class="flex-1 h-px bg-gray-100"></div>
+                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Work Information</span>
+                <div class="flex-1 h-px bg-gray-100"></div>
+            </div>
+
+            <div class="mb-5">
+                <label class="block text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Position</label>
+                <input type="text" wire:model="position" placeholder="Medical Technologist"
+                       class="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent transition-colors">
+                @error('position') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+            </div>
+
+            {{-- ACCOUNT INFORMATION divider --}}
+            <div class="flex items-center gap-3 mb-4">
+                <div class="flex-1 h-px bg-gray-100"></div>
+                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Account Information</span>
+                <div class="flex-1 h-px bg-gray-100"></div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div>
+                    <label class="block text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">
+                        Email <span class="text-red-500">*</span>
+                    </label>
+                    <input type="email" wire:model="email" placeholder="employee@clinlab.test"
+                           class="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent transition-colors">
+                    @error('email') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                </div>
+                <div>
+                    <label class="block text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">
+                        Password <span class="text-red-500">*</span>
+                    </label>
+                    <input type="password" wire:model="password" placeholder="Min. 6 characters"
+                           class="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent transition-colors">
+                    @error('password') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                </div>
+                <div>
+                    <label class="block text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">
+                        Role <span class="text-red-500">*</span>
+                    </label>
+                    <select wire:model="role_id"
+                            class="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent transition-colors appearance-none">
+                        <option value="">Select Role</option>
+                        @foreach($roles as $role)
+                            <option value="{{ $role->role_id }}">{{ $role->role_name }}</option>
+                        @endforeach
+                    </select>
+                    @error('role_id') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                 </div>
             </div>
 
-            <!-- Account Information -->
-            <div class="mb-6">
-                <h3 class="text-sm font-medium text-gray-700 mb-4">Account Information</h3>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">
-                            Email <span class="text-red-500">*</span>
-                        </label>
-                        <input type="email" 
-                               wire:model="email" 
-                               placeholder="employee@clinlab.test"
-                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent">
-                        @error('email') <span class="text-red-600 text-xs mt-1">{{ $message }}</span> @enderror
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">
-                            Password <span class="text-red-500">*</span>
-                        </label>
-                        <input type="password" 
-                               wire:model="password" 
-                               placeholder="Min. 6 characters"
-                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent">
-                        @error('password') <span class="text-red-600 text-xs mt-1">{{ $message }}</span> @enderror
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">
-                            Role <span class="text-red-500">*</span>
-                        </label>
-                        <select wire:model="role_id" 
-                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent">
-                            <option value="">Select Role</option>
-                            @foreach($roles as $role)
-                                <option value="{{ $role->role_id }}">{{ $role->role_name }}</option>
-                            @endforeach
-                        </select>
-                        @error('role_id') <span class="text-red-600 text-xs mt-1">{{ $message }}</span> @enderror
-                    </div>
-                </div>
-            </div>
-
-            <div class="flex justify-end">
-                <button type="submit" 
-                        class="px-6 py-2 bg-pink-500 hover:bg-pink-600 text-white font-medium rounded-lg transition-colors">
+            {{-- Footer --}}
+            <div class="flex items-center justify-between pt-4 border-t border-gray-100">
+                <p class="text-xs text-gray-400">
+                    Fields marked with <span class="text-red-500 font-semibold">*</span> are required
+                </p>
+                <button type="submit"
+                        class="inline-flex items-center gap-2 px-5 py-2.5 bg-red-500 hover:bg-red-600 text-white text-sm font-semibold rounded-xl transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/>
+                    </svg>
                     Add Employee
                 </button>
             </div>

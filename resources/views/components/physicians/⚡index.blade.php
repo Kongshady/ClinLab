@@ -303,74 +303,118 @@ new class extends Component
     </div>
 
     <!-- Add New Physician Form -->
-    <div class="bg-white rounded-lg shadow-sm mb-6">
-        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-            <h2 class="text-lg font-semibold text-gray-900">Add New Physician</h2>
-            <button wire:click="toggleForm" type="button" class="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-colors {{ $showForm ? 'bg-gray-100 text-gray-700 hover:bg-gray-200' : 'bg-pink-600 text-white hover:bg-pink-700' }}">
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm mb-6">
+
+        {{-- Card Header --}}
+        <div class="px-6 py-5 flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <div class="w-10 h-10 rounded-2xl bg-red-50 flex items-center justify-center flex-shrink-0">
+                    <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+                <div>
+                    <h2 class="text-base font-bold text-gray-900 leading-tight">Add New Physician</h2>
+                    <p class="text-xs text-gray-400 mt-0.5">Fill in physician details to register a new doctor</p>
+                </div>
+            </div>
+            <button wire:click="toggleForm" type="button"
+                    class="inline-flex items-center gap-2 px-4 py-2 border rounded-xl text-sm font-medium transition-colors
+                        {{ $showForm ? 'border-gray-200 text-gray-600 hover:bg-gray-50' : 'border-red-500 bg-red-500 text-white hover:bg-red-600' }}">
                 @if($showForm)
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                     </svg>
-                    <span>Close Form</span>
+                    Close Form
                 @else
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                     </svg>
-                    <span>Add New Physician</span>
+                    Add New Physician
                 @endif
             </button>
         </div>
+
         @if($showForm)
-        <form wire:submit.prevent="save" class="p-6">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Physician Name *</label>
-                        <input type="text" wire:model="physician_name" 
-                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent">
-                        @error('physician_name') <span class="text-red-600 text-sm">{{ $message }}</span> @enderror
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Specialization</label>
-                        <input type="text" wire:model="specialization" 
-                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent">
-                        @error('specialization') <span class="text-red-600 text-sm">{{ $message }}</span> @enderror
-                    </div>
-                    <div x-data="{ val: $wire.entangle('contact_number'), get missing() { return this.val ? 11 - this.val.length : 0 } }">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Contact Number</label>
-                        <input type="text" wire:model="contact_number" placeholder="09123456789" maxlength="11"
-                               @input="val = $event.target.value = $event.target.value.replace(/[^0-9]/g, '').slice(0, 11)"
-                               :class="val && val.length > 0 && val.length < 11 ? 'border-red-400 focus:ring-red-500' : 'border-gray-300 focus:ring-pink-500'"
-                               class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:border-transparent">
-                        <template x-if="val && val.length > 0 && val.length < 11">
-                            <span class="text-red-500 text-xs mt-1 block" x-text="'You\'re missing ' + missing + (missing === 1 ? ' number' : ' numbers')"></span>
-                        </template>
-                        <p class="text-gray-400 text-xs mt-1">Must be exactly 11 digits (09 format)</p>
-                        @error('contact_number') <span class="text-red-600 text-sm">{{ $message }}</span> @enderror
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                        <input type="email" wire:model="email" 
-                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent">
-                        @error('email') <span class="text-red-600 text-sm">{{ $message }}</span> @enderror
-                    </div>
-                    <div class="md:col-span-2">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Assigned Section</label>
-                        <select wire:model="section_id"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent">
-                            <option value="">Select Section (Optional)</option>
-                            @foreach($sections as $section)
-                                <option value="{{ $section->section_id }}">{{ $section->label }}</option>
-                            @endforeach
-                        </select>
-                        @error('section_id') <span class="text-red-600 text-sm">{{ $message }}</span> @enderror
-                    </div>
+        <form wire:submit.prevent="save" class="px-6 pb-6">
+
+            {{-- PHYSICIAN INFORMATION divider --}}
+            <div class="flex items-center gap-3 mb-4">
+                <div class="flex-1 h-px bg-gray-100"></div>
+                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Physician Information</span>
+                <div class="flex-1 h-px bg-gray-100"></div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4 mb-5">
+                <div>
+                    <label class="block text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">
+                        Physician Name <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text" wire:model="physician_name" placeholder="Dr. Juan Dela Cruz"
+                           class="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent transition-colors">
+                    @error('physician_name') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                 </div>
-                <div class="flex justify-end mt-6">
-                    <button type="submit" class="px-6 py-2 bg-pink-500 hover:bg-pink-600 text-white font-medium rounded-lg transition-colors">
-                        Add Physician
-                    </button>
+                <div>
+                    <label class="block text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Specialization</label>
+                    <input type="text" wire:model="specialization" placeholder="e.g. Internal Medicine"
+                           class="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent transition-colors">
+                    @error('specialization') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                 </div>
-            </form>
+            </div>
+
+            {{-- CONTACT DETAILS divider --}}
+            <div class="flex items-center gap-3 mb-4">
+                <div class="flex-1 h-px bg-gray-100"></div>
+                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Contact Details</span>
+                <div class="flex-1 h-px bg-gray-100"></div>
+            </div>
+
+            <div class="grid grid-cols-3 gap-4 mb-6">
+                <div x-data="{ val: $wire.entangle('contact_number'), get missing() { return this.val ? 11 - this.val.length : 0 } }">
+                    <label class="block text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Contact Number</label>
+                    <input type="text" wire:model="contact_number" placeholder="09123456789" maxlength="11"
+                           @input="val = $event.target.value = $event.target.value.replace(/[^0-9]/g, '').slice(0, 11)"
+                           :class="val && val.length > 0 && val.length < 11 ? 'border-red-300 focus:ring-red-400' : 'border-gray-200 focus:ring-red-400'"
+                           class="w-full px-3 py-2.5 border rounded-xl text-sm placeholder-gray-300 focus:outline-none focus:ring-2 focus:border-transparent transition-colors">
+                    <template x-if="val && val.length > 0 && val.length < 11">
+                        <span class="text-red-400 text-xs mt-1 block" x-text="'You\'re missing ' + missing + (missing === 1 ? ' number' : ' numbers')"></span>
+                    </template>
+                    <span class="text-xs text-gray-300 mt-1 block">11 digits only</span>
+                    @error('contact_number') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                </div>
+                <div>
+                    <label class="block text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Email</label>
+                    <input type="email" wire:model="email" placeholder="doctor@example.com"
+                           class="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent transition-colors">
+                    @error('email') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                </div>
+                <div>
+                    <label class="block text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Assigned Section</label>
+                    <select wire:model="section_id"
+                            class="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent transition-colors appearance-none bg-white">
+                        <option value="">Select Section (Optional)</option>
+                        @foreach($sections as $section)
+                            <option value="{{ $section->section_id }}">{{ $section->label }}</option>
+                        @endforeach
+                    </select>
+                    @error('section_id') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                </div>
+            </div>
+
+            {{-- Footer --}}
+            <div class="flex items-center justify-between pt-4 border-t border-gray-100">
+                <p class="text-xs text-gray-400">
+                    Fields marked with <span class="text-red-500 font-semibold">*</span> are required
+                </p>
+                <button type="submit"
+                        class="inline-flex items-center gap-2 px-5 py-2.5 bg-red-500 hover:bg-red-600 text-white text-sm font-semibold rounded-xl transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    Add Physician
+                </button>
+            </div>
+        </form>
         @endif
     </div>
 

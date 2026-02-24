@@ -344,50 +344,75 @@ new class extends Component
     </div>
 
     <!-- Add New Test Form -->
-    <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
-        <h2 class="text-lg font-semibold text-gray-900 mb-6">Add New Test</h2>
-        <form wire:submit.prevent="save">
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm mb-6">
+
+        {{-- Card Header --}}
+        <div class="px-6 py-5 flex items-center gap-4">
+            <div class="w-10 h-10 rounded-2xl bg-red-50 flex items-center justify-center flex-shrink-0">
+                <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/>
+                </svg>
+            </div>
+            <div>
+                <h2 class="text-base font-bold text-gray-900 leading-tight">Add New Test</h2>
+                <p class="text-xs text-gray-400 mt-0.5">Register a new laboratory test with pricing</p>
+            </div>
+        </div>
+
+        <form wire:submit.prevent="save" class="px-6 pb-6">
+
+            {{-- TEST DETAILS divider --}}
+            <div class="flex items-center gap-3 mb-4">
+                <div class="flex-1 h-px bg-gray-100"></div>
+                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Test Details</span>
+                <div class="flex-1 h-px bg-gray-100"></div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                    <label class="block text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">
                         Section <span class="text-red-500">*</span>
                     </label>
-                    <select wire:model="section_id" 
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent">
+                    <select wire:model="section_id"
+                            class="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent transition-colors appearance-none">
                         <option value="">Select Section</option>
                         @foreach($sections as $section)
                             <option value="{{ $section->section_id }}">{{ $section->label }}</option>
                         @endforeach
                     </select>
-                    @error('section_id') <span class="text-red-600 text-xs mt-1">{{ $message }}</span> @enderror
+                    @error('section_id') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                    <label class="block text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">
                         Test Name <span class="text-red-500">*</span>
                     </label>
-                    <input type="text" 
-                           wire:model="label" 
-                           placeholder="e.g., Complete Blood Count, Urinalysis"
-                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent">
-                    @error('label') <span class="text-red-600 text-xs mt-1">{{ $message }}</span> @enderror
+                    <input type="text" wire:model="label" placeholder="e.g., Complete Blood Count, Urinalysis"
+                           class="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent transition-colors">
+                    @error('label') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                        Initial Price (₱)
-                    </label>
-                    <input type="number" 
-                           step="0.01" 
-                           wire:model="current_price" 
-                           placeholder="0.00"
-                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent">
-                    @error('current_price') <span class="text-red-600 text-xs mt-1">{{ $message }}</span> @enderror
+                    <label class="block text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Initial Price (₱)</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400 text-sm">₱</span>
+                        <input type="number" step="0.01" wire:model="current_price" placeholder="0.00"
+                               class="w-full pl-7 pr-3 py-2.5 border border-gray-200 rounded-xl text-sm placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent transition-colors">
+                    </div>
+                    @error('current_price') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                 </div>
-                <div>
-                    <button type="submit" 
-                            class="w-full px-6 py-2 bg-pink-500 hover:bg-pink-600 text-white font-medium rounded-lg transition-colors">
-                        Add Test
-                    </button>
-                </div>
+            </div>
+
+            {{-- Footer --}}
+            <div class="flex items-center justify-between pt-4 border-t border-gray-100">
+                <p class="text-xs text-gray-400">
+                    Fields marked with <span class="text-red-500 font-semibold">*</span> are required
+                </p>
+                <button type="submit"
+                        class="inline-flex items-center gap-2 px-5 py-2.5 bg-red-500 hover:bg-red-600 text-white text-sm font-semibold rounded-xl transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    Add Test
+                </button>
             </div>
         </form>
     </div>

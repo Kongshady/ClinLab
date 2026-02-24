@@ -407,17 +407,49 @@ public function updatedSelectAll($value)
         </div>
     @endif
 
-    <div class="bg-white rounded-lg shadow-sm mb-6">
-        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-            <h2 class="text-lg font-semibold text-gray-900">Add New Transaction</h2>
-            <button type="button" wire:click="toggleForm" 
-                    class="px-4 py-2 rounded-md text-sm font-medium transition-colors {{ $showForm ? 'bg-gray-200 text-gray-700 hover:bg-gray-300' : 'bg-pink-600 text-white hover:bg-pink-700' }}">
-                {{ $showForm ? 'Close Form' : 'Add New Transaction' }}
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm mb-6">
+
+        {{-- Card Header --}}
+        <div class="px-6 py-5 flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <div class="w-10 h-10 rounded-2xl bg-red-50 flex items-center justify-center flex-shrink-0">
+                    <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z"/>
+                    </svg>
+                </div>
+                <div>
+                    <h2 class="text-base font-bold text-gray-900 leading-tight">Add New Transaction</h2>
+                    <p class="text-xs text-gray-400 mt-0.5">Record a payment or link to a pending test order</p>
+                </div>
+            </div>
+            <button type="button" wire:click="toggleForm"
+                    class="inline-flex items-center gap-2 px-4 py-2 border rounded-xl text-sm font-medium transition-colors
+                        {{ $showForm ? 'border-gray-200 text-gray-600 hover:bg-gray-50' : 'border-red-500 bg-red-500 text-white hover:bg-red-600' }}">
+                @if($showForm)
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                    Close Form
+                @else
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    Add New Transaction
+                @endif
             </button>
         </div>
+
         @if($showForm)
-        <form wire:submit.prevent="save" class="p-6">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <form wire:submit.prevent="save" class="px-6 pb-6">
+
+            {{-- TRANSACTION DETAILS divider --}}
+            <div class="flex items-center gap-3 mb-4">
+                <div class="flex-1 h-px bg-gray-100"></div>
+                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Transaction Details</span>
+                <div class="flex-1 h-px bg-gray-100"></div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <!-- Searchable Patient Dropdown -->
                 <div x-data="{
                     open: false,
@@ -447,10 +479,12 @@ public function updatedSelectAll($value)
                         }
                     }
                 }" @click.away="open = false" class="relative">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Patient *</label>
-                    <div @click="open = !open" class="w-full px-3 py-2 border border-gray-300 rounded-md focus-within:ring-2 focus-within:ring-purple-500 cursor-pointer bg-white flex items-center justify-between">
+                    <label class="block text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">
+                        Patient <span class="text-red-500">*</span>
+                    </label>
+                    <div @click="open = !open" class="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus-within:ring-2 focus-within:ring-red-400 cursor-pointer bg-white flex items-center justify-between text-sm">
                         <span x-show="selectedLabel" x-text="selectedLabel" class="text-gray-900 truncate"></span>
-                        <span x-show="!selectedLabel" class="text-gray-400">Select Patient</span>
+                        <span x-show="!selectedLabel" class="text-gray-300">Select Patient</span>
                         <div class="flex items-center gap-1">
                             <button x-show="selectedLabel" @click.stop="clear()" type="button" class="text-gray-400 hover:text-red-500">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
@@ -458,39 +492,41 @@ public function updatedSelectAll($value)
                             <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                         </div>
                     </div>
-                    <div x-show="open" x-transition class="absolute z-50 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-hidden">
-                        <div class="p-2 border-b border-gray-200">
+                    <div x-show="open" x-transition class="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-60 overflow-hidden">
+                        <div class="p-2 border-b border-gray-100">
                             <input type="text" x-model="search" @click.stop placeholder="Search patients..." 
-                                   class="w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-purple-500" autocomplete="off">
+                                   class="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-red-400" autocomplete="off">
                         </div>
                         <ul class="overflow-y-auto max-h-48">
                             <template x-for="item in filtered" :key="item.id">
-                                <li @click="select(item)" class="px-4 py-2 text-sm hover:bg-purple-50 cursor-pointer" x-text="item.name"></li>
+                                <li @click="select(item)" class="px-4 py-2 text-sm hover:bg-red-50 cursor-pointer" x-text="item.name"></li>
                             </template>
                             <li x-show="filtered.length === 0" class="px-4 py-2 text-sm text-gray-400">No results found</li>
                         </ul>
                     </div>
-                    @error('client_id') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
+                    @error('client_id') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">OR Number *</label>
-                    <input type="text" wire:model="or_number" 
-                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
-                    @error('or_number') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
+                    <label class="block text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">
+                        OR Number <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text" wire:model="or_number" placeholder="e.g. OR-2026-0001"
+                           class="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent transition-colors">
+                    @error('or_number') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                 </div>
             </div>
 
             {{-- PAY-FIRST: Unpaid Orders Selection --}}
             @if(count($unpaidOrders) > 0)
-            <div class="mt-4 p-4 bg-orange-50 border border-orange-200 rounded-lg">
-                <label class="block text-sm font-semibold text-orange-800 mb-2">
-                    <svg class="w-4 h-4 inline mr-1 -mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="mb-4 p-4 bg-orange-50 border border-orange-200 rounded-xl">
+                <label class="block text-[10px] font-semibold text-orange-600 uppercase tracking-widest mb-2">
+                    <svg class="w-3.5 h-3.5 inline mr-1 -mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
                     Link to Unpaid Test Order (Pay-First)
                 </label>
                 <select wire:model.live="selected_order_id"
-                        class="w-full px-3 py-2 border border-orange-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm bg-white">
+                        class="w-full px-3 py-2.5 border border-orange-300 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
                     <option value="">-- No order (general transaction) --</option>
                     @foreach($unpaidOrders as $uo)
                         <option value="{{ $uo['lab_test_order_id'] }}">
@@ -498,10 +534,10 @@ public function updatedSelectAll($value)
                         </option>
                     @endforeach
                 </select>
-                @error('selected_order_id') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
+                @error('selected_order_id') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
             </div>
             @elseif($client_id)
-            <div class="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+            <div class="mb-4 p-3 bg-green-50 border border-green-200 rounded-xl">
                 <p class="text-sm text-green-700 flex items-center gap-2">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
@@ -511,34 +547,48 @@ public function updatedSelectAll($value)
             </div>
             @endif
 
-            {{-- Payment Details --}}
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+            {{-- PAYMENT DETAILS divider --}}
+            <div class="flex items-center gap-3 mb-4">
+                <div class="flex-1 h-px bg-gray-100"></div>
+                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Payment Details</span>
+                <div class="flex-1 h-px bg-gray-100"></div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Payment Method *</label>
+                    <label class="block text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">
+                        Payment Method <span class="text-red-500">*</span>
+                    </label>
                     <select wire:model="payment_method"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                            class="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent transition-colors appearance-none">
                         <option value="cash">Cash</option>
                         <option value="gcash">GCash</option>
                         <option value="bank_transfer">Bank Transfer</option>
                         <option value="check">Check</option>
                         <option value="other">Other</option>
                     </select>
-                    @error('payment_method') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
+                    @error('payment_method') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Amount{{ $selected_order_id ? ' *' : '' }}</label>
+                    <label class="block text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">
+                        Amount{{ $selected_order_id ? ' *' : '' }}
+                    </label>
                     <div class="relative">
-                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500 text-sm">₱</span>
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400 text-sm">₱</span>
                         <input type="number" step="0.01" wire:model="amount" placeholder="0.00"
-                               class="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                               class="w-full pl-7 pr-3 py-2.5 border border-gray-200 rounded-xl text-sm placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent transition-colors">
                     </div>
-                    @error('amount') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
+                    @error('amount') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                 </div>
             </div>
 
-            <div class="flex justify-end mt-4">
-                <button type="submit" 
-                        class="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors flex items-center gap-2">
+            {{-- Footer --}}
+            <div class="flex items-center justify-between pt-4 border-t border-gray-100">
+                <p class="text-xs text-gray-400">
+                    Fields marked with <span class="text-red-500 font-semibold">*</span> are required
+                </p>
+                <button type="submit"
+                        class="inline-flex items-center gap-2 px-5 py-2.5 bg-red-500 hover:bg-red-600 text-white text-sm font-semibold rounded-xl transition-colors">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
